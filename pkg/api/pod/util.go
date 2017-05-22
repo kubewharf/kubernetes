@@ -26,6 +26,11 @@ import (
 	"k8s.io/kubernetes/pkg/security/apparmor"
 )
 
+const (
+	PodAutoPortAnnotation         = "pod.tce.kubernetes.io/autoport"
+	PodHostPathTemplateAnnotation = "pod.tce.kubernetes.io/hostPathTemplate"
+)
+
 // Visitor is called with each object name, and returns true if visiting should continue
 type Visitor func(name string) (shouldContinue bool)
 

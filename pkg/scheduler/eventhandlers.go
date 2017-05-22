@@ -18,10 +18,11 @@ package scheduler
 
 import (
 	"fmt"
-	"k8s.io/klog"
 	"reflect"
 
-	"k8s.io/api/core/v1"
+	"k8s.io/klog"
+
+	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
@@ -29,6 +30,7 @@ import (
 	policyinformers "k8s.io/client-go/informers/policy/v1beta1"
 	storageinformers "k8s.io/client-go/informers/storage/v1"
 	"k8s.io/client-go/tools/cache"
+	utilpod "k8s.io/kubernetes/pkg/api/pod"
 )
 
 func (sched *Scheduler) onPvAdd(obj interface{}) {
@@ -363,7 +365,7 @@ func AddAllEventHandlers(
 			FilterFunc: func(obj interface{}) bool {
 				switch t := obj.(type) {
 				case *v1.Pod:
-					return !assignedPod(t) && responsibleForPod(t, schedulerName)
+					return !assignedPod(t) && responsibleForPod(t, schedulerName) && isAllowSchedule(t)
 				case cache.DeletedFinalStateUnknown:
 					if pod, ok := t.Obj.(*v1.Pod); ok {
 						return !assignedPod(pod) && responsibleForPod(pod, schedulerName)
@@ -425,6 +427,21 @@ func AddAllEventHandlers(
 			AddFunc: sched.onStorageClassAdd,
 		},
 	)
+}
+
+func isAllowSchedule(pod *v1.Pod) bool {
+	_, autoport := pod.ObjectMeta.Annotations[utilpod.PodAutoPortAnnotation]
+	if !autoport {
+		return true
+	}
+	for i := range pod.Spec.Containers {
+		for j := range pod.Spec.Containers[i].Ports {
+			if pod.Spec.Containers[i].Ports[j].HostPort != 0 {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func nodeSchedulingPropertiesChanged(newNode *v1.Node, oldNode *v1.Node) bool {
