@@ -32,7 +32,7 @@ import (
 	"strings"
 	"sync"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -92,6 +92,20 @@ func (kl *Kubelet) GetActivePods() []*v1.Pod {
 	allPods := kl.podManager.GetPods()
 	activePods := kl.filterOutTerminatedPods(allPods)
 	return activePods
+}
+
+// makeHookBindDevices add the devices for hook-bind.
+func (kl *Kubelet) makeHookBindDevices(pod *v1.Pod, container *v1.Container) ([]kubecontainer.DeviceInfo, error) {
+	var devices []kubecontainer.DeviceInfo
+	devices = append(devices, kubecontainer.DeviceInfo{PathOnHost: "/dev/hbindev", PathInContainer: "/dev/hbindev", Permissions: "rwm"})
+	for _, envVar := range container.Env {
+		if envVar.Name == "TCE_HOST_FRAMEWORK" {
+			devices = append(devices, kubecontainer.DeviceInfo{PathOnHost: "/dev/hbindev", PathInContainer: "/dev/hbindev", Permissions: "rwm"})
+			break
+		}
+	}
+
+	return devices, nil
 }
 
 // makeBlockVolumes maps the raw block devices specified in the path of the container
@@ -448,6 +462,11 @@ func (kl *Kubelet) GenerateRunContainerOptions(pod *v1.Pod, container *v1.Contai
 	volumes := kl.volumeManager.GetMountedVolumesForPod(podName)
 
 	opts.PortMappings = kubecontainer.MakePortMappings(container)
+	devices, err := kl.makeHookBindDevices(pod, container)
+	if err != nil {
+		return nil, nil, err
+	}
+	opts.Devices = append(opts.Devices, devices...)
 
 	// TODO: remove feature gate check after no longer needed
 	if utilfeature.DefaultFeatureGate.Enabled(features.BlockVolume) {
