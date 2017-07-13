@@ -34,6 +34,9 @@ const (
 	// LeastRequestedPriority defines the name of prioritizer function that prioritize nodes by least
 	// requested utilization.
 	LeastRequestedPriority = "LeastRequestedPriority"
+	// MostGPURequestedPriority defines the name of prioritizer function that prioritize nodes by most
+	// GPU request.
+	MostGPURequestedPriority = "MostGPURequestedPriority"
 	// BalancedResourceAllocation defines the name of prioritizer function that prioritizes nodes
 	// to help achieve balanced resource usage.
 	BalancedResourceAllocation = "BalancedResourceAllocation"

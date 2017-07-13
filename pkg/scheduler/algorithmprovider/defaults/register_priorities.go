@@ -79,6 +79,9 @@ func init() {
 	// Prioritize nodes by least requested utilization.
 	factory.RegisterPriorityFunction2(priorities.LeastRequestedPriority, priorities.LeastRequestedPriorityMap, nil, 1)
 
+	// Prioritize nodes by most gpu request.
+	factory.RegisterPriorityFunction2(priorities.MostGPURequestedPriority, priorities.MostGPURequestedPriorityMap, nil, 100)
+
 	// Prioritizes nodes to help achieve balanced resource usage
 	factory.RegisterPriorityFunction2(priorities.BalancedResourceAllocation, priorities.BalancedResourceAllocationMap, nil, 1)
 
