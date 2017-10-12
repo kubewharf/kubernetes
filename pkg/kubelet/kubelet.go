@@ -1930,6 +1930,9 @@ func (kl *Kubelet) syncLoopIteration(configCh <-chan kubetypes.PodUpdate, handle
 			if pod, ok := kl.podManager.GetPodByUID(e.ID); ok {
 				klog.V(2).Infof("SyncLoop (PLEG): %q, event: %#v", format.Pod(pod), e)
 				handler.HandlePodSyncs([]*v1.Pod{pod})
+				if e.Type == pleg.ContainerStarted {
+					kl.probeManager.UpdatePod(pod)
+				}
 			} else {
 				// If the pod no longer exists, ignore the event.
 				klog.V(4).Infof("SyncLoop (PLEG): ignore irrelevant event: %#v", e)
@@ -2080,6 +2083,7 @@ func (kl *Kubelet) HandlePodUpdates(pods []*v1.Pod) {
 
 		mirrorPod, _ := kl.podManager.GetMirrorPodByPod(pod)
 		kl.dispatchWork(pod, kubetypes.SyncPodUpdate, mirrorPod, start)
+		kl.probeManager.UpdatePod(pod)
 	}
 }
 
@@ -2110,6 +2114,7 @@ func (kl *Kubelet) HandlePodReconcile(pods []*v1.Pod) {
 		// Update the pod in pod manager, status manager will do periodically reconcile according
 		// to the pod manager.
 		kl.podManager.UpdatePod(pod)
+		kl.probeManager.UpdatePod(pod)
 
 		// Reconcile Pod "Ready" condition if necessary. Trigger sync pod for reconciliation.
 		if status.NeedToReconcilePodReadiness(pod) {
