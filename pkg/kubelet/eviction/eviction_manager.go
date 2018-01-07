@@ -24,7 +24,7 @@ import (
 
 	"k8s.io/klog"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/clock"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
@@ -135,7 +135,7 @@ func (m *managerImpl) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAd
 	}
 	// Admit Critical pods even under resource pressure since they are required for system stability.
 	// https://github.com/kubernetes/kubernetes/issues/40573 has more details.
-	if kubelettypes.IsCriticalPod(attrs.Pod) {
+	if kubelettypes.IsCriticalPod(attrs.Pod) || kubelettypes.IsTCECriticalPod(attrs.Pod) {
 		return lifecycle.PodAdmitResult{Admit: true}
 	}
 	// the node has memory pressure, admit if not best-effort
@@ -562,6 +562,10 @@ func (m *managerImpl) evictPod(pod *v1.Pod, gracePeriodOverride int64, evictMsg 
 			klog.Errorf("eviction manager: cannot get mirror pod from static pod %s, so cannot evict it", format.Pod(pod))
 			return false
 		}
+	}
+	// skip eviction if current pod is critical in TCE.
+	if kubelettypes.IsTCECriticalPod(pod) {
+		return false
 	}
 	status := v1.PodStatus{
 		Phase:   v1.PodFailed,

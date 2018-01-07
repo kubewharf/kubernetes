@@ -61,7 +61,7 @@ func NewCriticalPodAdmissionHandler(getPodsFunc eviction.ActivePodsFunc, killPod
 // HandleAdmissionFailure gracefully handles admission rejection, and, in some cases,
 // to allow admission of the pod despite its previous failure.
 func (c *CriticalPodAdmissionHandler) HandleAdmissionFailure(admitPod *v1.Pod, failureReasons []predicates.PredicateFailureReason) (bool, []predicates.PredicateFailureReason, error) {
-	if !kubetypes.IsCriticalPod(admitPod) {
+	if !kubetypes.IsCriticalPod(admitPod) && !kubetypes.IsTCECriticalPod(admitPod) {
 		return false, failureReasons, nil
 	}
 	// InsufficientResourceError is not a reason to reject a critical pod.

@@ -25,7 +25,7 @@ import (
 
 	"k8s.io/klog"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,6 +40,7 @@ import (
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	v1qos "k8s.io/kubernetes/pkg/apis/core/v1/helper/qos"
 	"k8s.io/kubernetes/pkg/features"
+	kubelettypes "k8s.io/kubernetes/pkg/kubelet/types"
 	"k8s.io/kubernetes/pkg/scheduler/algorithm"
 	priorityutil "k8s.io/kubernetes/pkg/scheduler/algorithm/priorities/util"
 	schedulerapi "k8s.io/kubernetes/pkg/scheduler/api"
@@ -1565,6 +1566,10 @@ func isPodBestEffort(pod *v1.Pod) bool {
 // CheckNodeMemoryPressurePredicate checks if a pod can be scheduled on a node
 // reporting memory pressure condition.
 func CheckNodeMemoryPressurePredicate(pod *v1.Pod, meta PredicateMetadata, nodeInfo *schedulernodeinfo.NodeInfo) (bool, []PredicateFailureReason, error) {
+	if kubelettypes.IsTCECriticalPod(pod) {
+		return true, nil, nil
+	}
+
 	var podBestEffort bool
 	if predicateMeta, ok := meta.(*predicateMetadata); ok {
 		podBestEffort = predicateMeta.podBestEffort
@@ -1587,6 +1592,10 @@ func CheckNodeMemoryPressurePredicate(pod *v1.Pod, meta PredicateMetadata, nodeI
 // CheckNodeDiskPressurePredicate checks if a pod can be scheduled on a node
 // reporting disk pressure condition.
 func CheckNodeDiskPressurePredicate(pod *v1.Pod, meta PredicateMetadata, nodeInfo *schedulernodeinfo.NodeInfo) (bool, []PredicateFailureReason, error) {
+	if kubelettypes.IsTCECriticalPod(pod) {
+		return true, nil, nil
+	}
+
 	// check if node is under disk pressure
 	if nodeInfo.DiskPressureCondition() == v1.ConditionTrue {
 		return false, []PredicateFailureReason{ErrNodeUnderDiskPressure}, nil
@@ -1597,6 +1606,10 @@ func CheckNodeDiskPressurePredicate(pod *v1.Pod, meta PredicateMetadata, nodeInf
 // CheckNodePIDPressurePredicate checks if a pod can be scheduled on a node
 // reporting pid pressure condition.
 func CheckNodePIDPressurePredicate(pod *v1.Pod, meta PredicateMetadata, nodeInfo *schedulernodeinfo.NodeInfo) (bool, []PredicateFailureReason, error) {
+	if kubelettypes.IsTCECriticalPod(pod) {
+		return true, nil, nil
+	}
+
 	// check if node is under pid pressure
 	if nodeInfo.PIDPressureCondition() == v1.ConditionTrue {
 		return false, []PredicateFailureReason{ErrNodeUnderPIDPressure}, nil
@@ -1619,12 +1632,12 @@ func CheckNodeConditionPredicate(pod *v1.Pod, meta PredicateMetadata, nodeInfo *
 		// - NodeNetworkUnavailable condition status is ConditionFalse.
 		if cond.Type == v1.NodeReady && cond.Status != v1.ConditionTrue {
 			reasons = append(reasons, ErrNodeNotReady)
-		} else if cond.Type == v1.NodeNetworkUnavailable && cond.Status != v1.ConditionFalse {
+		} else if cond.Type == v1.NodeNetworkUnavailable && cond.Status != v1.ConditionFalse && !kubelettypes.IsTCECriticalPod(pod) {
 			reasons = append(reasons, ErrNodeNetworkUnavailable)
 		}
 	}
 
-	if node.Spec.Unschedulable {
+	if node.Spec.Unschedulable && !kubelettypes.IsTCECriticalPod(pod) {
 		reasons = append(reasons, ErrNodeUnschedulable)
 	}
 
