@@ -17,7 +17,10 @@ limitations under the License.
 package qos
 
 import (
+	"strconv"
+
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/klog"
 	v1qos "k8s.io/kubernetes/pkg/apis/core/v1/helper/qos"
 	"k8s.io/kubernetes/pkg/kubelet/types"
 )
@@ -35,6 +38,10 @@ const (
 	besteffortOOMScoreAdj int = 1000
 )
 
+const (
+	CustomOOMScoreAdjAnnotationKey = "pod.tce.kubernetes.io/oom_score_adj"
+)
+
 // GetContainerOOMAdjust returns the amount by which the OOM score of all processes in the
 // container should be adjusted.
 // The OOM score of a process is the percentage of memory it consumes
@@ -45,6 +52,16 @@ func GetContainerOOMScoreAdjust(pod *v1.Pod, container *v1.Container, memoryCapa
 	if types.IsCriticalPod(pod) || types.IsTCECriticalPod(pod) {
 		// Critical pods should be the last to get killed.
 		return guaranteedOOMScoreAdj
+	}
+
+	if val, ok := pod.Annotations[CustomOOMScoreAdjAnnotationKey]; ok {
+		if customScoreAdj, err := strconv.Atoi(val); err != nil {
+			klog.Warningf("[oom_score_adjust] invalid custom oom_score_adjust %s", val)
+		} else if customScoreAdj < -1000 || customScoreAdj > 1000 {
+			klog.Warningf("[oom_score_adjust] invalid custom oom_score_adjust %d", val)
+		} else {
+			return customScoreAdj
+		}
 	}
 
 	switch v1qos.GetPodQOS(pod) {
