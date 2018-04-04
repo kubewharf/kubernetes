@@ -24,7 +24,7 @@ import (
 
 	"k8s.io/klog"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	priorityutil "k8s.io/kubernetes/pkg/scheduler/algorithm/priorities/util"
@@ -78,6 +78,7 @@ type NodeInfo struct {
 	// Cached conditions of node for faster lookup.
 	memoryPressureCondition v1.ConditionStatus
 	diskPressureCondition   v1.ConditionStatus
+	loadPressureCondition   v1.ConditionStatus
 	pidPressureCondition    v1.ConditionStatus
 
 	// Whenever NodeInfo changes, generation is bumped.
@@ -369,6 +370,14 @@ func (n *NodeInfo) DiskPressureCondition() v1.ConditionStatus {
 	return n.diskPressureCondition
 }
 
+// LoadPressureCondition returns the load pressure condition status on this node.
+func (n *NodeInfo) LoadPressureCondition() v1.ConditionStatus {
+	if n == nil {
+		return v1.ConditionUnknown
+	}
+	return n.loadPressureCondition
+}
+
 // PIDPressureCondition returns the pid pressure condition status on this node.
 func (n *NodeInfo) PIDPressureCondition() v1.ConditionStatus {
 	if n == nil {
@@ -441,6 +450,7 @@ func (n *NodeInfo) Clone() *NodeInfo {
 		TransientInfo:           n.TransientInfo,
 		memoryPressureCondition: n.memoryPressureCondition,
 		diskPressureCondition:   n.diskPressureCondition,
+		loadPressureCondition:   n.loadPressureCondition,
 		pidPressureCondition:    n.pidPressureCondition,
 		usedPorts:               make(HostPortInfo),
 		imageStates:             n.imageStates,
@@ -618,6 +628,8 @@ func (n *NodeInfo) SetNode(node *v1.Node) error {
 			n.memoryPressureCondition = cond.Status
 		case v1.NodeDiskPressure:
 			n.diskPressureCondition = cond.Status
+		case v1.NodeCPUPressure:
+			n.loadPressureCondition = cond.Status
 		case v1.NodePIDPressure:
 			n.pidPressureCondition = cond.Status
 		default:
@@ -640,6 +652,7 @@ func (n *NodeInfo) RemoveNode(node *v1.Node) error {
 	n.taints, n.taintsErr = nil, nil
 	n.memoryPressureCondition = v1.ConditionUnknown
 	n.diskPressureCondition = v1.ConditionUnknown
+	n.loadPressureCondition = v1.ConditionUnknown
 	n.pidPressureCondition = v1.ConditionUnknown
 	n.imageStates = make(map[string]*ImageStateSummary)
 	n.generation = nextGeneration()

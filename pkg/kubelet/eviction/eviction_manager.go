@@ -24,10 +24,13 @@ import (
 
 	"k8s.io/klog"
 
+	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/clock"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	apiv1resource "k8s.io/kubernetes/pkg/api/v1/resource"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
@@ -91,6 +94,7 @@ type managerImpl struct {
 	thresholdNotifiers []ThresholdNotifier
 	// thresholdsLastUpdated is the last time the thresholdNotifiers were updated.
 	thresholdsLastUpdated time.Time
+	kubeClient            clientset.Interface
 }
 
 // ensure it implements the required interface
@@ -107,6 +111,7 @@ func NewManager(
 	recorder record.EventRecorder,
 	nodeRef *v1.ObjectReference,
 	clock clock.Clock,
+	kubeClient clientset.Interface,
 ) (Manager, lifecycle.PodAdmitHandler) {
 	manager := &managerImpl{
 		clock:                        clock,
@@ -122,6 +127,7 @@ func NewManager(
 		thresholdsFirstObservedAt:    thresholdsObservedAt{},
 		dedicatedImageFs:             nil,
 		thresholdNotifiers:           []ThresholdNotifier{},
+		kubeClient:                   kubeClient,
 	}
 	return manager, manager
 }
@@ -190,6 +196,10 @@ func (m *managerImpl) Start(diskInfoProvider DiskInfoProvider, podFunc ActivePod
 			if evictedPods := m.synchronize(diskInfoProvider, podFunc); evictedPods != nil {
 				klog.Infof("eviction manager: pods %s evicted, waiting for pod to be cleaned up", format.Pods(evictedPods))
 				m.waitForPodsCleanup(podCleanedUpFunc, evictedPods)
+			} else if evictedPods := m.synchronizeLoad(diskInfoProvider, podFunc); evictedPods != nil {
+				klog.Infof("load eviction manager: pods %s evicted, waiting for pod to be cleaned up", format.Pods(evictedPods))
+				m.waitForPodsCleanup(podCleanedUpFunc, evictedPods)
+				time.Sleep(300 * time.Second)
 			} else {
 				time.Sleep(monitoringInterval)
 			}
@@ -216,6 +226,120 @@ func (m *managerImpl) IsUnderPIDPressure() bool {
 	m.RLock()
 	defer m.RUnlock()
 	return hasNodeCondition(m.nodeConditions, v1.NodePIDPressure)
+}
+
+func (m *managerImpl) IsUnderCPUPressure() bool {
+	m.RLock()
+	defer m.RUnlock()
+	return hasNodeCondition(m.nodeConditions, v1.NodeCPUPressure)
+}
+
+func (m *managerImpl) synchronizeLoad(diskInfoProvider DiskInfoProvider, podFunc ActivePodsFunc) []*v1.Pod {
+	// if we have nothing to do, just return
+	thresholds := m.config.Thresholds
+	isLoadThreshold := false
+	for _, threshold := range thresholds {
+		if threshold.Signal == evictionapi.SignalLoadSoftPressure || threshold.Signal == evictionapi.SignalLoadHardPressure {
+			isLoadThreshold = true
+			break
+		}
+	}
+	if !isLoadThreshold {
+		return nil
+	}
+
+	klog.V(3).Infof("eviction manager: synchronizeLoad housekeeping")
+
+	activePods := podFunc()
+
+	isSoftOver, isHardOver, loadThresholds := loadThresholdsMet(m.summaryProvider, thresholds)
+	klog.V(3).Info("isSoftOver:%v, isHardOver:%v", isSoftOver, isHardOver)
+
+	thresholds = loadThresholds
+	// track when a threshold was first observed
+	now := m.clock.Now()
+	thresholdsFirstObservedAt := thresholdsFirstObservedAt(thresholds, m.thresholdsFirstObservedAt, now)
+
+	nodeConditions := nodeConditions(thresholds)
+
+	if len(nodeConditions) > 0 {
+		klog.V(3).Infof("eviction manager: node conditions - observed: %v", nodeConditions)
+	}
+	// track when a node condition was last observed
+	nodeConditionsLastObservedAt := nodeConditionsLastObservedAt(nodeConditions, m.nodeConditionsLastObservedAt, now)
+
+	// node conditions report true if it has been observed within the transition period window
+	nodeConditions = nodeConditionsObservedSince(nodeConditionsLastObservedAt, m.config.PressureTransitionPeriod, now)
+	if len(nodeConditions) > 0 {
+		klog.V(3).Infof("eviction manager: node conditions - transition period not met: %v", nodeConditions)
+	}
+
+	// determine the set of thresholds we need to drive eviction behavior (i.e. all grace periods are met)
+	thresholds = thresholdsMetGracePeriod(thresholdsFirstObservedAt, now)
+	//debugLogThresholdsWithObservation("thresholds - grace periods satisified", thresholds, observations)
+
+	// update internal state
+	m.Lock()
+	m.nodeConditions = nodeConditions
+	m.thresholdsFirstObservedAt = thresholdsFirstObservedAt
+	m.nodeConditionsLastObservedAt = nodeConditionsLastObservedAt
+	m.thresholdsMet = thresholds
+
+	m.Unlock()
+
+	if !isHardOver {
+		return nil
+	}
+
+	// determine the set of resources under starvation
+	starvedResources := getStarvedResources(thresholds)
+	if len(starvedResources) == 0 {
+		klog.V(3).Infof("eviction manager: no resources are starved")
+		return nil
+	}
+
+	resourceToReclaim := starvedResources[0]
+	klog.Warningf("eviction manager: attempting to reclaim %v", resourceToReclaim)
+
+	// record an event about the resources we are now attempting to reclaim via eviction
+	m.recorder.Eventf(m.nodeRef, v1.EventTypeWarning, "EvictionThresholdMet", "Attempting to reclaim %s", resourceToReclaim)
+
+	klog.Infof("eviction manager: must evict pod(s) to reclaim %v", resourceToReclaim)
+
+	// the only candidates viable for eviction are those pods that had anything running.
+	if len(activePods) == 0 {
+		klog.Errorf("eviction manager: eviction thresholds have been met, but no pods are active to evict")
+		return nil
+	}
+
+	loadSort(m.summaryProvider, activePods)
+	// we kill at most a single pod during each eviction interval
+	for i := range activePods {
+		pod := activePods[i]
+
+		controllerRef := metav1.GetControllerOf(pod)
+		if controllerRef != nil {
+			if controllerRef.Kind == apps.SchemeGroupVersion.WithKind("ReplicaSet").Kind {
+				// TODO(chenyixiang): Should use pdb
+				rs, err := m.kubeClient.AppsV1().ReplicaSets(pod.Namespace).Get(controllerRef.Name, metav1.GetOptions{ResourceVersion: "0"})
+				if err == nil {
+					if rs.Status.Replicas > 0 && float64(rs.Status.Replicas)*0.75 > float64(rs.Status.ReadyReplicas) {
+						continue
+					}
+				}
+			}
+		}
+
+		gracePeriodOverride := int64(0)
+
+		message := fmt.Sprintf(nodeLowMessageFmt, resourceToReclaim)
+		annotations := make(map[string]string)
+		if m.evictPod(pod, gracePeriodOverride, message, annotations) {
+			return []*v1.Pod{pod}
+		}
+	}
+	klog.Infof("eviction manager: unable to evict any pods from the node")
+	return nil
 }
 
 // synchronize is the main control loop that enforces eviction thresholds.

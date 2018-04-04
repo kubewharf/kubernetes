@@ -39,7 +39,9 @@ const (
 	// SignalAllocatableMemoryAvailable is amount of memory available for pod allocation (i.e. allocatable - workingSet (of pods), in bytes.
 	SignalAllocatableMemoryAvailable Signal = "allocatableMemory.available"
 	// SignalPIDAvailable is amount of PID available for pod allocation
-	SignalPIDAvailable Signal = "pid.available"
+	SignalPIDAvailable     Signal = "pid.available"
+	SignalLoadSoftPressure Signal = "cpu.load.soft"
+	SignalLoadHardPressure Signal = "cpu.load.hard"
 )
 
 // ThresholdOperator is the operator used to express a Threshold.

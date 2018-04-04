@@ -112,6 +112,9 @@ func init() {
 	// Fit is determined by node disk pressure condition.
 	factory.RegisterFitPredicate(predicates.CheckNodeDiskPressurePred, predicates.CheckNodeDiskPressurePredicate)
 
+	// Fit is determined by node load pressure condition.
+	factory.RegisterFitPredicate(predicates.CheckNodeLoadPressurePred, predicates.CheckNodeLoadPressurePredicate)
+
 	// Fit is determined by node pid pressure condition.
 	factory.RegisterFitPredicate(predicates.CheckNodePIDPressurePred, predicates.CheckNodePIDPressurePredicate)
 

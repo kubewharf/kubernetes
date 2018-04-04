@@ -621,6 +621,10 @@ func run(s *options.KubeletServer, kubeDeps *kubelet.Dependencies, stopCh <-chan
 		}
 	}
 
+	if kubeDeps.TCEMetricsInterface == nil {
+		kubeDeps.TCEMetricsInterface = cadvisor.NewTceMetricsClient()
+	}
+
 	// Setup event recorder if required.
 	makeEventRecorder(kubeDeps, nodeName)
 

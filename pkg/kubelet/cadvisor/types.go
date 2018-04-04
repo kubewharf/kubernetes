@@ -51,3 +51,28 @@ type ImageFsInfoProvider interface {
 	// ImageFsInfoLabel returns the label cAdvisor should use to find the filesystem holding container images.
 	ImageFsInfoLabel() (string, error)
 }
+
+type MetricsInfo struct {
+	Name       string  `json:"metricName"`
+	Value      float64 `json:"metricValue"`
+	UpperBound float64 `json:"upperBound"`
+	LowerBound float64 `json:"lowerBound"`
+}
+
+type MetricsItem struct {
+	Infos []MetricsInfo `json:"metrics"`
+	Type  string        `json:"entityType"`
+	Name  string        `json:"entityName"`
+}
+
+type TCEMetrics struct {
+	Items []MetricsItem `json:"metrics"`
+	Time  int64         `json:"timestamp"`
+}
+
+type TCEInterface interface {
+	Start() error
+	Stop() error
+	ThresholdsMet(softLimit int64, hardLimit int64) (bool, bool)
+	GetLoad(podname string) float64
+}

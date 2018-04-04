@@ -49,6 +49,7 @@ func defaultPredicates() sets.String {
 		predicates.GeneralPred,
 		predicates.CheckNodeMemoryPressurePred,
 		predicates.CheckNodeDiskPressurePred,
+		predicates.CheckNodeLoadPressurePred,
 		predicates.CheckNodePIDPressurePred,
 		predicates.CheckNodeConditionPred,
 		predicates.PodToleratesNodeTaintsPred,
@@ -64,6 +65,7 @@ func ApplyFeatureGates() {
 		factory.RemoveFitPredicate(predicates.CheckNodeConditionPred)
 		factory.RemoveFitPredicate(predicates.CheckNodeMemoryPressurePred)
 		factory.RemoveFitPredicate(predicates.CheckNodeDiskPressurePred)
+		factory.RemoveFitPredicate(predicates.CheckNodeLoadPressurePred)
 		factory.RemoveFitPredicate(predicates.CheckNodePIDPressurePred)
 		// Remove key "CheckNodeCondition", "CheckNodeMemoryPressure" and "CheckNodeDiskPressure"
 		// from ALL algorithm provider
@@ -72,6 +74,7 @@ func ApplyFeatureGates() {
 		factory.RemovePredicateKeyFromAlgorithmProviderMap(predicates.CheckNodeConditionPred)
 		factory.RemovePredicateKeyFromAlgorithmProviderMap(predicates.CheckNodeMemoryPressurePred)
 		factory.RemovePredicateKeyFromAlgorithmProviderMap(predicates.CheckNodeDiskPressurePred)
+		factory.RemovePredicateKeyFromAlgorithmProviderMap(predicates.CheckNodeLoadPressurePred)
 		factory.RemovePredicateKeyFromAlgorithmProviderMap(predicates.CheckNodePIDPressurePred)
 
 		// Fit is determined based on whether a pod can tolerate all of the node's taints

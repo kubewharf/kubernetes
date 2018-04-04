@@ -36,6 +36,7 @@ import (
 // from cAdvisor and the container stats from CRI.
 func NewCRIStatsProvider(
 	cadvisor cadvisor.Interface,
+	tceMetrics cadvisor.TCEInterface,
 	resourceAnalyzer stats.ResourceAnalyzer,
 	podManager kubepod.Manager,
 	runtimeCache kubecontainer.RuntimeCache,
@@ -44,7 +45,7 @@ func NewCRIStatsProvider(
 	logMetricsService LogMetricsService,
 	osInterface kubecontainer.OSInterface,
 ) *StatsProvider {
-	return newStatsProvider(cadvisor, podManager, runtimeCache, newCRIStatsProvider(cadvisor, resourceAnalyzer,
+	return newStatsProvider(cadvisor, tceMetrics, podManager, runtimeCache, newCRIStatsProvider(cadvisor, resourceAnalyzer,
 		runtimeService, imageService, logMetricsService, osInterface))
 }
 
@@ -52,25 +53,28 @@ func NewCRIStatsProvider(
 // the node and the container stats from cAdvisor.
 func NewCadvisorStatsProvider(
 	cadvisor cadvisor.Interface,
+	tceMetrics cadvisor.TCEInterface,
 	resourceAnalyzer stats.ResourceAnalyzer,
 	podManager kubepod.Manager,
 	runtimeCache kubecontainer.RuntimeCache,
 	imageService kubecontainer.ImageService,
 	statusProvider status.PodStatusProvider,
 ) *StatsProvider {
-	return newStatsProvider(cadvisor, podManager, runtimeCache, newCadvisorStatsProvider(cadvisor, resourceAnalyzer, imageService, statusProvider))
+	return newStatsProvider(cadvisor, tceMetrics, podManager, runtimeCache, newCadvisorStatsProvider(cadvisor, resourceAnalyzer, imageService, statusProvider))
 }
 
 // newStatsProvider returns a new StatsProvider that provides node stats from
 // cAdvisor and the container stats using the containerStatsProvider.
 func newStatsProvider(
 	cadvisor cadvisor.Interface,
+	tceMetrics cadvisor.TCEInterface,
 	podManager kubepod.Manager,
 	runtimeCache kubecontainer.RuntimeCache,
 	containerStatsProvider containerStatsProvider,
 ) *StatsProvider {
 	return &StatsProvider{
 		cadvisor:               cadvisor,
+		tceMetrics:             tceMetrics,
 		podManager:             podManager,
 		runtimeCache:           runtimeCache,
 		containerStatsProvider: containerStatsProvider,
@@ -80,6 +84,7 @@ func newStatsProvider(
 // StatsProvider provides the stats of the node and the pod-managed containers.
 type StatsProvider struct {
 	cadvisor     cadvisor.Interface
+	tceMetrics   cadvisor.TCEInterface
 	podManager   kubepod.Manager
 	runtimeCache kubecontainer.RuntimeCache
 	containerStatsProvider
@@ -103,6 +108,14 @@ type rlimitStatsProvider interface {
 // RlimitStats returns base information about process count
 func (p *StatsProvider) RlimitStats() (*statsapi.RlimitStats, error) {
 	return pidlimit.Stats()
+}
+
+func (p *StatsProvider) ThresholdsMet(softLimit int64, hardLimit int64) (bool, bool) {
+	return p.tceMetrics.ThresholdsMet(softLimit, hardLimit)
+}
+
+func (p *StatsProvider) GetLoad(podname string) float64 {
+	return p.tceMetrics.GetLoad(podname)
 }
 
 // GetCgroupStats returns the stats of the cgroup with the cgroupName. Note that

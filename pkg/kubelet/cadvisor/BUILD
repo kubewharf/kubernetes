@@ -15,6 +15,7 @@ go_library(
         "doc.go",
         "helpers_linux.go",
         "helpers_unsupported.go",
+        "tce_metrics.go",
         "types.go",
         "util.go",
     ],

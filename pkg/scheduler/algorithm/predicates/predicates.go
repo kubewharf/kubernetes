@@ -103,6 +103,8 @@ const (
 	CheckNodeMemoryPressurePred = "CheckNodeMemoryPressure"
 	// CheckNodeDiskPressurePred defines the name of predicate CheckNodeDiskPressure.
 	CheckNodeDiskPressurePred = "CheckNodeDiskPressure"
+	// CheckNodeLoadPressurePred defines the name of predicate CheckNodeLoadPressure.
+	CheckNodeLoadPressurePred = "CheckNodeLoadPressure"
 	// CheckNodePIDPressurePred defines the name of predicate CheckNodePIDPressure.
 	CheckNodePIDPressurePred = "CheckNodePIDPressure"
 
@@ -147,7 +149,7 @@ var (
 		PodToleratesNodeTaintsPred, PodToleratesNodeNoExecuteTaintsPred, CheckNodeLabelPresencePred,
 		CheckServiceAffinityPred, MaxEBSVolumeCountPred, MaxGCEPDVolumeCountPred, MaxCSIVolumeCountPred,
 		MaxAzureDiskVolumeCountPred, MaxCinderVolumeCountPred, CheckVolumeBindingPred, NoVolumeZoneConflictPred,
-		CheckNodeMemoryPressurePred, CheckNodePIDPressurePred, CheckNodeDiskPressurePred, MatchInterPodAffinityPred}
+		CheckNodeMemoryPressurePred, CheckNodePIDPressurePred, CheckNodeDiskPressurePred, CheckNodeLoadPressurePred, MatchInterPodAffinityPred}
 )
 
 // FitPredicate is a function that indicates if a pod fits into an existing node.
@@ -1599,6 +1601,20 @@ func CheckNodeDiskPressurePredicate(pod *v1.Pod, meta PredicateMetadata, nodeInf
 	// check if node is under disk pressure
 	if nodeInfo.DiskPressureCondition() == v1.ConditionTrue {
 		return false, []PredicateFailureReason{ErrNodeUnderDiskPressure}, nil
+	}
+	return true, nil, nil
+}
+
+// CheckNodeLoadPressurePredicate checks if a pod can be scheduled on a node
+// reporting load pressure condition.
+func CheckNodeLoadPressurePredicate(pod *v1.Pod, meta PredicateMetadata, nodeInfo *schedulernodeinfo.NodeInfo) (bool, []PredicateFailureReason, error) {
+	if kubelettypes.IsTCECriticalPod(pod) {
+		return true, nil, nil
+	}
+
+	// check if node is under load pressure
+	if nodeInfo.LoadPressureCondition() == v1.ConditionTrue {
+		return false, []PredicateFailureReason{ErrNodeUnderLoadPressure}, nil
 	}
 	return true, nil, nil
 }

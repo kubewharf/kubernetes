@@ -33,6 +33,9 @@ type SummaryProvider interface {
 	Get(updateStats bool) (*statsapi.Summary, error)
 	// GetCPUAndMemoryStats provides a new Summary with the CPU and memory stats from Kubelet,
 	GetCPUAndMemoryStats() (*statsapi.Summary, error)
+
+	ThresholdsMet(softLimit int64, hardLimit int64) (bool, bool)
+	GetLoad(podname string) float64
 }
 
 // summaryProviderImpl implements the SummaryProvider interface.
@@ -64,6 +67,15 @@ func NewSummaryProvider(statsProvider Provider) SummaryProvider {
 	}
 }
 
+func (sp *summaryProviderImpl) ThresholdsMet(softLimit int64, hardLimit int64) (bool, bool) {
+	return sp.provider.ThresholdsMet(softLimit, hardLimit)
+}
+
+func (sp *summaryProviderImpl) GetLoad(podname string) float64 {
+	return sp.provider.GetLoad(podname)
+}
+
+// Get provides a new Summary with the stats from Kubelet.
 func (sp *summaryProviderImpl) Get(updateStats bool) (*statsapi.Summary, error) {
 	// TODO(timstclair): Consider returning a best-effort response if any of
 	// the following errors occur.

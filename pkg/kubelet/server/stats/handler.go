@@ -28,7 +28,7 @@ import (
 	cadvisorapi "github.com/google/cadvisor/info/v1"
 	"k8s.io/klog"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	statsapi "k8s.io/kubernetes/pkg/kubelet/apis/stats/v1alpha1"
@@ -100,6 +100,9 @@ type Provider interface {
 	// GetPodByCgroupfs provides the pod that maps to the specified cgroup literal, as well
 	// as whether the pod was found.
 	GetPodByCgroupfs(cgroupfs string) (*v1.Pod, bool)
+
+	ThresholdsMet(softLimit int64, hardLimit int64) (bool, bool)
+	GetLoad(podname string) float64
 }
 
 type handler struct {

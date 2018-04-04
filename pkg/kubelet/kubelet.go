@@ -240,6 +240,7 @@ type Dependencies struct {
 	// Injected Dependencies
 	Auth                    server.AuthInterface
 	CAdvisorInterface       cadvisor.Interface
+	TCEMetricsInterface     cadvisor.TCEInterface
 	Cloud                   cloudprovider.Interface
 	ContainerManager        cm.ContainerManager
 	DockerClientConfig      *dockershim.ClientConfig
@@ -504,6 +505,7 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 		streamingConnectionIdleTimeout:          kubeCfg.StreamingConnectionIdleTimeout.Duration,
 		recorder:                                kubeDeps.Recorder,
 		cadvisor:                                kubeDeps.CAdvisorInterface,
+		tceMetrics:                              kubeDeps.TCEMetricsInterface,
 		cloud:                                   kubeDeps.Cloud,
 		externalCloudProvider:                   cloudprovider.IsExternal(cloudProvider),
 		providerID:                              providerID,
@@ -698,6 +700,7 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 	if cadvisor.UsingLegacyCadvisorStats(containerRuntime, remoteRuntimeEndpoint) {
 		klet.StatsProvider = stats.NewCadvisorStatsProvider(
 			klet.cadvisor,
+			klet.tceMetrics,
 			klet.resourceAnalyzer,
 			klet.podManager,
 			klet.runtimeCache,
@@ -706,6 +709,7 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 	} else {
 		klet.StatsProvider = stats.NewCRIStatsProvider(
 			klet.cadvisor,
+			klet.tceMetrics,
 			klet.resourceAnalyzer,
 			klet.podManager,
 			klet.runtimeCache,
@@ -821,7 +825,7 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 	klet.podKillingCh = make(chan *kubecontainer.PodPair, podKillingChannelCapacity)
 
 	// setup eviction manager
-	evictionManager, evictionAdmitHandler := eviction.NewManager(klet.resourceAnalyzer, evictionConfig, killPodNow(klet.podWorkers, kubeDeps.Recorder), klet.podManager.GetMirrorPodByPod, klet.imageManager, klet.containerGC, kubeDeps.Recorder, nodeRef, klet.clock)
+	evictionManager, evictionAdmitHandler := eviction.NewManager(klet.resourceAnalyzer, evictionConfig, killPodNow(klet.podWorkers, kubeDeps.Recorder), klet.podManager.GetMirrorPodByPod, klet.imageManager, klet.containerGC, kubeDeps.Recorder, nodeRef, klet.clock, kubeDeps.KubeClient)
 
 	klet.evictionManager = evictionManager
 	klet.admitHandlers.AddPodAdmitHandler(evictionAdmitHandler)
@@ -929,7 +933,8 @@ type Kubelet struct {
 	runner kubecontainer.ContainerCommandRunner
 
 	// cAdvisor used for container information.
-	cadvisor cadvisor.Interface
+	cadvisor   cadvisor.Interface
+	tceMetrics cadvisor.TCEInterface
 
 	// Set to true to have the node register itself with the apiserver.
 	registerNode bool
@@ -1357,6 +1362,11 @@ func (kl *Kubelet) initializeRuntimeDependentModules() {
 		// Fail kubelet and rely on the babysitter to retry starting kubelet.
 		klog.Fatalf("Failed to start ContainerManager %v", err)
 	}
+
+	if err := kl.tceMetrics.Start(); err != nil {
+		klog.Fatalf("Failed to start tceMetrics %v", err)
+	}
+
 	// eviction manager must start after cadvisor because it needs to know if the container runtime has a dedicated imagefs
 	kl.evictionManager.Start(kl.StatsProvider, kl.GetActivePods, kl.podResourcesAreReclaimed, evictionMonitoringPeriod)
 

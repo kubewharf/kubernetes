@@ -26,7 +26,7 @@ import (
 
 	cadvisorapiv1 "github.com/google/cadvisor/info/v1"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -638,6 +638,61 @@ func PIDPressureCondition(nowFunc func() time.Time, // typically Kubelet.clock.N
 			condition.Message = "kubelet has sufficient PID available"
 			condition.LastTransitionTime = currentTime
 			recordEventFunc(v1.EventTypeNormal, "NodeHasSufficientPID")
+		}
+
+		if newCondition {
+			node.Status.Conditions = append(node.Status.Conditions, *condition)
+		}
+		return nil
+	}
+}
+
+// CPUPressureCondition returns a Setter that updates the v1.NodeCPUPressure condition on the node.
+func CPUPressureCondition(nowFunc func() time.Time, // typically Kubelet.clock.Now
+	pressureFunc func() bool, // typically Kubelet.evictionManager.IsUnderDiskPressure
+	recordEventFunc func(eventType, event string), // typically Kubelet.recordNodeStatusEvent
+) Setter {
+	return func(node *v1.Node) error {
+		currentTime := metav1.NewTime(nowFunc())
+		var condition *v1.NodeCondition
+
+		// Check if NodeCPUPressure condition already exists and if it does, just pick it up for update.
+		for i := range node.Status.Conditions {
+			if node.Status.Conditions[i].Type == v1.NodeCPUPressure {
+				condition = &node.Status.Conditions[i]
+			}
+		}
+
+		newCondition := false
+		// If the NodeCPUPressure condition doesn't exist, create one
+		if condition == nil {
+			condition = &v1.NodeCondition{
+				Type:   v1.NodeCPUPressure,
+				Status: v1.ConditionUnknown,
+			}
+			// cannot be appended to node.Status.Conditions here because it gets
+			// copied to the slice. So if we append to the slice here none of the
+			// updates we make below are reflected in the slice.
+			newCondition = true
+		}
+
+		// Update the heartbeat time
+		condition.LastHeartbeatTime = currentTime
+
+		if pressureFunc() {
+			if condition.Status != v1.ConditionTrue {
+				condition.Status = v1.ConditionTrue
+				condition.Reason = "KubeletHasLoadPressure"
+				condition.Message = "kubelet has load pressure"
+				condition.LastTransitionTime = currentTime
+				recordEventFunc(v1.EventTypeNormal, "NodeHasLoadPressure")
+			}
+		} else if condition.Status != v1.ConditionFalse {
+			condition.Status = v1.ConditionFalse
+			condition.Reason = "KubeletHasNoLoadPressure"
+			condition.Message = "kubelet has no load pressure"
+			condition.LastTransitionTime = currentTime
+			recordEventFunc(v1.EventTypeNormal, "NodeHasNoLoadPressure")
 		}
 
 		if newCondition {
