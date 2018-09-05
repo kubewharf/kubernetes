@@ -56,6 +56,8 @@ type EtcdOptions struct {
 	DefaultWatchCacheSize int
 	// WatchCacheSizes represents override to a given resource
 	WatchCacheSizes []string
+	// Set EnableEtcdProtection to true to enable reject list request from node before cache initialization
+	EnableEtcdProtection bool
 }
 
 var storageTypes = sets.NewString(
@@ -70,6 +72,7 @@ func NewEtcdOptions(backendConfig *storagebackend.Config) *EtcdOptions {
 		EnableGarbageCollection: true,
 		EnableWatchCache:        true,
 		DefaultWatchCacheSize:   100,
+		EnableEtcdProtection:    false,
 	}
 	options.StorageConfig.CountMetricPollPeriod = time.Minute
 	return options
@@ -175,6 +178,9 @@ func (s *EtcdOptions) AddFlags(fs *pflag.FlagSet) {
 
 	fs.DurationVar(&s.StorageConfig.CountMetricPollPeriod, "etcd-count-metric-poll-period", s.StorageConfig.CountMetricPollPeriod, ""+
 		"Frequency of polling etcd for number of resources per type. 0 disables the metric collection.")
+
+	fs.BoolVar(&s.EnableEtcdProtection, "enable-etcd-protection", s.EnableEtcdProtection, ""+
+		"Enables the etcd protection, reject list request from node before cache initialization.")
 }
 
 func (s *EtcdOptions) ApplyTo(c *server.Config) error {
@@ -229,7 +235,7 @@ func (f *SimpleRestOptionsFactory) GetRESTOptions(resource schema.GroupResource)
 		if !ok {
 			cacheSize = f.Options.DefaultWatchCacheSize
 		}
-		ret.Decorator = genericregistry.StorageWithCacher(cacheSize)
+		ret.Decorator = genericregistry.StorageWithCacher(cacheSize, f.Options.EnableEtcdProtection)
 	}
 	return ret, nil
 }
@@ -262,7 +268,7 @@ func (f *StorageFactoryRestOptionsFactory) GetRESTOptions(resource schema.GroupR
 		if !ok {
 			cacheSize = f.Options.DefaultWatchCacheSize
 		}
-		ret.Decorator = genericregistry.StorageWithCacher(cacheSize)
+		ret.Decorator = genericregistry.StorageWithCacher(cacheSize, f.Options.EnableEtcdProtection)
 	}
 
 	return ret, nil

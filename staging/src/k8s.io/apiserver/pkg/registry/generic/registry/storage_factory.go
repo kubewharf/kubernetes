@@ -31,7 +31,7 @@ import (
 )
 
 // Creates a cacher based given storageConfig.
-func StorageWithCacher(capacity int) generic.StorageDecorator {
+func StorageWithCacher(capacity int, rejectListFromNode bool) generic.StorageDecorator {
 	return func(
 		storageConfig *storagebackend.Config,
 		objectType runtime.Object,
@@ -61,6 +61,7 @@ func StorageWithCacher(capacity int) generic.StorageDecorator {
 			GetAttrsFunc:         getAttrsFunc,
 			TriggerPublisherFunc: triggerFunc,
 			Codec:                storageConfig.Codec,
+			RejectListFromNode:   rejectListFromNode,
 		}
 		cacher := cacherstorage.NewCacherFromConfig(cacherConfig)
 		destroyFunc := func() {

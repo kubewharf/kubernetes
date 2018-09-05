@@ -40,6 +40,7 @@ import (
 	"k8s.io/apiserver/pkg/storage"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/tools/cache"
+        "k8s.io/kubernetes/pkg/apis/core"
 	utiltrace "k8s.io/utils/trace"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -90,6 +91,8 @@ type Config struct {
 	NewListFunc func() runtime.Object
 
 	Codec runtime.Codec
+
+	RejectListFromNode bool
 }
 
 type watchersMap map[int]*cacheWatcher
@@ -206,6 +209,9 @@ type Cacher struct {
 	stopCh   chan struct{}
 	stopWg   sync.WaitGroup
 
+	// rejectListFromNode is used to protect etcd before initialization
+	rejectListFromNode bool
+
 	// timer is used to avoid unnecessary allocations in underlying watchers.
 	timer *time.Timer
 
@@ -259,8 +265,9 @@ func NewCacherFromConfig(config Config) *Cacher {
 		// - reflector.ListAndWatch
 		// and there are no guarantees on the order that they will stop.
 		// So we will be simply closing the channel, and synchronizing on the WaitGroup.
-		stopCh: stopCh,
-		timer:  time.NewTimer(time.Duration(0)),
+		stopCh:             stopCh,
+		rejectListFromNode: config.RejectListFromNode,
+		timer:              time.NewTimer(time.Duration(0)),
 	}
 	watchCache.SetOnEvent(cacher.processEvent)
 	go cacher.dispatchEvents()
@@ -475,6 +482,10 @@ func (c *Cacher) GetToList(ctx context.Context, key string, resourceVersion stri
 	}
 
 	if listRV == 0 && !c.ready.check() {
+		if c.rejectListFromNode && isRequestFromNode(pred) {
+			return fmt.Errorf("waiting for cache ready")
+		}
+
 		// If Cacher is not yet initialized and we don't require any specific
 		// minimal resource version, simply forward the request to storage.
 		return c.storage.GetToList(ctx, key, resourceVersion, pred, listObj)
@@ -1075,4 +1086,14 @@ func (r *ready) set(ok bool) {
 	ObserveCacheStatus(ok)
 	r.ok = ok
 	r.c.Broadcast()
+}
+
+// kubelet only watches pods assigned onto it, generally we believe this is the most possible way to
+// distinguish kubelet requests from others
+func isRequestFromNode(pred storage.SelectionPredicate) bool {
+	if pred.Field.Empty() {
+		return false
+	}
+	_, ok := pred.Field.RequiresExactMatch(core.PodHostField)
+	return ok
 }
