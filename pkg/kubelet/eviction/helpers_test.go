@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -1017,6 +1017,16 @@ func (f *fakeSummaryProvider) GetCPUAndMemoryStats() (*statsapi.Summary, error) 
 	return f.result, nil
 }
 
+// These functions are involved by TCE Load Eviction, remove them whenever possible.
+
+func (f *fakeSummaryProvider) GetLoad(podname string) float64 {
+	return float64(0)
+}
+
+func (f *fakeSummaryProvider) ThresholdsMet(softLimit int64, hardLimit int64) (bool, bool) {
+	return false, false
+}
+
 // newPodStats returns a pod stat where each container is using the specified working set
 // each pod must have a Name, UID, Namespace
 func newPodStats(pod *v1.Pod, podWorkingSetBytes uint64) statsapi.PodStats {
@@ -1845,14 +1855,14 @@ func newPodDiskStats(pod *v1.Pod, rootFsUsed, logsUsed, perLocalVolumeUsed resou
 	return result
 }
 
-func newPodMemoryStats(pod *v1.Pod, workingSet resource.Quantity) statsapi.PodStats {
-	workingSetBytes := uint64(workingSet.Value())
+func newPodMemoryStats(pod *v1.Pod, rss resource.Quantity) statsapi.PodStats {
+	rssBytes := uint64(rss.Value())
 	return statsapi.PodStats{
 		PodRef: statsapi.PodReference{
 			Name: pod.Name, Namespace: pod.Namespace, UID: string(pod.UID),
 		},
 		Memory: &statsapi.MemoryStats{
-			WorkingSetBytes: &workingSetBytes,
+			RSSBytes: &rssBytes,
 		},
 	}
 }

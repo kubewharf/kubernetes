@@ -333,10 +333,10 @@ func inodeUsage(fsStats *statsapi.FsStats) *resource.Quantity {
 
 // memoryUsage converts working set into a resource quantity.
 func memoryUsage(memStats *statsapi.MemoryStats) *resource.Quantity {
-	if memStats == nil || memStats.WorkingSetBytes == nil {
+	if memStats == nil || memStats.RSSBytes == nil {
 		return &resource.Quantity{Format: resource.BinarySI}
 	}
-	usage := int64(*memStats.WorkingSetBytes)
+	usage := int64(*memStats.RSSBytes)
 	return resource.NewQuantity(usage, resource.BinarySI)
 }
 
@@ -730,9 +730,14 @@ func makeSignalObservations(summary *statsapi.Summary) (signalObservations, stat
 	// build an evaluation context for current eviction signals
 	result := signalObservations{}
 
-	if memory := summary.Node.Memory; memory != nil && memory.AvailableBytes != nil && memory.WorkingSetBytes != nil {
+	// The baseline for the badness score of OOM is the proportion of RAM that each task's rss, pagetable and swap space use.
+	// >   v4.9 mm/oom_kill.c:L200
+	// >   points = get_mm_rss(p->mm) + get_mm_counter(p->mm, MM_SWAPENTS) +
+	// >       atomic_long_read(&p->mm->nr_ptes) + mm_nr_pmds(p->mm);
+	// So, it's more reasonable to use rss instead of workingset.
+	if memory := summary.Node.Memory; memory != nil && memory.AvailableBytes != nil && memory.WorkingSetBytes != nil && memory.RSSBytes != nil {
 		result[evictionapi.SignalMemoryAvailable] = signalObservation{
-			available: resource.NewQuantity(int64(*memory.AvailableBytes), resource.BinarySI),
+			available: resource.NewQuantity(int64(*memory.AvailableBytes+*memory.WorkingSetBytes-*memory.RSSBytes), resource.BinarySI),
 			capacity:  resource.NewQuantity(int64(*memory.AvailableBytes+*memory.WorkingSetBytes), resource.BinarySI),
 			time:      memory.Time,
 		}
