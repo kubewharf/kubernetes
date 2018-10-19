@@ -31,7 +31,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	cadvisorapi "github.com/google/cadvisor/info/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -260,6 +260,14 @@ func TestUpdateNewNodeStatus(t *testing.T) {
 							LastTransitionTime: metav1.Time{},
 						},
 						{
+							Type:               v1.NodeCPUPressure,
+							Status:             v1.ConditionFalse,
+							Reason:             "KubeletHasNoLoadPressure",
+							Message:            fmt.Sprintf("kubelet has no load pressure"),
+							LastHeartbeatTime:  metav1.Time{},
+							LastTransitionTime: metav1.Time{},
+						},
+						{
 							Type:               v1.NodeReady,
 							Status:             v1.ConditionTrue,
 							Reason:             "KubeletReady",
@@ -378,6 +386,14 @@ func TestUpdateExistingNodeStatus(t *testing.T) {
 					LastTransitionTime: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 				},
 				{
+					Type:               v1.NodeCPUPressure,
+					Status:             v1.ConditionFalse,
+					Reason:             "KubeletHasNoLoadPressure",
+					Message:            fmt.Sprintf("kubelet has no load pressure"),
+					LastHeartbeatTime:  metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
+					LastTransitionTime: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
+				},
+				{
 					Type:               v1.NodeReady,
 					Status:             v1.ConditionTrue,
 					Reason:             "KubeletReady",
@@ -434,6 +450,14 @@ func TestUpdateExistingNodeStatus(t *testing.T) {
 					Status:             v1.ConditionFalse,
 					Reason:             "KubeletHasSufficientPID",
 					Message:            fmt.Sprintf("kubelet has sufficient PID available"),
+					LastHeartbeatTime:  metav1.Time{},
+					LastTransitionTime: metav1.Time{},
+				},
+				{
+					Type:               v1.NodeCPUPressure,
+					Status:             v1.ConditionFalse,
+					Reason:             "KubeletHasNoLoadPressure",
+					Message:            fmt.Sprintf("kubelet has no load pressure"),
 					LastHeartbeatTime:  metav1.Time{},
 					LastTransitionTime: metav1.Time{},
 				},
@@ -639,6 +663,14 @@ func TestUpdateNodeStatusWithRuntimeStateError(t *testing.T) {
 					Status:             v1.ConditionFalse,
 					Reason:             "KubeletHasSufficientPID",
 					Message:            fmt.Sprintf("kubelet has sufficient PID available"),
+					LastHeartbeatTime:  metav1.Time{},
+					LastTransitionTime: metav1.Time{},
+				},
+				{
+					Type:               v1.NodeCPUPressure,
+					Status:             v1.ConditionFalse,
+					Reason:             "KubeletHasNoLoadPressure",
+					Message:            fmt.Sprintf("kubelet has no load pressure"),
 					LastHeartbeatTime:  metav1.Time{},
 					LastTransitionTime: metav1.Time{},
 				},

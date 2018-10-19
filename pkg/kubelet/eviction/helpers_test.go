@@ -1006,7 +1006,10 @@ func TestSortByEvictionPriority(t *testing.T) {
 }
 
 type fakeSummaryProvider struct {
-	result *statsapi.Summary
+	result            *statsapi.Summary
+	podLoads          map[string]float64
+	underSoftPressure bool
+	underHardPressure bool
 }
 
 func (f *fakeSummaryProvider) Get(updateStats bool) (*statsapi.Summary, error) {
@@ -1020,11 +1023,11 @@ func (f *fakeSummaryProvider) GetCPUAndMemoryStats() (*statsapi.Summary, error) 
 // These functions are involved by TCE Load Eviction, remove them whenever possible.
 
 func (f *fakeSummaryProvider) GetLoad(podname string) float64 {
-	return float64(0)
+	return f.podLoads[podname]
 }
 
 func (f *fakeSummaryProvider) ThresholdsMet(softLimit int64, hardLimit int64) (bool, bool) {
-	return false, false
+	return f.underSoftPressure, f.underHardPressure
 }
 
 // newPodStats returns a pod stat where each container is using the specified working set
@@ -1038,6 +1041,7 @@ func newPodStats(pod *v1.Pod, podWorkingSetBytes uint64) statsapi.PodStats {
 		},
 		Memory: &statsapi.MemoryStats{
 			WorkingSetBytes: &podWorkingSetBytes,
+			RSSBytes:        &podWorkingSetBytes,
 		},
 	}
 }
@@ -1057,6 +1061,7 @@ func TestMakeSignalObservations(t *testing.T) {
 		return pod
 	}
 	nodeAvailableBytes := uint64(1024 * 1024 * 1024)
+	nodeRSSBytes := uint64(1024 * 1024 * 1024)
 	nodeWorkingSetBytes := uint64(1024 * 1024 * 1024)
 	allocatableMemoryCapacity := uint64(5 * 1024 * 1024 * 1024)
 	imageFsAvailableBytes := uint64(1024 * 1024)
@@ -1072,6 +1077,7 @@ func TestMakeSignalObservations(t *testing.T) {
 			Memory: &statsapi.MemoryStats{
 				AvailableBytes:  &nodeAvailableBytes,
 				WorkingSetBytes: &nodeWorkingSetBytes,
+				RSSBytes:        &nodeRSSBytes,
 			},
 			Runtime: &statsapi.RuntimeStats{
 				ImageFs: &statsapi.FsStats{

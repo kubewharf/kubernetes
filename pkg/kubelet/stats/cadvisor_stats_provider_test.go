@@ -22,7 +22,7 @@ import (
 	cadvisorapiv2 "github.com/google/cadvisor/info/v2"
 	"github.com/stretchr/testify/assert"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	statsapi "k8s.io/kubernetes/pkg/kubelet/apis/stats/v1alpha1"
@@ -209,8 +209,9 @@ func TestCadvisorListPodStats(t *testing.T) {
 	mockStatus.On("GetPodStatus", types.UID("UID"+pName2)).Return(v1.PodStatus{StartTime: &p2Time}, true)
 
 	resourceAnalyzer := &fakeResourceAnalyzer{podVolumeStats: volumeStats}
+	mockTceMetrics := new(cadvisortest.TCEInterface)
 
-	p := NewCadvisorStatsProvider(mockCadvisor, resourceAnalyzer, nil, nil, mockRuntime, mockStatus)
+	p := NewCadvisorStatsProvider(mockCadvisor, mockTceMetrics, resourceAnalyzer, nil, nil, mockRuntime, mockStatus)
 	pods, err := p.ListPodStats()
 	assert.NoError(t, err)
 
@@ -359,8 +360,9 @@ func TestCadvisorListPodCPUAndMemoryStats(t *testing.T) {
 	}
 
 	resourceAnalyzer := &fakeResourceAnalyzer{podVolumeStats: volumeStats}
+	mockTceMetrics := new(cadvisortest.TCEInterface)
 
-	p := NewCadvisorStatsProvider(mockCadvisor, resourceAnalyzer, nil, nil, nil, nil)
+	p := NewCadvisorStatsProvider(mockCadvisor, mockTceMetrics, resourceAnalyzer, nil, nil, nil, nil)
 	pods, err := p.ListPodCPUAndMemoryStats()
 	assert.NoError(t, err)
 

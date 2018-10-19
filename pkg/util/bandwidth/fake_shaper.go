@@ -47,3 +47,15 @@ func (f *FakeShaper) ReconcileCIDR(cidr string, egress, ingress *resource.Quanti
 func (f *FakeShaper) GetCIDRs() ([]string, error) {
 	return f.CIDRs, nil
 }
+
+func (f *FakeShaper) ResetPortLimit(protocol uint8, port uint16) error {
+	return errors.New("unimplemented")
+}
+
+func (f *FakeShaper) ReconcilePortLimit(protocol uint8, port uint16, egress, ingress *resource.Quantity) error {
+	return errors.New("unimplemented")
+}
+
+func (f *FakeShaper) ResetInterface() error {
+	return errors.New("unimplemented")
+}

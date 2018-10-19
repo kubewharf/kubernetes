@@ -248,6 +248,22 @@ func (fk *fakeKubelet) GetPortForward(podName, podNamespace string, podUID types
 	return url.Parse(resp.GetUrl())
 }
 
+// Since fakeKubelet doen't need to synchronizeLoad, just fake load
+func (fk *fakeKubelet) ThresholdsMet(softLimit int64, hardLimit int64) (bool, bool) {
+	return false, false
+}
+
+func (fk *fakeKubelet) GetLoad(podname string) float64 {
+	return .0
+}
+
+func (fk *fakeKubelet) PLEGHealthCheck() error {
+	if fk.plegHealth {
+		return nil
+	}
+	return fmt.Errorf("pleg health check error")
+}
+
 // Unused functions
 func (*fakeKubelet) GetNode() (*v1.Node, error)                       { return nil, nil }
 func (*fakeKubelet) GetNodeConfig() cm.NodeConfig                     { return cm.NodeConfig{} }

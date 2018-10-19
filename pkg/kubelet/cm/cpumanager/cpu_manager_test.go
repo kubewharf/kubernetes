@@ -29,7 +29,6 @@ import (
 	cadvisorapi "github.com/google/cadvisor/info/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	runtimeapi "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpumanager/state"
@@ -38,8 +37,9 @@ import (
 )
 
 type mockState struct {
-	assignments   state.ContainerCPUAssignments
-	defaultCPUSet cpuset.CPUSet
+	assignments    state.ContainerCPUAssignments
+	memAssignments state.ContainerCPUAssignments
+	defaultCPUSet  cpuset.CPUSet
 }
 
 func (s *mockState) GetCPUSet(containerID string) (cpuset.CPUSet, bool) {
@@ -75,6 +75,13 @@ func (s *mockState) ClearState() {
 	s.assignments = make(state.ContainerCPUAssignments)
 }
 
+func (s *mockState) getCPUSetMems(containerID string) cpuset.CPUSet {
+	if res, ok := s.memAssignments[containerID]; ok {
+		return res
+	}
+	return cpuset.NewCPUSet()
+}
+
 func (s *mockState) SetCPUAssignments(a state.ContainerCPUAssignments) {
 	s.assignments = a.Clone()
 }
@@ -108,6 +115,10 @@ type mockRuntimeService struct {
 
 func (rt mockRuntimeService) UpdateContainerResources(id string, resources *runtimeapi.LinuxContainerResources) error {
 	return rt.err
+}
+
+func (rt mockRuntimeService) ExecSync(containerID string, cmd []string, timeout time.Duration) (stdout []byte, stderr []byte, err error) {
+	return nil, nil, rt.err
 }
 
 type mockPodStatusProvider struct {
@@ -347,211 +358,5 @@ func TestCPUManagerRemove(t *testing.T) {
 	err = mgr.RemoveContainer("fakeID")
 	if !reflect.DeepEqual(err, fmt.Errorf("fake error")) {
 		t.Errorf("CPU Manager RemoveContainer() error. expected error: fake error but got: %v", err)
-	}
-}
-
-func TestReconcileState(t *testing.T) {
-	testCases := []struct {
-		description               string
-		activePods                []*v1.Pod
-		pspPS                     v1.PodStatus
-		pspFound                  bool
-		stAssignments             state.ContainerCPUAssignments
-		stDefaultCPUSet           cpuset.CPUSet
-		updateErr                 error
-		expectFailedContainerName string
-	}{
-		{
-			description: "cpu manager reconclie - no error",
-			activePods: []*v1.Pod{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "fakePodName",
-						UID:  "fakeUID",
-					},
-					Spec: v1.PodSpec{
-						Containers: []v1.Container{
-							{
-								Name: "fakeName",
-							},
-						},
-					},
-				},
-			},
-			pspPS: v1.PodStatus{
-				ContainerStatuses: []v1.ContainerStatus{
-					{
-						Name:        "fakeName",
-						ContainerID: "docker://fakeID",
-					},
-				},
-			},
-			pspFound: true,
-			stAssignments: state.ContainerCPUAssignments{
-				"fakeID": cpuset.NewCPUSet(1, 2),
-			},
-			stDefaultCPUSet:           cpuset.NewCPUSet(3, 4, 5, 6, 7),
-			updateErr:                 nil,
-			expectFailedContainerName: "",
-		},
-		{
-			description: "cpu manager reconclie - pod status not found",
-			activePods: []*v1.Pod{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "fakePodName",
-						UID:  "fakeUID",
-					},
-					Spec: v1.PodSpec{
-						Containers: []v1.Container{
-							{
-								Name: "fakeName",
-							},
-						},
-					},
-				},
-			},
-			pspPS:                     v1.PodStatus{},
-			pspFound:                  false,
-			stAssignments:             state.ContainerCPUAssignments{},
-			stDefaultCPUSet:           cpuset.NewCPUSet(),
-			updateErr:                 nil,
-			expectFailedContainerName: "fakeName",
-		},
-		{
-			description: "cpu manager reconclie - container id not found",
-			activePods: []*v1.Pod{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "fakePodName",
-						UID:  "fakeUID",
-					},
-					Spec: v1.PodSpec{
-						Containers: []v1.Container{
-							{
-								Name: "fakeName",
-							},
-						},
-					},
-				},
-			},
-			pspPS: v1.PodStatus{
-				ContainerStatuses: []v1.ContainerStatus{
-					{
-						Name:        "fakeName1",
-						ContainerID: "docker://fakeID",
-					},
-				},
-			},
-			pspFound:                  true,
-			stAssignments:             state.ContainerCPUAssignments{},
-			stDefaultCPUSet:           cpuset.NewCPUSet(),
-			updateErr:                 nil,
-			expectFailedContainerName: "fakeName",
-		},
-		{
-			description: "cpu manager reconclie - cpuset is empty",
-			activePods: []*v1.Pod{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "fakePodName",
-						UID:  "fakeUID",
-					},
-					Spec: v1.PodSpec{
-						Containers: []v1.Container{
-							{
-								Name: "fakeName",
-							},
-						},
-					},
-				},
-			},
-			pspPS: v1.PodStatus{
-				ContainerStatuses: []v1.ContainerStatus{
-					{
-						Name:        "fakeName",
-						ContainerID: "docker://fakeID",
-					},
-				},
-			},
-			pspFound: true,
-			stAssignments: state.ContainerCPUAssignments{
-				"fakeID": cpuset.NewCPUSet(),
-			},
-			stDefaultCPUSet:           cpuset.NewCPUSet(1, 2, 3, 4, 5, 6, 7),
-			updateErr:                 nil,
-			expectFailedContainerName: "fakeName",
-		},
-		{
-			description: "cpu manager reconclie - container update error",
-			activePods: []*v1.Pod{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "fakePodName",
-						UID:  "fakeUID",
-					},
-					Spec: v1.PodSpec{
-						Containers: []v1.Container{
-							{
-								Name: "fakeName",
-							},
-						},
-					},
-				},
-			},
-			pspPS: v1.PodStatus{
-				ContainerStatuses: []v1.ContainerStatus{
-					{
-						Name:        "fakeName",
-						ContainerID: "docker://fakeID",
-					},
-				},
-			},
-			pspFound: true,
-			stAssignments: state.ContainerCPUAssignments{
-				"fakeID": cpuset.NewCPUSet(1, 2),
-			},
-			stDefaultCPUSet:           cpuset.NewCPUSet(3, 4, 5, 6, 7),
-			updateErr:                 fmt.Errorf("fake container update error"),
-			expectFailedContainerName: "fakeName",
-		},
-	}
-
-	for _, testCase := range testCases {
-		mgr := &manager{
-			policy: &mockPolicy{
-				err: nil,
-			},
-			state: &mockState{
-				assignments:   testCase.stAssignments,
-				defaultCPUSet: testCase.stDefaultCPUSet,
-			},
-			containerRuntime: mockRuntimeService{
-				err: testCase.updateErr,
-			},
-			activePods: func() []*v1.Pod {
-				return testCase.activePods
-			},
-			podStatusProvider: mockPodStatusProvider{
-				podStatus: testCase.pspPS,
-				found:     testCase.pspFound,
-			},
-		}
-
-		_, failure := mgr.reconcileState()
-
-		if testCase.expectFailedContainerName != "" {
-			// Search failed reconciled containers for the supplied name.
-			foundFailedContainer := false
-			for _, reconciled := range failure {
-				if reconciled.containerName == testCase.expectFailedContainerName {
-					foundFailedContainer = true
-					break
-				}
-			}
-			if !foundFailedContainer {
-				t.Errorf("Expected reconciliation failure for container: %s", testCase.expectFailedContainerName)
-			}
-		}
 	}
 }

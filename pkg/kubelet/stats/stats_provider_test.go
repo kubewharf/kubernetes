@@ -74,6 +74,7 @@ func TestGetCgroupStats(t *testing.T) {
 	)
 	var (
 		mockCadvisor     = new(cadvisortest.Mock)
+		mockTceMetrics   = new(cadvisortest.TCEInterface)
 		mockPodManager   = new(kubepodtest.MockManager)
 		mockRuntimeCache = new(kubecontainertest.MockRuntimeCache)
 
@@ -86,7 +87,7 @@ func TestGetCgroupStats(t *testing.T) {
 
 	mockCadvisor.On("ContainerInfoV2", cgroupName, options).Return(containerInfoMap, nil)
 
-	provider := newStatsProvider(mockCadvisor, mockPodManager, mockRuntimeCache, fakeContainerStatsProvider{})
+	provider := newStatsProvider(mockCadvisor, mockTceMetrics, mockPodManager, mockRuntimeCache, fakeContainerStatsProvider{})
 	cs, ns, err := provider.GetCgroupStats(cgroupName, updateStats)
 	assert.NoError(err)
 
@@ -140,6 +141,7 @@ func TestRootFsStats(t *testing.T) {
 	)
 	var (
 		mockCadvisor     = new(cadvisortest.Mock)
+		mockTceMetrics   = new(cadvisortest.TCEInterface)
 		mockPodManager   = new(kubepodtest.MockManager)
 		mockRuntimeCache = new(kubecontainertest.MockRuntimeCache)
 
@@ -155,7 +157,7 @@ func TestRootFsStats(t *testing.T) {
 		On("RootFsInfo").Return(rootFsInfo, nil).
 		On("ContainerInfoV2", "/", options).Return(containerInfoMap, nil)
 
-	provider := newStatsProvider(mockCadvisor, mockPodManager, mockRuntimeCache, fakeContainerStatsProvider{})
+	provider := newStatsProvider(mockCadvisor, mockTceMetrics, mockPodManager, mockRuntimeCache, fakeContainerStatsProvider{})
 	stats, err := provider.RootFsStats()
 	assert.NoError(err)
 
@@ -318,6 +320,7 @@ func TestGetContainerInfo(t *testing.T) {
 	for _, tc := range tests {
 		var (
 			mockCadvisor     = new(cadvisortest.Mock)
+			mockTceMetrics   = new(cadvisortest.TCEInterface)
 			mockPodManager   = new(kubepodtest.MockManager)
 			mockRuntimeCache = new(kubecontainertest.MockRuntimeCache)
 
@@ -330,7 +333,7 @@ func TestGetContainerInfo(t *testing.T) {
 			mockCadvisor.On("DockerContainer", tc.containerID, cadvisorReq).Return(tc.cadvisorContainerInfo, tc.mockError)
 		}
 
-		provider := newStatsProvider(mockCadvisor, mockPodManager, mockRuntimeCache, fakeContainerStatsProvider{})
+		provider := newStatsProvider(mockCadvisor, mockTceMetrics, mockPodManager, mockRuntimeCache, fakeContainerStatsProvider{})
 		stats, err := provider.GetContainerInfo(tc.requestedPodFullName, tc.requestedPodUID, tc.requestedContainerName, cadvisorReq)
 		assert.Equal(t, tc.expectedError, err)
 
@@ -344,6 +347,7 @@ func TestGetContainerInfo(t *testing.T) {
 func TestGetRawContainerInfoRoot(t *testing.T) {
 	var (
 		mockCadvisor     = new(cadvisortest.Mock)
+		mockTceMetrics   = new(cadvisortest.TCEInterface)
 		mockPodManager   = new(kubepodtest.MockManager)
 		mockRuntimeCache = new(kubecontainertest.MockRuntimeCache)
 
@@ -358,7 +362,7 @@ func TestGetRawContainerInfoRoot(t *testing.T) {
 
 	mockCadvisor.On("ContainerInfo", containerPath, cadvisorReq).Return(containerInfo, nil)
 
-	provider := newStatsProvider(mockCadvisor, mockPodManager, mockRuntimeCache, fakeContainerStatsProvider{})
+	provider := newStatsProvider(mockCadvisor, mockTceMetrics, mockPodManager, mockRuntimeCache, fakeContainerStatsProvider{})
 	_, err := provider.GetRawContainerInfo(containerPath, cadvisorReq, false)
 	assert.NoError(t, err)
 	mockCadvisor.AssertExpectations(t)
@@ -367,6 +371,7 @@ func TestGetRawContainerInfoRoot(t *testing.T) {
 func TestGetRawContainerInfoSubcontainers(t *testing.T) {
 	var (
 		mockCadvisor     = new(cadvisortest.Mock)
+		mockTceMetrics   = new(cadvisortest.TCEInterface)
 		mockPodManager   = new(kubepodtest.MockManager)
 		mockRuntimeCache = new(kubecontainertest.MockRuntimeCache)
 
@@ -388,7 +393,7 @@ func TestGetRawContainerInfoSubcontainers(t *testing.T) {
 
 	mockCadvisor.On("SubcontainerInfo", containerPath, cadvisorReq).Return(containerInfo, nil)
 
-	provider := newStatsProvider(mockCadvisor, mockPodManager, mockRuntimeCache, fakeContainerStatsProvider{})
+	provider := newStatsProvider(mockCadvisor, mockTceMetrics, mockPodManager, mockRuntimeCache, fakeContainerStatsProvider{})
 	result, err := provider.GetRawContainerInfo(containerPath, cadvisorReq, true)
 	assert.NoError(t, err)
 	assert.Len(t, result, 2)
@@ -415,12 +420,13 @@ func TestHasDedicatedImageFs(t *testing.T) {
 		t.Logf("TestCase %q", desc)
 		var (
 			mockCadvisor     = new(cadvisortest.Mock)
+			mockTceMetrics   = new(cadvisortest.TCEInterface)
 			mockPodManager   = new(kubepodtest.MockManager)
 			mockRuntimeCache = new(kubecontainertest.MockRuntimeCache)
 		)
 		mockCadvisor.On("RootFsInfo").Return(cadvisorapiv2.FsInfo{Device: test.rootfsDevice}, nil)
 
-		provider := newStatsProvider(mockCadvisor, mockPodManager, mockRuntimeCache, fakeContainerStatsProvider{
+		provider := newStatsProvider(mockCadvisor, mockTceMetrics, mockPodManager, mockRuntimeCache, fakeContainerStatsProvider{
 			device: test.imagefsDevice,
 		})
 		dedicated, err := provider.HasDedicatedImageFs()
@@ -673,6 +679,11 @@ func (o *fakeResourceAnalyzer) GetCPUAndMemoryStats() (*statsapi.Summary, error)
 func (o *fakeResourceAnalyzer) GetPodVolumeStats(uid types.UID) (serverstats.PodVolumeStats, bool) {
 	return o.podVolumeStats, true
 }
+func (f *fakeResourceAnalyzer) ThresholdsMet(softLimit int64, hardLimit int64) (bool, bool) {
+	return false, false
+}
+
+func (f *fakeResourceAnalyzer) GetLoad(podname string) float64 { return 0. }
 
 type fakeContainerStatsProvider struct {
 	device string

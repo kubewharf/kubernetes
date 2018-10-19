@@ -22,7 +22,7 @@ import (
 	"reflect"
 	"testing"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -1117,6 +1117,11 @@ func TestCompatibility_v1_Scheduler(t *testing.T) {
 			continue
 		}
 	}
+
+	// TCE puts several predicts and priorities as default, which should be added in compatibility test
+	seenPredicates.Insert("CheckNodeLoadPressure")
+	seenPriorities.Insert("LabelSpreadPriority")
+	seenPriorities.Insert("MostGPURequestedPriority")
 
 	if !seenPredicates.HasAll(registeredPredicates.List()...) {
 		t.Errorf("Registered predicates are missing from compatibility test (add to test stanza for version currently in development): %#v", registeredPredicates.Difference(seenPredicates).List())

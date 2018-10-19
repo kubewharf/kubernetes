@@ -94,6 +94,14 @@ func (m *mockDiskGC) DeleteAllUnusedContainers() error {
 	return m.err
 }
 
+func makePodWithCPUStats(name string, priority int32, requests v1.ResourceList, limits v1.ResourceList, cpuWorkingSet float64, summary *fakeSummaryProvider) *v1.Pod {
+	pod := newPod(name, priority, []v1.Container{
+		newContainer(name, requests, limits),
+	}, nil)
+	summary.podLoads[name] = cpuWorkingSet
+	return pod
+}
+
 func makePodWithMemoryStats(name string, priority int32, requests v1.ResourceList, limits v1.ResourceList, memoryRSS string) (*v1.Pod, statsapi.PodStats) {
 	pod := newPod(name, priority, []v1.Container{
 		newContainer(name, requests, limits),
@@ -175,12 +183,214 @@ type podToMake struct {
 	limits                   v1.ResourceList
 	memoryWorkingSet         string
 	memoryRSS                string
+	cpuWorkingSet            float64
 	rootFsUsed               string
 	logsFsUsed               string
 	logsFsInodesUsed         string
 	rootFsInodesUsed         string
 	perLocalVolumeUsed       string
 	perLocalVolumeInodesUsed string
+}
+
+// TestCPUPressure
+func TestCPUPressure(t *testing.T) {
+	podMaker := makePodWithCPUStats
+	summaryProvider := &fakeSummaryProvider{podLoads: make(map[string]float64), underSoftPressure: false, underHardPressure: false}
+
+	podsToMake := []podToMake{
+		{name: "guaranteed-low", priority: lowPriority, requests: newResourceList("100m", "1Gi", ""), limits: newResourceList("100m", "1Gi", ""), cpuWorkingSet: 2.},
+		{name: "guaranteed-high", priority: highPriority, requests: newResourceList("100m", "1Gi", ""), limits: newResourceList("100m", "1Gi", ""), cpuWorkingSet: 8.},
+		{name: "burstable-low", priority: lowPriority, requests: newResourceList("100m", "100Mi", ""), limits: newResourceList("200m", "1Gi", ""), cpuWorkingSet: 3.},
+		{name: "burstable-high", priority: highPriority, requests: newResourceList("100m", "100Mi", ""), limits: newResourceList("200m", "1Gi", ""), cpuWorkingSet: 8.},
+		{name: "best-effort-low", priority: lowPriority, requests: newResourceList("", "", ""), limits: newResourceList("", "", ""), cpuWorkingSet: 3.},
+		{name: "best-effort-high", priority: highPriority, requests: newResourceList("", "", ""), limits: newResourceList("", "", ""), cpuWorkingSet: 5.},
+	}
+	pods := []*v1.Pod{}
+	for _, podToMake := range podsToMake {
+		pod := makePodWithCPUStats(podToMake.name, podToMake.priority, podToMake.requests, podToMake.limits, podToMake.cpuWorkingSet, summaryProvider)
+		pods = append(pods, pod)
+	}
+	// LoadPressure just kill pod with most load, regardless of Qos
+	podToEvict := pods[1]
+	activePodsFunc := func() []*v1.Pod {
+		return pods
+	}
+
+	fakeClock := clock.NewFakeClock(time.Now())
+	podKiller := &mockPodKiller{}
+	diskInfoProvider := &mockDiskInfoProvider{dedicatedImageFs: false}
+	diskGC := &mockDiskGC{err: nil}
+	nodeRef := &v1.ObjectReference{Kind: "Node", Name: "test", UID: types.UID("test"), Namespace: ""}
+
+	config := Config{
+		MaxPodGracePeriodSeconds: 5,
+		PressureTransitionPeriod: time.Minute * 5,
+		Thresholds: []evictionapi.Threshold{
+			{
+				Signal:   evictionapi.SignalLoadSoftPressure,
+				Operator: evictionapi.OpLessThan,
+				Value: evictionapi.ThresholdValue{
+					Quantity: quantityMustParse("1Gi"),
+				},
+			},
+			{
+				Signal:   evictionapi.SignalLoadHardPressure,
+				Operator: evictionapi.OpLessThan,
+				Value: evictionapi.ThresholdValue{
+					Quantity: quantityMustParse("2Gi"),
+				},
+				GracePeriod: time.Minute * 2,
+			},
+		},
+	}
+
+	manager := &managerImpl{
+		clock:           fakeClock,
+		killPodFunc:     podKiller.killPodNow,
+		imageGC:         diskGC,
+		containerGC:     diskGC,
+		config:          config,
+		recorder:        &record.FakeRecorder{},
+		summaryProvider: summaryProvider,
+		nodeRef:         nodeRef,
+		nodeConditionsLastObservedAt: nodeConditionsObservedAt{},
+		thresholdsFirstObservedAt:    thresholdsObservedAt{},
+	}
+
+	// create a best effort pod to test admission
+	bestEffortPodToAdmit := podMaker("best-admit", defaultPriority, newResourceList("", "", ""), newResourceList("", "", ""), 0., summaryProvider)
+	burstablePodToAdmit := podMaker("burst-admit", defaultPriority, newResourceList("100m", "100Mi", ""), newResourceList("200m", "200Mi", ""), 0., summaryProvider)
+
+	// synchronize
+	manager.synchronizeLoad(diskInfoProvider, activePodsFunc)
+
+	// we should not have cpu pressure
+	if manager.IsUnderCPUPressure() {
+		t.Errorf("Manager should not report cpu pressure")
+	}
+
+	// try to admit our pods (they should succeed)
+	expected := []bool{true, true}
+	for i, pod := range []*v1.Pod{bestEffortPodToAdmit, burstablePodToAdmit} {
+		if result := manager.Admit(&lifecycle.PodAdmitAttributes{Pod: pod}); expected[i] != result.Admit {
+			t.Errorf("Admit pod: %v, expected: %v, actual: %v", pod, expected[i], result.Admit)
+		}
+	}
+
+	// induce soft threshold
+	fakeClock.Step(1 * time.Minute)
+	summaryProvider.underSoftPressure = true
+	manager.synchronizeLoad(diskInfoProvider, activePodsFunc)
+
+	// we should have cpu pressure
+	if !manager.IsUnderCPUPressure() {
+		t.Errorf("Manager should report cpu pressure since soft threshold was met")
+	}
+
+	// verify no pod was yet killed because there has not yet been enough time passed.
+	if podKiller.pod != nil {
+		t.Errorf("Manager should not have killed a pod yet, but killed: %v", podKiller.pod.Name)
+	}
+
+	// step forward in time pass the grace period
+	fakeClock.Step(3 * time.Minute)
+	summaryProvider.underSoftPressure = true
+	manager.synchronizeLoad(diskInfoProvider, activePodsFunc)
+
+	// we should have cpu pressure
+	if !manager.IsUnderCPUPressure() {
+		t.Errorf("Manager should report cpu pressure since soft threshold was met")
+	}
+
+	// verify no pod was yet killed because load only evict pod according to hardLimit
+	if podKiller.pod != nil {
+		t.Errorf("Manager should not have killed a pod yet, but killed: %v", podKiller.pod.Name)
+	}
+
+	// remove cpu pressure
+	fakeClock.Step(20 * time.Minute)
+	summaryProvider.underSoftPressure = false
+	manager.synchronizeLoad(diskInfoProvider, activePodsFunc)
+
+	// we should not have cpu pressure
+	if manager.IsUnderCPUPressure() {
+		t.Errorf("Manager should not report cpu pressure")
+	}
+
+	// no pod should have been killed
+	if podKiller.pod != nil {
+		t.Errorf("Manager should not have killed a pod yet, but killed: %v", podKiller.pod.Name)
+	}
+
+	// induce cpu pressure!
+	fakeClock.Step(1 * time.Minute)
+	summaryProvider.underSoftPressure = true
+	summaryProvider.underHardPressure = true
+	manager.synchronizeLoad(diskInfoProvider, activePodsFunc)
+
+	// we should have cpu pressure
+	if !manager.IsUnderCPUPressure() {
+		t.Errorf("Manager should report cpu pressure")
+	}
+
+	// check the right pod was killed
+	if podKiller.pod != podToEvict {
+		t.Errorf("Manager chose to kill pod: %v, but should have chosen %v", podKiller.pod.Name, podToEvict.Name)
+	}
+	observedGracePeriod := *podKiller.gracePeriodOverride
+	if observedGracePeriod != int64(0) {
+		t.Errorf("Manager chose to kill pod with incorrect grace period.  Expected: %d, actual: %d", 0, observedGracePeriod)
+	}
+
+	// reduce cpu pressure
+	fakeClock.Step(1 * time.Minute)
+	summaryProvider.underSoftPressure = false
+	summaryProvider.underHardPressure = false
+	podKiller.pod = nil // reset state
+	manager.synchronizeLoad(diskInfoProvider, activePodsFunc)
+
+	// we should have cpu pressure (because transition period not yet met)
+	if !manager.IsUnderCPUPressure() {
+		t.Errorf("Manager should report cpu pressure")
+	}
+
+	// no pod should have been killed
+	if podKiller.pod != nil {
+		t.Errorf("Manager chose to kill pod: %v when no pod should have been killed", podKiller.pod.Name)
+	}
+
+	// the best-effort pod should not admit, burstable should
+	expected = []bool{false, false}
+	for i, pod := range []*v1.Pod{bestEffortPodToAdmit, burstablePodToAdmit} {
+		if result := manager.Admit(&lifecycle.PodAdmitAttributes{Pod: pod}); expected[i] != result.Admit {
+			t.Errorf("Admit pod: %v, expected: %v, actual: %v", pod, expected[i], result.Admit)
+		}
+	}
+
+	// move the clock past transition period to ensure that we stop reporting pressure
+	fakeClock.Step(5 * time.Minute)
+	summaryProvider.underSoftPressure = false
+	summaryProvider.underHardPressure = false
+	podKiller.pod = nil // reset state
+	manager.synchronizeLoad(diskInfoProvider, activePodsFunc)
+
+	// we should not have cpu pressure (because transition period met)
+	if manager.IsUnderCPUPressure() {
+		t.Errorf("Manager should not report cpu pressure")
+	}
+
+	// no pod should have been killed
+	if podKiller.pod != nil {
+		t.Errorf("Manager chose to kill pod: %v when no pod should have been killed", podKiller.pod.Name)
+	}
+
+	// all pods should admit now
+	expected = []bool{true, true}
+	for i, pod := range []*v1.Pod{bestEffortPodToAdmit, burstablePodToAdmit} {
+		if result := manager.Admit(&lifecycle.PodAdmitAttributes{Pod: pod}); expected[i] != result.Admit {
+			t.Errorf("Admit pod: %v, expected: %v, actual: %v", pod, expected[i], result.Admit)
+		}
+	}
 }
 
 // TestMemoryPressure

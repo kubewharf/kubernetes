@@ -116,6 +116,20 @@ func (_m *StatsProvider) GetContainerInfo(podFullName string, uid types.UID, con
 	return r0, r1
 }
 
+// GetLoad provides a mock function with given fields: podname
+func (_m *StatsProvider) GetLoad(podname string) float64 {
+	ret := _m.Called(podname)
+
+	var r0 float64
+	if rf, ok := ret.Get(0).(func(string) float64); ok {
+		r0 = rf(podname)
+	} else {
+		r0 = ret.Get(0).(float64)
+	}
+
+	return r0
+}
+
 // GetNode provides a mock function with given fields:
 func (_m *StatsProvider) GetNode() (*corev1.Node, error) {
 	ret := _m.Called()
@@ -385,6 +399,27 @@ func (_m *StatsProvider) RlimitStats() (*v1alpha1.RlimitStats, error) {
 		r1 = rf()
 	} else {
 		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ThresholdsMet provides a mock function with given fields: softLimit, hardLimit
+func (_m *StatsProvider) ThresholdsMet(softLimit int64, hardLimit int64) (bool, bool) {
+	ret := _m.Called(softLimit, hardLimit)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(int64, int64) bool); ok {
+		r0 = rf(softLimit, hardLimit)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 bool
+	if rf, ok := ret.Get(1).(func(int64, int64) bool); ok {
+		r1 = rf(softLimit, hardLimit)
+	} else {
+		r1 = ret.Get(1).(bool)
 	}
 
 	return r0, r1

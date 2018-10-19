@@ -56,6 +56,7 @@ func TestDefaultPriorities(t *testing.T) {
 	result := sets.NewString(
 		priorities.SelectorSpreadPriority,
 		priorities.InterPodAffinityPriority,
+		priorities.LabelSpreadPriority,
 		priorities.LeastRequestedPriority,
 		priorities.MostGPURequestedPriority,
 		priorities.BalancedResourceAllocation,
@@ -81,6 +82,7 @@ func TestDefaultPredicates(t *testing.T) {
 		predicates.GeneralPred,
 		predicates.CheckNodeMemoryPressurePred,
 		predicates.CheckNodeDiskPressurePred,
+		predicates.CheckNodeLoadPressurePred,
 		predicates.CheckNodePIDPressurePred,
 		predicates.CheckNodeConditionPred,
 		predicates.PodToleratesNodeTaintsPred,
