@@ -76,6 +76,17 @@ func init() {
 		},
 	)
 
+	// spreads pods by minimizing the number of pods (belonging to the same service or replication controller) on the same node.
+	factory.RegisterPriorityConfigFactory(
+		priorities.LabelSpreadPriority,
+		factory.PriorityConfigFactory{
+			MapReduceFunction: func(args factory.PluginFactoryArgs) (priorities.PriorityMapFunction, priorities.PriorityReduceFunction) {
+				return priorities.NewLabelSpreadPriority()
+			},
+			Weight: 1,
+		},
+	)
+
 	// Prioritize nodes by least requested utilization.
 	factory.RegisterPriorityFunction2(priorities.LeastRequestedPriority, priorities.LeastRequestedPriorityMap, nil, 1)
 

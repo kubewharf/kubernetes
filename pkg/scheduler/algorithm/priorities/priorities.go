@@ -31,6 +31,9 @@ const (
 	// InterPodAffinityPriority defines the name of prioritizer function that decides which pods should or
 	// should not be placed in the same topological domain as some other pods.
 	InterPodAffinityPriority = "InterPodAffinityPriority"
+	// LabelSpreadPriority defines the name of prioritizer function that priorities nodes according to
+	// pods label.
+	LabelSpreadPriority = "LabelSpreadPriority"
 	// LeastRequestedPriority defines the name of prioritizer function that prioritize nodes by least
 	// requested utilization.
 	LeastRequestedPriority = "LeastRequestedPriority"

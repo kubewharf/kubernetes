@@ -112,6 +112,7 @@ func defaultPriorities() sets.String {
 	return sets.NewString(
 		priorities.SelectorSpreadPriority,
 		priorities.InterPodAffinityPriority,
+		priorities.LabelSpreadPriority,
 		priorities.LeastRequestedPriority,
 		priorities.MostGPURequestedPriority,
 		priorities.BalancedResourceAllocation,

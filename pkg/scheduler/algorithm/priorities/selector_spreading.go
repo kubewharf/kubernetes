@@ -19,14 +19,13 @@ package priorities
 import (
 	"fmt"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/scheduler/algorithm"
 	schedulerapi "k8s.io/kubernetes/pkg/scheduler/api"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 	utilnode "k8s.io/kubernetes/pkg/util/node"
-
-	"k8s.io/klog"
 )
 
 // When zone information is present, give 2/3 of the weighting to zone spreading, 1/3 to node spreading
@@ -273,5 +272,135 @@ func (s *ServiceAntiAffinity) CalculateAntiAffinityPriorityReduce(pod *v1.Pod, m
 		result[i].Score = int(fScore)
 	}
 
+	return nil
+}
+
+type LabelSpread struct {
+}
+
+func NewLabelSpreadPriority() (PriorityMapFunction, PriorityReduceFunction) {
+	labelSpread := &LabelSpread{}
+	return labelSpread.CalculateSpreadPriorityMap, labelSpread.CalculateSpreadPriorityReduce
+}
+
+func (s *LabelSpread) getSelectors(pod *v1.Pod) []labels.Selector {
+	return []labels.Selector{labels.Set(pod.Labels).AsSelector()}
+}
+
+// CalculateSpreadPriority spreads pods across hosts and zones, considering pods belonging to the same service or replication controller.
+// When a pod is scheduled, it looks for services, RCs or RSs that match the pod, then finds existing pods that match those selectors.
+// It favors nodes that have fewer existing matching pods.
+// i.e. it pushes the scheduler towards a node where there's the smallest number of
+// pods which match the same service, RC or RS selectors as the pod being scheduled.
+// Where zone information is included on the nodes, it favors nodes in zones with fewer existing matching pods.
+func (s *LabelSpread) CalculateSpreadPriorityMap(pod *v1.Pod, meta interface{}, nodeInfo *schedulernodeinfo.NodeInfo) (schedulerapi.HostPriority, error) {
+	node := nodeInfo.Node()
+	if node == nil {
+		return schedulerapi.HostPriority{}, fmt.Errorf("node not found")
+	}
+
+	selectors := s.getSelectors(pod)
+	if len(selectors) == 0 {
+		return schedulerapi.HostPriority{
+			Host:  node.Name,
+			Score: int(0),
+		}, nil
+	}
+	count := int(0)
+	for _, nodePod := range nodeInfo.Pods() {
+		if pod.Namespace != nodePod.Namespace {
+			continue
+		}
+		// When we are replacing a failed pod, we often see the previous
+		// deleted version while scheduling the replacement.
+		// Ignore the previous deleted version for spreading purposes
+		// (it can still be considered for resource restrictions etc.)
+		if nodePod.DeletionTimestamp != nil {
+			klog.V(4).Infof("skipping pending-deleted pod: %s/%s", nodePod.Namespace, nodePod.Name)
+			continue
+		}
+		matches := false
+		for _, selector := range selectors {
+			if selector.Matches(labels.Set(nodePod.ObjectMeta.Labels)) {
+				matches = true
+				break
+			}
+		}
+		if matches {
+			count++
+		}
+	}
+	return schedulerapi.HostPriority{
+		Host:  node.Name,
+		Score: int(count),
+	}, nil
+}
+
+// CalculateSpreadPriorityReduce calculates the source of each node
+// based on the number of existing matching pods on the node
+// where zone information is included on the nodes, it favors nodes
+// in zones with fewer existing matching pods.
+func (s *LabelSpread) CalculateSpreadPriorityReduce(pod *v1.Pod, metadata interface{}, nodeNameToInfo map[string]*schedulernodeinfo.NodeInfo, result schedulerapi.HostPriorityList) error {
+
+	countsByZone := make(map[string]int, 10)
+	maxCountByNodeName := int(0)
+	maxCountByZone := int(0)
+	for i := range result {
+		if result[i].Score > maxCountByNodeName {
+			maxCountByNodeName = result[i].Score
+		}
+		zoneID := utilnode.GetZoneKey(nodeNameToInfo[result[i].Host].Node())
+		if zoneID == "" {
+			continue
+		}
+		countsByZone[zoneID] += result[i].Score
+
+	}
+
+	for zoneID := range countsByZone {
+		if countsByZone[zoneID] > maxCountByZone {
+			maxCountByZone = countsByZone[zoneID]
+		}
+	}
+
+	// Aggregate by-zone information
+	// Compute the maximum number of pods hosted in any zone
+	haveZones := len(countsByZone) != 0
+
+	maxCountByNodeNameFloat64 := float64(maxCountByNodeName)
+	maxCountByZoneFloat64 := float64(maxCountByZone)
+	MaxPriorityFloat64 := float64(schedulerapi.MaxPriority)
+
+	//score int - scale of 0-maxPriority
+	// 0 being the lowest priority and maxPriority being the highest
+	for i := range result {
+		// initializing to the default/max node score of maxPriority
+		fScore := MaxPriorityFloat64
+		if maxCountByNodeName > 0 {
+			fScore = MaxPriorityFloat64 * (float64(maxCountByNodeName-result[i].Score) / maxCountByNodeNameFloat64)
+		}
+
+		// If there is zone information present, incorporate it
+		if haveZones {
+			zoneID := utilnode.GetZoneKey(nodeNameToInfo[result[i].Host].Node())
+			if zoneID != "" {
+				zoneScore := MaxPriorityFloat64
+				if maxCountByZone > 0 {
+					zoneScore = MaxPriorityFloat64 * (float64(maxCountByZone-countsByZone[zoneID]) / maxCountByZoneFloat64)
+
+				}
+				fScore = (fScore * (1.0 - zoneWeighting)) + (zoneWeighting * zoneScore)
+			}
+		}
+
+		result[i].Score = int(fScore)
+		if klog.V(10) {
+			// We explicitly don't do klog.V(10).Infof() to avoid computing all the parameters if this is
+			// not logged. There is visible performance gain from it.
+			klog.V(10).Infof(
+				"%v -> %v: LabelSpreadPriority, Score: (%d)", pod.Name, result[i].Host, result[i].Score,
+			)
+		}
+	}
 	return nil
 }
