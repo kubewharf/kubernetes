@@ -316,7 +316,6 @@ func (m *managerImpl) synchronizeLoad(diskInfoProvider DiskInfoProvider, podFunc
 	// we kill at most a single pod during each eviction interval
 	for i := range activePods {
 		pod := activePods[i]
-
 		controllerRef := metav1.GetControllerOf(pod)
 		if controllerRef != nil {
 			if controllerRef.Kind == apps.SchemeGroupVersion.WithKind("ReplicaSet").Kind {
@@ -688,7 +687,7 @@ func (m *managerImpl) evictPod(pod *v1.Pod, gracePeriodOverride int64, evictMsg 
 		}
 	}
 	// skip eviction if current pod is critical in TCE.
-	if kubelettypes.IsTCECriticalPod(pod) {
+	if kubelettypes.IsTCECriticalPod(pod) || isOwnedByDaemonset(pod) {
 		return false
 	}
 	status := v1.PodStatus{

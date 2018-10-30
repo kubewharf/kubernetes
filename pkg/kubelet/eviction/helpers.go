@@ -1153,3 +1153,8 @@ func evictionMessage(resourceToReclaim v1.ResourceName, pod *v1.Pod, stats stats
 	annotations[StarvedResourceKey] = string(resourceToReclaim)
 	return
 }
+
+// isOwnedByDaemonset checks if pod is owned by daemonset.
+func isOwnedByDaemonset(pod *v1.Pod) bool {
+	return len(pod.OwnerReferences) != 0 && pod.OwnerReferences[0].Kind == "DaemonSet"
+}
