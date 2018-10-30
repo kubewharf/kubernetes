@@ -1579,8 +1579,8 @@ func CheckNodeMemoryPressurePredicate(pod *v1.Pod, meta PredicateMetadata, nodeI
 		// We couldn't parse metadata - fallback to computing it.
 		podBestEffort = isPodBestEffort(pod)
 	}
-	// pod is not BestEffort pod
-	if !podBestEffort {
+	// pod is BestEffort pod
+	if podBestEffort {
 		return true, nil, nil
 	}
 
