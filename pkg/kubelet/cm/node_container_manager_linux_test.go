@@ -49,7 +49,7 @@ func TestNodeAllocatableReservationForScheduling(t *testing.T) {
 				Quantity: &memoryEvictionThreshold,
 			},
 			capacity: getResourceList("10", "10Gi"),
-			expected: getResourceList("150m", "250Mi"),
+			expected: getResourceList("150m", "150Mi"),
 		},
 		{
 			kubeReserved:   getResourceList("100m", "100Mi"),
@@ -58,7 +58,7 @@ func TestNodeAllocatableReservationForScheduling(t *testing.T) {
 			hardThreshold: evictionapi.ThresholdValue{
 				Percentage: 0.05,
 			},
-			expected: getResourceList("150m", "694157320"),
+			expected: getResourceList("150m", "150Mi"),
 		},
 
 		{
