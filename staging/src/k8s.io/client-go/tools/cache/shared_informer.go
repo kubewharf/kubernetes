@@ -173,6 +173,11 @@ func (c *dummyController) LastSyncResourceVersion() string {
 	return ""
 }
 
+type syncNotification struct {
+	oldObj interface{}
+	newObj interface{}
+}
+
 type updateNotification struct {
 	oldObj interface{}
 	newObj interface{}
@@ -355,7 +360,11 @@ func (s *sharedIndexInformer) HandleDeltas(obj interface{}) error {
 				if err := s.indexer.Update(d.Object); err != nil {
 					return err
 				}
-				s.processor.distribute(updateNotification{oldObj: old, newObj: d.Object}, isSync)
+				if isSync {
+					s.processor.distribute(syncNotification{oldObj: old, newObj: d.Object}, isSync)
+				} else {
+					s.processor.distribute(updateNotification{oldObj: old, newObj: d.Object}, isSync)
+				}
 			} else {
 				if err := s.indexer.Add(d.Object); err != nil {
 					return err
@@ -548,6 +557,8 @@ func (p *processorListener) run() {
 		err := wait.ExponentialBackoff(retry.DefaultRetry, func() (bool, error) {
 			for next := range p.nextCh {
 				switch notification := next.(type) {
+				case syncNotification:
+					p.handler.OnUpdateResync(notification.oldObj, notification.newObj)
 				case updateNotification:
 					p.handler.OnUpdate(notification.oldObj, notification.newObj)
 				case addNotification:

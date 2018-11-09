@@ -73,7 +73,8 @@ type DeploymentController struct {
 	// To allow injection of syncDeployment for testing.
 	syncHandler func(dKey string) error
 	// used for unit testing
-	enqueueDeployment func(deployment *apps.Deployment)
+	enqueueDeployment       func(deployment *apps.Deployment)
+	enqueueResyncDeployment func(deployment *apps.Deployment)
 
 	// dLister can list/get deployments from the shared informer's store
 	dLister appslisters.DeploymentLister
@@ -93,7 +94,8 @@ type DeploymentController struct {
 	podListerSynced cache.InformerSynced
 
 	// Deployments that need to be synced
-	queue workqueue.RateLimitingInterface
+	queue       workqueue.RateLimitingInterface
+	queueResync workqueue.RateLimitingInterface
 }
 
 // NewDeploymentController creates a new DeploymentController.
@@ -111,6 +113,7 @@ func NewDeploymentController(dInformer appsinformers.DeploymentInformer, rsInfor
 		client:        client,
 		eventRecorder: eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "deployment-controller"}),
 		queue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "deployment"),
+		queueResync:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "deploymentResync"),
 	}
 	dc.rsControl = controller.RealRSControl{
 		KubeClient: client,
@@ -121,7 +124,8 @@ func NewDeploymentController(dInformer appsinformers.DeploymentInformer, rsInfor
 		AddFunc:    dc.addDeployment,
 		UpdateFunc: dc.updateDeployment,
 		// This will enter the sync loop and no-op, because the deployment has been deleted from the store.
-		DeleteFunc: dc.deleteDeployment,
+		DeleteFunc:       dc.deleteDeployment,
+		UpdateResyncFunc: dc.updateDeploymentResync,
 	})
 	rsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    dc.addReplicaSet,
@@ -134,7 +138,7 @@ func NewDeploymentController(dInformer appsinformers.DeploymentInformer, rsInfor
 
 	dc.syncHandler = dc.syncDeployment
 	dc.enqueueDeployment = dc.enqueue
-
+	dc.enqueueResyncDeployment = dc.enqueueResync
 	dc.dLister = dInformer.Lister()
 	dc.rsLister = rsInformer.Lister()
 	dc.podLister = podInformer.Lister()
@@ -160,6 +164,7 @@ func (dc *DeploymentController) Run(workers int, stopCh <-chan struct{}) {
 		go wait.Until(dc.worker, time.Second, stopCh)
 	}
 
+	go wait.Until(dc.workerResync, time.Second, stopCh)
 	<-stopCh
 }
 
@@ -192,6 +197,13 @@ func (dc *DeploymentController) deleteDeployment(obj interface{}) {
 	}
 	klog.V(4).Infof("Deleting deployment %s", d.Name)
 	dc.enqueueDeployment(d)
+}
+
+func (dc *DeploymentController) updateDeploymentResync(old, cur interface{}) {
+	oldD := old.(*apps.Deployment)
+	curD := cur.(*apps.Deployment)
+	klog.V(4).Infof("Updating resync deployment %s", oldD.Name)
+	dc.enqueueResyncDeployment(curD)
 }
 
 // addReplicaSet enqueues the deployment that manages a ReplicaSet when the ReplicaSet is created.
@@ -384,6 +396,16 @@ func (dc *DeploymentController) enqueue(deployment *apps.Deployment) {
 	dc.queue.Add(key)
 }
 
+func (dc *DeploymentController) enqueueResync(deployment *apps.Deployment) {
+	key, err := controller.KeyFunc(deployment)
+	if err != nil {
+		utilruntime.HandleError(fmt.Errorf("Couldn't get key for object %#v: %v", deployment, err))
+		return
+	}
+
+	dc.queueResync.Add(key)
+}
+
 func (dc *DeploymentController) enqueueRateLimited(deployment *apps.Deployment) {
 	key, err := controller.KeyFunc(deployment)
 	if err != nil {
@@ -461,12 +483,30 @@ func (dc *DeploymentController) worker() {
 	}
 }
 
+func (dc *DeploymentController) workerResync() {
+	for dc.processNextWorkItemResync() {
+	}
+}
+
 func (dc *DeploymentController) processNextWorkItem() bool {
 	key, quit := dc.queue.Get()
 	if quit {
 		return false
 	}
 	defer dc.queue.Done(key)
+
+	err := dc.syncHandler(key.(string))
+	dc.handleErr(err, key)
+
+	return true
+}
+
+func (dc *DeploymentController) processNextWorkItemResync() bool {
+	key, quit := dc.queueResync.Get()
+	if quit {
+		return false
+	}
+	defer dc.queueResync.Done(key)
 
 	err := dc.syncHandler(key.(string))
 	dc.handleErr(err, key)

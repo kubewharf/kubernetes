@@ -103,6 +103,8 @@ type ReplicaSetController struct {
 
 	// Controllers that need to be synced
 	queue workqueue.RateLimitingInterface
+
+	queueResync workqueue.RateLimitingInterface
 }
 
 // NewReplicaSetController configures a replica set controller with the specified event recorder
@@ -136,6 +138,7 @@ func NewBaseController(rsInformer appsinformers.ReplicaSetInformer, podInformer 
 		burstReplicas:    burstReplicas,
 		expectations:     controller.NewUIDTrackingControllerExpectations(controller.NewControllerExpectations()),
 		queue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), queueName),
+		queueResync:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), queueName+"Resync"),
 	}
 
 	rsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -144,7 +147,8 @@ func NewBaseController(rsInformer appsinformers.ReplicaSetInformer, podInformer 
 		// This will enter the sync loop and no-op, because the replica set has been deleted from the store.
 		// Note that deleting a replica set immediately after scaling it to 0 will not work. The recommended
 		// way of achieving this is by performing a `stop` operation on the replica set.
-		DeleteFunc: rsc.enqueueReplicaSet,
+		DeleteFunc:       rsc.enqueueReplicaSet,
+		UpdateResyncFunc: rsc.updateReplicasSetResync,
 	})
 	rsc.rsLister = rsInformer.Lister()
 	rsc.rsListerSynced = rsInformer.Informer().HasSynced
@@ -189,6 +193,7 @@ func (rsc *ReplicaSetController) Run(workers int, stopCh <-chan struct{}) {
 	for i := 0; i < workers; i++ {
 		go wait.Until(rsc.worker, time.Second, stopCh)
 	}
+	go wait.Until(rsc.workerResync, time.Second, stopCh)
 
 	<-stopCh
 }
@@ -249,6 +254,15 @@ func (rsc *ReplicaSetController) updateRS(old, cur interface{}) {
 		klog.V(4).Infof("%v %v updated. Desired pod count change: %d->%d", rsc.Kind, curRS.Name, *(oldRS.Spec.Replicas), *(curRS.Spec.Replicas))
 	}
 	rsc.enqueueReplicaSet(cur)
+}
+
+func (rsc *ReplicaSetController) updateReplicasSetResync(old, cur interface{}) {
+	oldRS := old.(*apps.ReplicaSet)
+	curRS := cur.(*apps.ReplicaSet)
+	if *(oldRS.Spec.Replicas) != *(curRS.Spec.Replicas) {
+		klog.V(4).Infof("Replica set %v updated. Desired pod count change: %d->%d", curRS.Name, *(oldRS.Spec.Replicas), *(curRS.Spec.Replicas))
+	}
+	rsc.enqueueResyncReplicaSet(cur)
 }
 
 // When a pod is created, enqueue the replica set that manages it and update its expectations.
@@ -417,6 +431,15 @@ func (rsc *ReplicaSetController) enqueueReplicaSet(obj interface{}) {
 	rsc.queue.Add(key)
 }
 
+func (rsc *ReplicaSetController) enqueueResyncReplicaSet(obj interface{}) {
+	key, err := controller.KeyFunc(obj)
+	if err != nil {
+		utilruntime.HandleError(fmt.Errorf("couldn't get key for object %+v: %v", obj, err))
+		return
+	}
+	rsc.queueResync.Add(key)
+}
+
 // obj could be an *apps.ReplicaSet, or a DeletionFinalStateUnknown marker item.
 func (rsc *ReplicaSetController) enqueueReplicaSetAfter(obj interface{}, after time.Duration) {
 	key, err := controller.KeyFunc(obj)
@@ -431,6 +454,11 @@ func (rsc *ReplicaSetController) enqueueReplicaSetAfter(obj interface{}, after t
 // It enforces that the syncHandler is never invoked concurrently with the same key.
 func (rsc *ReplicaSetController) worker() {
 	for rsc.processNextWorkItem() {
+	}
+}
+
+func (rsc *ReplicaSetController) workerResync() {
+	for rsc.processNextWorkItemResync() {
 	}
 }
 
@@ -449,6 +477,25 @@ func (rsc *ReplicaSetController) processNextWorkItem() bool {
 
 	utilruntime.HandleError(fmt.Errorf("Sync %q failed with %v", key, err))
 	rsc.queue.AddRateLimited(key)
+
+	return true
+}
+
+func (rsc *ReplicaSetController) processNextWorkItemResync() bool {
+	key, quit := rsc.queueResync.Get()
+	if quit {
+		return false
+	}
+	defer rsc.queueResync.Done(key)
+
+	err := rsc.syncHandler(key.(string))
+	if err == nil {
+		rsc.queueResync.Forget(key)
+		return true
+	}
+
+	utilruntime.HandleError(fmt.Errorf("Sync %q failed with %v", key, err))
+	rsc.queueResync.AddRateLimited(key)
 
 	return true
 }
