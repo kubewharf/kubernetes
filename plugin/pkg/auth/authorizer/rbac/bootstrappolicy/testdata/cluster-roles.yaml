@@ -931,6 +931,8 @@ items:
     verbs:
     - create
     - delete
+    - patch
+    - update
   - apiGroups:
     - ""
     resources:
