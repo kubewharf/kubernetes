@@ -22,10 +22,14 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
+	policy "k8s.io/api/policy/v1beta1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
@@ -335,6 +339,118 @@ func killPodNow(podWorkers PodWorkers, recorder record.EventRecorder) eviction.K
 		case <-time.After(timeoutDuration):
 			recorder.Eventf(pod, v1.EventTypeWarning, events.ExceededGracePeriod, "Container runtime did not kill the pod within specified grace period.")
 			return fmt.Errorf("timeout waiting to kill pod")
+		}
+	}
+}
+
+// evictPodNow returns a KillPodFunc that can be used to evict a pod through the eviction api.
+// It is intended to be injected into other modules that need to evict a pod.
+func evictPodNow(kubeClient clientset.Interface, recorder record.EventRecorder) eviction.KillPodFunc {
+	const (
+		policyGroupVersion = "policy/v1beta1"
+		evictionKind       = "Eviction"
+		interval           = time.Second * 1
+	)
+
+	getPodFn := func(namespace, name string) (*v1.Pod, error) {
+		return kubeClient.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
+	}
+
+	evictPod := func(pod *v1.Pod, gracePeriodOverride *int64, policyGroupVersion, evictionKind string, kubeClient clientset.Interface) error {
+		deleteOptions := &metav1.DeleteOptions{GracePeriodSeconds: gracePeriodOverride}
+		eviction := &policy.Eviction{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: policyGroupVersion,
+				Kind:       evictionKind,
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      pod.Name,
+				Namespace: pod.Namespace,
+			},
+			DeleteOptions: deleteOptions,
+		}
+		// Remember to change change the URL manipulation func when Evction's version change
+		return kubeClient.PolicyV1beta1().Evictions(eviction.Namespace).Evict(eviction)
+	}
+
+	waitForDelete := func(pods []*v1.Pod, interval, timeout time.Duration, getPodFn func(string, string) (*v1.Pod, error)) ([]*v1.Pod, error) {
+		err := wait.PollImmediate(interval, timeout, func() (bool, error) {
+			pendingPods := []*v1.Pod{}
+			for i, pod := range pods {
+				p, err := getPodFn(pod.Namespace, pod.Name)
+				if apierrors.IsNotFound(err) || (p != nil && p.ObjectMeta.UID != pod.ObjectMeta.UID) {
+					continue
+				} else if err != nil {
+					return false, err
+				} else {
+					pendingPods = append(pendingPods, pods[i])
+				}
+			}
+			pods = pendingPods
+			if len(pendingPods) > 0 {
+				return false, nil
+			}
+			return true, nil
+		})
+		return pods, err
+	}
+
+	return func(pod *v1.Pod, status v1.PodStatus, gracePeriodOverride *int64) error {
+		doneCh := make(chan bool, 1)
+		errCh := make(chan error, 1)
+
+		// determine the grace period to use when evicting the pod
+		gracePeriodSeconds := int64(30)
+		if gracePeriodOverride != nil {
+			gracePeriodSeconds = *gracePeriodOverride
+		} else if pod.Spec.TerminationGracePeriodSeconds != nil {
+			gracePeriodSeconds = *pod.Spec.TerminationGracePeriodSeconds
+		}
+
+		// we timeout and return an error if we don't get a callback within a reasonable time.
+		// the default timeout is relative to the grace period (we settle on 10s to wait for kubelet->runtime traffic to complete in sigkill)
+		timeout := int64(gracePeriodSeconds + (gracePeriodSeconds / 2))
+		minTimeout := int64(10)
+		if timeout < minTimeout {
+			timeout = minTimeout
+		}
+		timeoutDuration := time.Duration(timeout) * time.Second
+
+		go func(pod *v1.Pod, doneCh chan bool, errCh chan error) {
+			var err error
+			for {
+				err = evictPod(pod, &gracePeriodSeconds, policyGroupVersion, evictionKind, kubeClient)
+				if err == nil {
+					break
+				} else if apierrors.IsNotFound(err) {
+					doneCh <- true
+					return
+				} else if apierrors.IsTooManyRequests(err) {
+					time.Sleep(5 * time.Second)
+				} else {
+					errCh <- fmt.Errorf("error when evicting pod %q: %v", pod.Name, err)
+					return
+				}
+			}
+			podArray := []*v1.Pod{pod}
+			_, err = waitForDelete(podArray, interval, timeoutDuration, getPodFn)
+			if err == nil {
+				doneCh <- true
+			} else {
+				errCh <- fmt.Errorf("error when waiting for pod %q terminating: %v", pod.Name, err)
+			}
+		}(pod, doneCh, errCh)
+
+		for {
+			select {
+			case err := <-errCh:
+				return err
+			case <-doneCh:
+				return nil
+			case <-time.After(timeoutDuration):
+				recorder.Eventf(pod, v1.EventTypeWarning, events.ExceededGracePeriod, "Container runtime did not kill the pod within specified grace period.")
+				return fmt.Errorf("eviction did not complete within %v", timeoutDuration)
+			}
 		}
 	}
 }

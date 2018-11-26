@@ -433,6 +433,11 @@ const (
 	//
 	// Enables the OpenStack Cinder in-tree driver to OpenStack Cinder CSI Driver migration feature.
 	CSIMigrationOpenStack utilfeature.Feature = "CSIMigrationOpenStack"
+	// owner: @jiangfan.2017
+	// alpha: v1.8
+	//
+	// Enable pods to be evicted by the eviction api instead of the local SyncPodKill of SyncPodType
+	EvictByAPI utilfeature.Feature = "EvictByAPI"
 )
 
 func init() {
@@ -507,6 +512,7 @@ var defaultKubernetesFeatureGates = map[utilfeature.Feature]utilfeature.FeatureS
 	TTLAfterFinished:                            {Default: false, PreRelease: utilfeature.Alpha},
 	KubeletPodResources:                         {Default: false, PreRelease: utilfeature.Alpha},
 	WindowsGMSA:                                 {Default: false, PreRelease: utilfeature.Alpha},
+	EvictByAPI:                                  {Default: false, PreRelease: utilfeature.Alpha},
 
 	// inherited features from generic apiserver, relisted here to get a conflict if it is changed
 	// unintentionally on either side:

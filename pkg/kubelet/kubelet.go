@@ -825,7 +825,13 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 	klet.podKillingCh = make(chan *kubecontainer.PodPair, podKillingChannelCapacity)
 
 	// setup eviction manager
-	evictionManager, evictionAdmitHandler := eviction.NewManager(klet.resourceAnalyzer, evictionConfig, killPodNow(klet.podWorkers, kubeDeps.Recorder), klet.podManager.GetMirrorPodByPod, klet.imageManager, klet.containerGC, kubeDeps.Recorder, nodeRef, klet.clock, kubeDeps.KubeClient)
+	var evictionManager eviction.Manager
+	var evictionAdmitHandler lifecycle.PodAdmitHandler
+	if utilfeature.DefaultFeatureGate.Enabled(features.EvictByAPI) {
+		evictionManager, evictionAdmitHandler = eviction.NewManager(klet.resourceAnalyzer, evictionConfig, evictPodNow(klet.kubeClient, kubeDeps.Recorder), klet.podManager.GetMirrorPodByPod, klet.imageManager, klet.containerGC, kubeDeps.Recorder, nodeRef, klet.clock, kubeDeps.KubeClient)
+	} else {
+		evictionManager, evictionAdmitHandler = eviction.NewManager(klet.resourceAnalyzer, evictionConfig, killPodNow(klet.podWorkers, kubeDeps.Recorder), klet.podManager.GetMirrorPodByPod, klet.imageManager, klet.containerGC, kubeDeps.Recorder, nodeRef, klet.clock, kubeDeps.KubeClient)
+	}
 
 	klet.evictionManager = evictionManager
 	klet.admitHandlers.AddPodAdmitHandler(evictionAdmitHandler)
