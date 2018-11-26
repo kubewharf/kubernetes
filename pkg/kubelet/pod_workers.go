@@ -349,7 +349,7 @@ func evictPodNow(kubeClient clientset.Interface, recorder record.EventRecorder) 
 	const (
 		policyGroupVersion = "policy/v1beta1"
 		evictionKind       = "Eviction"
-		interval           = time.Second * 1
+		interval           = time.Second * 5
 	)
 
 	getPodFn := func(namespace, name string) (*v1.Pod, error) {

@@ -700,8 +700,10 @@ func (m *managerImpl) evictPod(pod *v1.Pod, gracePeriodOverride int64, evictMsg 
 	// this is a blocking call and should only return when the pod and its containers are killed.
 	err := m.killPodFunc(pod, status, &gracePeriodOverride)
 	if err != nil {
+		m.recorder.Eventf(m.nodeRef, v1.EventTypeWarning, "FailedEvictPod", "Error while evicting pod %s: %v", format.Pod(pod), err)
 		klog.Errorf("eviction manager: pod %s failed to evict %v", format.Pod(pod), err)
 	} else {
+		m.recorder.Eventf(m.nodeRef, v1.EventTypeWarning, "SuccessfulEvictPod", "Pod %s has been evicted", format.Pod(pod))
 		klog.Infof("eviction manager: pod %s is evicted successfully", format.Pod(pod))
 	}
 	return true
