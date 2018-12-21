@@ -20,10 +20,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"k8s.io/klog"
-	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"os"
 	"sync"
+
+	"k8s.io/klog"
+	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 )
 
 type stateFileData struct {
@@ -208,4 +209,17 @@ func (sf *stateFile) ClearState() {
 	defer sf.Unlock()
 	sf.cache.ClearState()
 	sf.storeState()
+}
+
+func (sf *stateFile) SetCPUSetMemory(containerID string, mems cpuset.CPUSet) {
+	sf.Lock()
+	defer sf.Unlock()
+	sf.cache.SetCPUSetMemory(containerID, mems)
+	sf.storeState()
+}
+
+func (sf *stateFile) GetCPUSetMemory(containerID string) cpuset.CPUSet {
+	sf.Lock()
+	defer sf.Unlock()
+	return sf.cache.GetCPUSetMemory(containerID)
 }

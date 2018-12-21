@@ -192,3 +192,16 @@ func (sc *stateCheckpoint) ClearState() {
 	sc.cache.ClearState()
 	sc.storeState()
 }
+
+func (sc *stateCheckpoint) SetCPUSetMemory(containerID string, mems cpuset.CPUSet) {
+	sc.mux.Lock()
+	defer sc.mux.Unlock()
+	sc.cache.SetCPUSetMemory(containerID, mems)
+	sc.storeState()
+}
+
+func (sc *stateCheckpoint) GetCPUSetMemory(containerID string) cpuset.CPUSet {
+	sc.mux.Lock()
+	defer sc.mux.Unlock()
+	return sc.cache.GetCPUSetMemory(containerID)
+}

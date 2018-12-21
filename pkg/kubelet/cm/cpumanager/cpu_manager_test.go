@@ -82,6 +82,14 @@ func (s *mockState) getCPUSetMems(containerID string) cpuset.CPUSet {
 	return cpuset.NewCPUSet()
 }
 
+func (s *mockState) SetCPUSetMemory(containerID string, mems cpuset.CPUSet) {
+	s.memAssignments[containerID] = mems
+}
+
+func (s *mockState) GetCPUSetMemory(containerID string) cpuset.CPUSet {
+	return s.getCPUSetMems(containerID)
+}
+
 func (s *mockState) SetCPUAssignments(a state.ContainerCPUAssignments) {
 	s.assignments = a.Clone()
 }

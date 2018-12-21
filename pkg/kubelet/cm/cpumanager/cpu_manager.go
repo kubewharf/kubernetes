@@ -23,7 +23,7 @@ import (
 	"time"
 
 	cadvisorapi "github.com/google/cadvisor/info/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog"
 
@@ -96,40 +96,52 @@ type manager struct {
 
 var _ Manager = &manager{}
 
+func policyForNotNone(cpuPolicyName string, machineInfo *cadvisorapi.MachineInfo, nodeAllocatableReservation v1.ResourceList, policy Policy) (Policy, error) {
+	topo, err := topology.Discover(machineInfo)
+	if err != nil {
+		return nil, err
+	}
+	klog.Infof("[cpumanager] detected CPU topology: %v", topo)
+	reservedCPUs, ok := nodeAllocatableReservation[v1.ResourceCPU]
+	if !ok {
+		// The static policy cannot initialize without this information.
+		return nil, fmt.Errorf("[cpumanager] unable to determine reserved CPU resources for %s policy", cpuPolicyName)
+	}
+	if reservedCPUs.IsZero() {
+		// The static policy requires this to be nonzero. Zero CPU reservation
+		// would allow the shared pool to be completely exhausted. At that point
+		// either we would violate our guarantee of exclusivity or need to evict
+		// any pod that has at least one container that requires zero CPUs.
+		// See the comments in policy_static.go for more details.
+		return nil, fmt.Errorf("[cpumanager] the %s policy requires systemreserved.cpu + kubereserved.cpu to be greater than zero", cpuPolicyName)
+	}
+
+	// Take the ceiling of the reservation, since fractional CPUs cannot be
+	// exclusively allocated.
+	reservedCPUsFloat := float64(reservedCPUs.MilliValue()) / 1000
+	numReservedCPUs := int(math.Ceil(reservedCPUsFloat))
+	if policyName(cpuPolicyName) == PolicyNuma {
+		policy = NewNumaPolicy(topo, numReservedCPUs)
+	} else {
+		policy = NewStaticPolicy(topo, numReservedCPUs)
+	}
+	return policy, nil
+}
+
 // NewManager creates new cpu manager based on provided policy
 func NewManager(cpuPolicyName string, reconcilePeriod time.Duration, machineInfo *cadvisorapi.MachineInfo, nodeAllocatableReservation v1.ResourceList, stateFileDirectory string) (Manager, error) {
 	var policy Policy
-
+	var err error
 	switch policyName(cpuPolicyName) {
 
 	case PolicyNone:
 		policy = NewNonePolicy()
 
-	case PolicyStatic:
-		topo, err := topology.Discover(machineInfo)
+	case PolicyStatic, PolicyNuma:
+		policy, err = policyForNotNone(cpuPolicyName, machineInfo, nodeAllocatableReservation, policy)
 		if err != nil {
 			return nil, err
 		}
-		klog.Infof("[cpumanager] detected CPU topology: %v", topo)
-		reservedCPUs, ok := nodeAllocatableReservation[v1.ResourceCPU]
-		if !ok {
-			// The static policy cannot initialize without this information.
-			return nil, fmt.Errorf("[cpumanager] unable to determine reserved CPU resources for static policy")
-		}
-		if reservedCPUs.IsZero() {
-			// The static policy requires this to be nonzero. Zero CPU reservation
-			// would allow the shared pool to be completely exhausted. At that point
-			// either we would violate our guarantee of exclusivity or need to evict
-			// any pod that has at least one container that requires zero CPUs.
-			// See the comments in policy_static.go for more details.
-			return nil, fmt.Errorf("[cpumanager] the static policy requires systemreserved.cpu + kubereserved.cpu to be greater than zero")
-		}
-
-		// Take the ceiling of the reservation, since fractional CPUs cannot be
-		// exclusively allocated.
-		reservedCPUsFloat := float64(reservedCPUs.MilliValue()) / 1000
-		numReservedCPUs := int(math.Ceil(reservedCPUsFloat))
-		policy = NewStaticPolicy(topo, numReservedCPUs)
 
 	default:
 		klog.Errorf("[cpumanager] Unknown policy \"%s\", falling back to default policy \"%s\"", cpuPolicyName, PolicyNone)
@@ -175,10 +187,11 @@ func (m *manager) AddContainer(p *v1.Pod, c *v1.Container, containerID string) e
 		return err
 	}
 	cpus := m.state.GetCPUSetOrDefault(containerID)
+	mems := m.state.GetCPUSetMemory(containerID)
 	m.Unlock()
 
 	if !cpus.IsEmpty() {
-		err = m.updateContainerCPUSet(containerID, cpus)
+		err = m.updateContainerCPUSet(containerID, cpus, mems)
 		if err != nil {
 			klog.Errorf("[cpumanager] AddContainer error: %v", err)
 			m.Lock()
@@ -270,10 +283,14 @@ func (m *manager) reconcileState() (success []reconciledContainer, failure []rec
 				continue
 			}
 
-			klog.V(4).Infof("[cpumanager] reconcileState: updating container (pod: %s, container: %s, container id: %s, cpuset: \"%v\")", pod.Name, container.Name, containerID, cset)
-			err = m.updateContainerCPUSet(containerID, cset)
+			// NOTE: CPUSetMem could be empty in policy static
+			csetMem := m.state.GetCPUSetMemory(containerID)
+
+			klog.V(4).Infof("[cpumanager] reconcileState: updating container (pod: %s, container: %s, container id: %s, cpuset: \"%v\", cpusetmem: \"%v\")", pod.Name, container.Name, containerID, cset, csetMem)
+			err = m.updateContainerCPUSet(containerID, cset, csetMem)
+
 			if err != nil {
-				klog.Errorf("[cpumanager] reconcileState: failed to update container (pod: %s, container: %s, container id: %s, cpuset: \"%v\", error: %v)", pod.Name, container.Name, containerID, cset, err)
+				klog.Errorf("[cpumanager] reconcileState: failed to update container (pod: %s, container: %s, container id: %s, cpuset: \"%v\", cpusetmem: \"%v\" error: %v)", pod.Name, container.Name, containerID, cset, csetMem, err)
 				failure = append(failure, reconciledContainer{pod.Name, container.Name, containerID})
 				continue
 			}
@@ -307,7 +324,7 @@ func findContainerIDByName(status *v1.PodStatus, name string) (string, error) {
 	return "", fmt.Errorf("unable to find ID for container with name %v in pod status (it may not be running)", name)
 }
 
-func (m *manager) updateContainerCPUSet(containerID string, cpus cpuset.CPUSet) error {
+func (m *manager) updateContainerCPUSet(containerID string, cpus cpuset.CPUSet, mems cpuset.CPUSet) error {
 	// TODO: Consider adding a `ResourceConfigForContainer` helper in
 	// helpers_linux.go similar to what exists for pods.
 	// It would be better to pass the full container resources here instead of
@@ -316,5 +333,7 @@ func (m *manager) updateContainerCPUSet(containerID string, cpus cpuset.CPUSet) 
 		containerID,
 		&runtimeapi.LinuxContainerResources{
 			CpusetCpus: cpus.String(),
-		})
+			CpusetMems: mems.String(),
+		},
+	)
 }

@@ -27,6 +27,8 @@ type stateMemory struct {
 	sync.RWMutex
 	assignments   ContainerCPUAssignments
 	defaultCPUSet cpuset.CPUSet
+
+	memoryAssignments ContainerCPUAssignments
 }
 
 var _ State = &stateMemory{}
@@ -37,6 +39,8 @@ func NewMemoryState() State {
 	return &stateMemory{
 		assignments:   ContainerCPUAssignments{},
 		defaultCPUSet: cpuset.NewCPUSet(),
+
+		memoryAssignments: ContainerCPUAssignments{},
 	}
 }
 
@@ -97,7 +101,26 @@ func (s *stateMemory) Delete(containerID string) {
 	defer s.Unlock()
 
 	delete(s.assignments, containerID)
+	delete(s.memoryAssignments, containerID)
 	klog.V(2).Infof("[cpumanager] deleted cpuset assignment (container id: %s)", containerID)
+}
+
+func (s *stateMemory) SetCPUSetMemory(containerID string, mems cpuset.CPUSet) {
+	s.Lock()
+	defer s.Unlock()
+
+	s.memoryAssignments[containerID] = mems
+	klog.Infof("[cpumanager] updated desired cpuset (container id: %s, numa node: \"%s\")", containerID, mems)
+}
+
+func (s *stateMemory) GetCPUSetMemory(containerID string) cpuset.CPUSet {
+	s.RLock()
+	defer s.RUnlock()
+
+	if res, ok := s.memoryAssignments[containerID]; ok {
+		return res
+	}
+	return cpuset.NewCPUSet()
 }
 
 func (s *stateMemory) ClearState() {
@@ -106,5 +129,6 @@ func (s *stateMemory) ClearState() {
 
 	s.defaultCPUSet = cpuset.CPUSet{}
 	s.assignments = make(ContainerCPUAssignments)
+	s.memoryAssignments = make(ContainerCPUAssignments)
 	klog.V(2).Infof("[cpumanager] cleared state")
 }

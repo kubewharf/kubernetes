@@ -19,7 +19,7 @@ package cpumanager
 import (
 	"fmt"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 	v1qos "k8s.io/kubernetes/pkg/apis/core/v1/helper/qos"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpumanager/state"
@@ -78,10 +78,7 @@ type staticPolicy struct {
 // Ensure staticPolicy implements Policy interface
 var _ Policy = &staticPolicy{}
 
-// NewStaticPolicy returns a CPU manager policy that does not change CPU
-// assignments for exclusively pinned guaranteed containers after the main
-// container process starts.
-func NewStaticPolicy(topology *topology.CPUTopology, numReservedCPUs int) Policy {
+func newCPUReserved(topology *topology.CPUTopology, numReservedCPUs int) cpuset.CPUSet {
 	allCPUs := topology.CPUDetails.CPUs()
 	// takeByTopology allocates CPUs associated with low-numbered cores from
 	// allCPUs.
@@ -95,7 +92,14 @@ func NewStaticPolicy(topology *topology.CPUTopology, numReservedCPUs int) Policy
 	}
 
 	klog.Infof("[cpumanager] reserved %d CPUs (\"%s\") not available for exclusive assignment", reserved.Size(), reserved)
+	return reserved
+}
 
+// NewStaticPolicy returns a CPU manager policy that does not change CPU
+// assignments for exclusively pinned guaranteed containers after the main
+// container process starts.
+func NewStaticPolicy(topology *topology.CPUTopology, numReservedCPUs int) Policy {
+	reserved := newCPUReserved(topology, numReservedCPUs)
 	return &staticPolicy{
 		topology: topology,
 		reserved: reserved,
