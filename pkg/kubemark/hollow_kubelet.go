@@ -68,18 +68,19 @@ func NewHollowKubelet(
 	volumePlugins = append(volumePlugins, secret.ProbeVolumePlugins()...)
 	volumePlugins = append(volumePlugins, projected.ProbeVolumePlugins()...)
 	d := &kubelet.Dependencies{
-		KubeClient:         client,
-		HeartbeatClient:    client,
-		DockerClientConfig: dockerClientConfig,
-		CAdvisorInterface:  cadvisorInterface,
-		Cloud:              nil,
-		OSInterface:        &containertest.FakeOS{},
-		ContainerManager:   containerManager,
-		VolumePlugins:      volumePlugins,
-		TLSOptions:         nil,
-		OOMAdjuster:        oom.NewFakeOOMAdjuster(),
-		Mounter:            mount.New("" /* default mount path */),
-		Subpather:          &subpath.FakeSubpath{},
+		KubeClient:          client,
+		HeartbeatClient:     client,
+		DockerClientConfig:  dockerClientConfig,
+		CAdvisorInterface:   cadvisorInterface,
+		TCEMetricsInterface: cadvisor.NewFakeTCEMetricsClient(),
+		Cloud:               nil,
+		OSInterface:         &containertest.FakeOS{},
+		ContainerManager:    containerManager,
+		VolumePlugins:       volumePlugins,
+		TLSOptions:          nil,
+		OOMAdjuster:         oom.NewFakeOOMAdjuster(),
+		Mounter:             mount.New("" /* default mount path */),
+		Subpather:           &subpath.FakeSubpath{},
 	}
 
 	return &HollowKubelet{
