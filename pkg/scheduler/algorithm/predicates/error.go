@@ -77,6 +77,8 @@ var (
 	ErrVolumeNodeConflict = newPredicateFailureError("VolumeNodeAffinityConflict", "node(s) had volume node affinity conflict")
 	// ErrVolumeBindConflict is used for VolumeBindingNoMatch predicate error.
 	ErrVolumeBindConflict = newPredicateFailureError("VolumeBindingNoMatch", "node(s) didn't find available persistent volumes to bind")
+	// ErrPodHostUniqueRulesNotMatch is used for PodHostUniqueRulesNotMatch predicate error.
+	ErrPodHostUniqueRulesNotMatch = newPredicateFailureError("PodHostUniqueRulesNotMatch", "node(s) didn't match pod host unique rules")
 	// ErrFakePredicate is used for test only. The fake predicates returning false also returns error
 	// as ErrFakePredicate.
 	ErrFakePredicate = newPredicateFailureError("FakePredicateError", "Nodes failed the fake predicate")

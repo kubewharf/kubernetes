@@ -131,4 +131,11 @@ func init() {
 			return predicates.NewVolumeBindingPredicate(args.VolumeBinder)
 		},
 	)
+
+	factory.RegisterFitPredicateFactory(
+		predicates.MatchHostUniquePred,
+		func(args factory.PluginFactoryArgs) predicates.FitPredicate {
+			return predicates.NewHostUniquePredicate()
+		},
+	)
 }

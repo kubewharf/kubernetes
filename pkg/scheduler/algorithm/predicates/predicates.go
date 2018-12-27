@@ -37,6 +37,7 @@ import (
 	corelisters "k8s.io/client-go/listers/core/v1"
 	storagelisters "k8s.io/client-go/listers/storage/v1"
 	volumehelpers "k8s.io/cloud-provider/volume/helpers"
+	apipod "k8s.io/kubernetes/pkg/api/pod"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	v1qos "k8s.io/kubernetes/pkg/apis/core/v1/helper/qos"
 	"k8s.io/kubernetes/pkg/features"
@@ -127,6 +128,8 @@ const (
 	AzureDiskVolumeFilterType = "AzureDisk"
 	// CinderVolumeFilterType defines the filter name for CinderVolumeFilter.
 	CinderVolumeFilterType = "Cinder"
+
+	MatchHostUniquePred = "MatchHostUnique"
 )
 
 // IMPORTANT NOTE for predicate developers:
@@ -149,7 +152,7 @@ var (
 		PodToleratesNodeTaintsPred, PodToleratesNodeNoExecuteTaintsPred, CheckNodeLabelPresencePred,
 		CheckServiceAffinityPred, MaxEBSVolumeCountPred, MaxGCEPDVolumeCountPred, MaxCSIVolumeCountPred,
 		MaxAzureDiskVolumeCountPred, MaxCinderVolumeCountPred, CheckVolumeBindingPred, NoVolumeZoneConflictPred,
-		CheckNodeMemoryPressurePred, CheckNodePIDPressurePred, CheckNodeDiskPressurePred, CheckNodeLoadPressurePred, MatchInterPodAffinityPred}
+		CheckNodeMemoryPressurePred, CheckNodePIDPressurePred, CheckNodeDiskPressurePred, CheckNodeLoadPressurePred, MatchInterPodAffinityPred, MatchHostUniquePred}
 )
 
 // FitPredicate is a function that indicates if a pod fits into an existing node.
@@ -1726,4 +1729,90 @@ func (c *VolumeBindingChecker) predicate(pod *v1.Pod, meta PredicateMetadata, no
 	// All volumes bound or matching PVs found for all unbound PVCs
 	klog.V(5).Infof("All PVCs found matches for pod %v/%v, node %q", pod.Namespace, pod.Name, node.Name)
 	return true, nil, nil
+}
+
+type HostUniqueChecker struct {
+}
+
+func NewHostUniquePredicate() FitPredicate {
+	c := &HostUniqueChecker{}
+	return c.predicate
+}
+
+func (c *HostUniqueChecker) predicate(pod *v1.Pod, meta PredicateMetadata, nodeInfo *schedulernodeinfo.NodeInfo) (bool, []PredicateFailureReason, error) {
+	node := nodeInfo.Node()
+	if node == nil {
+		return false, nil, fmt.Errorf("node not found")
+	}
+
+	// Now check if <pod> requirements will be satisfied on this node.
+	affinity := pod.Spec.Affinity
+	if affinity == nil || affinity.PodAntiAffinity == nil {
+		return true, nil, nil
+	}
+	if failedPredicates, error := c.satisfiesPodsHostUnique(pod, nodeInfo, affinity); failedPredicates != nil {
+		failedPredicates := append([]PredicateFailureReason{ErrPodAffinityNotMatch}, failedPredicates)
+		return false, failedPredicates, error
+	}
+
+	if klog.V(10) {
+		// We explicitly don't do klog.V(10).Infof() to avoid computing all the parameters if this is
+		// not logged. There is visible performance gain from it.
+		klog.Infof("Schedule Pod %+v on Node %+v is allowed, pod (anti)affinity constraints satisfied",
+			podName(pod), node.Name)
+	}
+	return true, nil, nil
+}
+
+func (c *HostUniqueChecker) satisfiesPodsHostUnique(pod *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo, affinity *v1.Affinity) (PredicateFailureReason, error) {
+	node := nodeInfo.Node()
+	if node == nil {
+		return ErrPodHostUniqueRulesNotMatch, fmt.Errorf("Node is nil")
+	}
+	for _, term := range GetPodAntiAffinityTerms(affinity.PodAntiAffinity) {
+		termMatches, err := c.anyPodMatchesPodAffinityTerm(pod, nodeInfo, &term)
+		if err != nil || termMatches {
+			klog.V(10).Infof("Cannot schedule pod %+v onto node %v, because of PodAntiAffinityTerm %v, err: %v",
+				podName(pod), node.Name, term, err)
+			return ErrPodHostUniqueRulesNotMatch, nil
+		}
+	}
+	return nil, nil
+}
+
+func (c *HostUniqueChecker) anyPodMatchesPodAffinityTerm(pod *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo, term *v1.PodAffinityTerm) (bool, error) {
+	if len(term.TopologyKey) == 0 {
+		return false, fmt.Errorf("empty topologyKey is not allowed except for PreferredDuringScheduling pod anti-affinity")
+	}
+	if term.TopologyKey != v1.LabelHostname {
+		return true, nil
+	}
+	toleranced := 1
+	toleranceCount := 1
+	anno := pod.GetAnnotations()
+	if anno != nil {
+		if v, ok := anno[apipod.PodHostUniqueToleranceAnnotation]; ok {
+			if c, err := strconv.Atoi(v); err == nil {
+				toleranceCount = c
+			}
+		}
+	}
+	namespaces := priorityutil.GetNamespacesFromPodAffinityTerm(pod, term)
+	selector, err := metav1.LabelSelectorAsSelector(term.LabelSelector)
+	if err != nil {
+		return false, err
+	}
+	for _, existingPod := range nodeInfo.Pods() {
+		if existingPod.DeletionTimestamp != nil {
+			continue
+		}
+		if priorityutil.PodMatchesTermsNamespaceAndSelector(existingPod, namespaces, selector) {
+			toleranced++
+			if toleranced > toleranceCount {
+				return true, nil
+			}
+		}
+
+	}
+	return false, nil
 }
