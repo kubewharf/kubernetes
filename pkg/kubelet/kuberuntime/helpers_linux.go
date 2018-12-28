@@ -25,8 +25,9 @@ const (
 	milliCPUToCPU = 1000
 
 	// 100000 is equivalent to 100ms
-	quotaPeriod    = 100000
-	minQuotaPeriod = 1000
+	minQuotaPeriod     = 1000
+	maxQuotaPeriod     = 1000 * minQuotaPeriod
+	defaultQuotaPeriod = 100 * minQuotaPeriod
 )
 
 // milliCPUToShares converts milliCPU to CPU shares
@@ -53,6 +54,10 @@ func milliCPUToQuota(milliCPU int64, period int64) (quota int64) {
 	// see https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt for details
 	if milliCPU == 0 {
 		return
+	}
+
+	if period < minQuotaPeriod || period > maxQuotaPeriod {
+		period = defaultQuotaPeriod
 	}
 
 	// we then convert your milliCPU to a value normalized over a period

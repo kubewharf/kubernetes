@@ -21,11 +21,13 @@ package kuberuntime
 import (
 	"time"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	"k8s.io/klog"
 	kubefeatures "k8s.io/kubernetes/pkg/features"
 	runtimeapi "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 	"k8s.io/kubernetes/pkg/kubelet/qos"
+	"k8s.io/kubernetes/pkg/kubelet/types"
 )
 
 // applyPlatformSpecificContainerConfig applies platform specific configurations to runtimeapi.ContainerConfig.
@@ -54,6 +56,11 @@ func (m *kubeGenericRuntimeManager) generateLinuxContainerConfig(container *v1.C
 	if cpuRequest.IsZero() && !cpuLimit.IsZero() {
 		cpuShares = milliCPUToShares(cpuLimit.MilliValue())
 	} else {
+		burstCpuRequest, err := types.GetBurstRequest(pod, v1.ResourceCPU)
+		if err == nil && burstCpuRequest.Cmp(*cpuRequest) != 0 {
+			cpuRequest = burstCpuRequest
+			klog.V(2).Infof("cpu request of pod %s(%s) is bursted to %d", pod.Name, pod.UID, burstCpuRequest.MilliValue())
+		}
 		// if cpuRequest.Amount is nil, then milliCPUToShares will return the minimal number
 		// of CPU shares.
 		cpuShares = milliCPUToShares(cpuRequest.MilliValue())
@@ -67,12 +74,18 @@ func (m *kubeGenericRuntimeManager) generateLinuxContainerConfig(container *v1.C
 	lc.Resources.OomScoreAdj = oomScoreAdj
 
 	if m.cpuCFSQuota {
-		// if cpuLimit.Amount is nil, then the appropriate default value is returned
-		// to allow full usage of cpu resource.
-		cpuPeriod := int64(quotaPeriod)
-		if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.CPUCFSQuotaPeriod) {
+		cpuPeriod := int64(defaultQuotaPeriod)
+
+		// firstly, use pod-level quota period if exists;
+		// secondly, use node-level quota period if exists;
+		// otherwise, use default quota period.
+		quotaPeriod, err := types.GetCpuCfsQuotaPeriod(pod)
+		if err == nil {
+			cpuPeriod = int64(quotaPeriod)
+		} else if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.CPUCFSQuotaPeriod) {
 			cpuPeriod = int64(m.cpuCFSQuotaPeriod.Duration / time.Microsecond)
 		}
+
 		cpuQuota := milliCPUToQuota(cpuLimit.MilliValue(), cpuPeriod)
 		lc.Resources.CpuQuota = cpuQuota
 		lc.Resources.CpuPeriod = cpuPeriod

@@ -33,6 +33,7 @@ import (
 	"k8s.io/kubernetes/pkg/api/v1/resource"
 	v1qos "k8s.io/kubernetes/pkg/apis/core/v1/helper/qos"
 	kubefeatures "k8s.io/kubernetes/pkg/features"
+	"k8s.io/kubernetes/pkg/kubelet/types"
 )
 
 const (
@@ -178,6 +179,11 @@ func (m *qosContainerManagerImpl) setCPUCgroupConfig(configs map[v1.PodQOSClass]
 		}
 		req, _ := resource.PodRequestsAndLimits(pod)
 		if request, found := req[v1.ResourceCPU]; found {
+			burstRequest, err := types.GetBurstRequest(pod, v1.ResourceCPU)
+			if err == nil && burstRequest.Cmp(request) != 0 {
+				request = *burstRequest
+				klog.V(2).Infof("[Container Manager] cpu request of pod %s(%s) is bursted to %d", pod.Name, pod.UID, burstRequest.MilliValue())
+			}
 			burstablePodCPURequest += request.MilliValue()
 		}
 	}

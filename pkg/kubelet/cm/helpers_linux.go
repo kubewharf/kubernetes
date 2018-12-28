@@ -25,13 +25,15 @@ import (
 
 	libcontainercgroups "github.com/opencontainers/runc/libcontainer/cgroups"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/api/v1/resource"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	v1qos "k8s.io/kubernetes/pkg/apis/core/v1/helper/qos"
 	kubefeatures "k8s.io/kubernetes/pkg/features"
+	kubelettypes "k8s.io/kubernetes/pkg/kubelet/types"
 )
 
 const (
@@ -41,8 +43,8 @@ const (
 	MilliCPUToCPU = 1000
 
 	// 100000 is equivalent to 100ms
-	QuotaPeriod    = 100000
-	MinQuotaPeriod = 1000
+	DefaultQuotaPeriod = 100000
+	MinQuotaPeriod     = 1000
 )
 
 // MilliCPUToQuota converts milliCPU to CFS quota and period values.
@@ -58,10 +60,6 @@ func MilliCPUToQuota(milliCPU int64, period int64) (quota int64) {
 		return
 	}
 
-	if !utilfeature.DefaultFeatureGate.Enabled(kubefeatures.CPUCFSQuotaPeriod) {
-		period = QuotaPeriod
-	}
-
 	// we then convert your milliCPU to a value normalized over a period
 	quota = (milliCPU * period) / MilliCPUToCPU
 
@@ -70,6 +68,16 @@ func MilliCPUToQuota(milliCPU int64, period int64) (quota int64) {
 		quota = MinQuotaPeriod
 	}
 	return
+}
+
+func MilliCPUToQuotaForPod(milliCPU int64, pod *v1.Pod) (int64, uint64) {
+	quotaPeriod, err := kubelettypes.GetCpuCfsQuotaPeriod(pod)
+	if err != nil && !utilfeature.DefaultFeatureGate.Enabled(kubefeatures.CPUCFSQuotaPeriod) {
+		// if pod-level quota period isn't set, and feature gate isn't open either, we need to use default quota period.
+		quotaPeriod = DefaultQuotaPeriod
+	}
+
+	return MilliCPUToQuota(milliCPU, quotaPeriod), uint64(quotaPeriod)
 }
 
 // MilliCPUToShares converts the milliCPU to CFS shares.
@@ -115,6 +123,11 @@ func ResourceConfigForPod(pod *v1.Pod, enforceCPULimits bool, cpuPeriod uint64) 
 	memoryLimits := int64(0)
 	if request, found := reqs[v1.ResourceCPU]; found {
 		cpuRequests = request.MilliValue()
+		burstRequest, err := kubelettypes.GetBurstRequest(pod, v1.ResourceCPU)
+		if err == nil && burstRequest.MilliValue() != cpuRequests {
+			cpuRequests = burstRequest.MilliValue()
+			klog.V(2).Infof("cpu request of pod %s(%s) is bursted to %d", pod.Name, pod.UID, burstRequest.MilliValue())
+		}
 	}
 	if limit, found := limits[v1.ResourceCPU]; found {
 		cpuLimits = limit.MilliValue()
@@ -125,7 +138,7 @@ func ResourceConfigForPod(pod *v1.Pod, enforceCPULimits bool, cpuPeriod uint64) 
 
 	// convert to CFS values
 	cpuShares := MilliCPUToShares(cpuRequests)
-	cpuQuota := MilliCPUToQuota(cpuLimits, int64(cpuPeriod))
+	cpuQuota, cpuPeriod := MilliCPUToQuotaForPod(cpuLimits, pod)
 
 	// track if limits were applied for each resource.
 	memoryLimitsDeclared := true

@@ -18,8 +18,10 @@ package types
 
 import (
 	"fmt"
+	"strconv"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	kubeapi "k8s.io/kubernetes/pkg/apis/core"
@@ -34,6 +36,14 @@ const (
 	ConfigHashAnnotationKey      = "kubernetes.io/config.hash"
 	CriticalPodAnnotationKey     = "scheduler.alpha.kubernetes.io/critical-pod"
 	CriticalTCEPodAnnotationKey  = "scheduler.alpha.kubernetes.io/tce-critical-pod"
+)
+
+const (
+	RequestCpuUserDemandAnnotationKey         = "pod.tce.kubernetes.io/requestCpuUserDemand"
+	RequestMemUserDemandAnnotationKey         = "pod.tce.kubernetes.io/requestMemUserDemand"
+	RequestCpuCfsShareBurstRatioAnnotationKey = "pod.tce.kubernetes.io/requestCpuCfsShareBurstRatio"
+	RequestMemCfsShareBurstRatioAnnotationKey = "pod.tce.kubernetes.io/requestMemCfsShareBurstRatio"
+	LimitCpuCfsQuotaPeriodAnnotationKey       = "pod.tce.kubernetes.io/limitCpuCfsQuotaPeriod"
 )
 
 // PodOperation defines what changes will be made on a pod configuration.
@@ -211,4 +221,117 @@ func IsCriticalPodBasedOnPriority(priority int32) bool {
 		return true
 	}
 	return false
+}
+
+// GetUserDemand returns real resource quantity the user demands.
+func GetUserDemand(pod *v1.Pod, rn v1.ResourceName) (resource.Quantity, error) {
+	var (
+		demandStr, annoKey string
+		quan               resource.Quantity
+		ok                 bool
+		err                error
+	)
+	switch rn {
+	case v1.ResourceCPU:
+		annoKey = RequestCpuUserDemandAnnotationKey
+	case v1.ResourceMemory:
+		annoKey = RequestMemUserDemandAnnotationKey
+	default:
+		return quan, fmt.Errorf("unsupported resource name %s", rn)
+	}
+	demandStr, ok = pod.Annotations[annoKey]
+	if !ok {
+		return quan, fmt.Errorf("contains no %s in annotations", annoKey)
+	}
+	quan, err = resource.ParseQuantity(demandStr)
+	if err != nil {
+		return quan, fmt.Errorf("parse user demand quantity error: %v", err)
+	}
+	return quan, nil
+}
+
+// GetCfsShareBurstRatio indicates the decoupling between cpu request and cfs share configuration.
+func GetCfsShareBurstRatio(pod *v1.Pod, rn v1.ResourceName) (float64, error) {
+	const (
+		precision    int     = 3
+		defaultRatio float64 = 1
+	)
+	var (
+		ratio             float64 = 1
+		ratioStr, annoKey string
+		ok                bool
+		err               error
+	)
+	switch rn {
+	case v1.ResourceCPU:
+		annoKey = RequestCpuCfsShareBurstRatioAnnotationKey
+	case v1.ResourceMemory:
+		annoKey = RequestMemCfsShareBurstRatioAnnotationKey
+	default:
+		return defaultRatio, fmt.Errorf("unsupported resource name %s", rn)
+	}
+	ratioStr, ok = pod.Annotations[annoKey]
+	if !ok {
+		return defaultRatio, fmt.Errorf("contains no %s in annotations", annoKey)
+	}
+	ratio, err = strconv.ParseFloat(ratioStr, 64)
+	if err != nil {
+		return defaultRatio, err
+	}
+
+	// set precision of ratio to 3.
+	ratio, err = strconv.ParseFloat(fmt.Sprintf("%."+strconv.Itoa(precision)+"f", ratio), 64)
+	if err != nil {
+		return defaultRatio, err
+	}
+
+	return ratio, nil
+}
+
+// GetBurstRequest returns a request bursted to which equals to userDemand times cfsShareBurstRatio.
+// burstRequest = userDemand * cfsShareBurstRatio
+func GetBurstRequest(pod *v1.Pod, rn v1.ResourceName) (*resource.Quantity, error) {
+	var (
+		quan, userDemand resource.Quantity
+		ratio            float64
+		err              error
+	)
+
+	if userDemand, err = GetUserDemand(pod, rn); err != nil {
+		return &quan, err
+	}
+	if ratio, err = GetCfsShareBurstRatio(pod, rn); err != nil {
+		return &quan, err
+	}
+	if ratio <= 0 {
+		return &quan, fmt.Errorf("invalid cfsShareBurstRatio: %f", ratio)
+	}
+	switch rn {
+	case v1.ResourceCPU:
+		quan.SetMilli(int64(float64(userDemand.MilliValue()) * ratio))
+	case v1.ResourceMemory:
+		quan.Set(int64(float64(userDemand.Value()) * ratio))
+	default:
+		return &quan, fmt.Errorf("unsupported resource name %s", rn)
+	}
+	return &quan, nil
+}
+
+// GetCpuCfsQuotaPeriod returns the period of cfs quota refilling.
+func GetCpuCfsQuotaPeriod(pod *v1.Pod) (int64, error) {
+	// 100000 is equivalent to 100ms
+	const defaultQuotaPeriod = 100000
+	var (
+		quotaPeriod    int64
+		quotaPeriodStr string
+		ok             bool
+		err            error
+	)
+	if quotaPeriodStr, ok = pod.Annotations[LimitCpuCfsQuotaPeriodAnnotationKey]; !ok {
+		return defaultQuotaPeriod, fmt.Errorf("contains no quota period in annotations")
+	}
+	if quotaPeriod, err = strconv.ParseInt(quotaPeriodStr, 10, 64); err != nil {
+		return defaultQuotaPeriod, err
+	}
+	return quotaPeriod, nil
 }
