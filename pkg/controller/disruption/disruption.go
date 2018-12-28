@@ -582,6 +582,7 @@ func (dc *DisruptionController) getExpectedScale(pdb *policy.PodDisruptionBudget
 
 	// 1. Find the controller for each pod.  If any pod has 0 controllers,
 	// that's an error. With ControllerRef, a pod can only have 1 controller.
+	foundAtLeastOneController := false
 	for _, pod := range pods {
 		foundController := false
 		for _, finder := range dc.finders() {
@@ -593,13 +594,14 @@ func (dc *DisruptionController) getExpectedScale(pdb *policy.PodDisruptionBudget
 			if controllerNScale != nil {
 				controllerScale[controllerNScale.UID] = controllerNScale.scale
 				foundController = true
+				foundAtLeastOneController = true
 				break
 			}
 		}
 		if !foundController {
-			err = fmt.Errorf("found no controllers for pod %q", pod.Name)
-			dc.recorder.Event(pdb, v1.EventTypeWarning, "NoControllers", err.Error())
-			return
+			dc.recorder.Event(pdb, v1.EventTypeWarning, "NoControllers", fmt.Errorf("found no controllers for pod %q", pod.Name).Error())
+			// Ignore empty ownerReference for one single pod, and not stop syncing process of pdb
+			klog.Errorf("pod %s has no Controller for pdb %s", pod.Name, pdb.Name)
 		}
 	}
 
@@ -608,7 +610,11 @@ func (dc *DisruptionController) getExpectedScale(pdb *policy.PodDisruptionBudget
 	for _, count := range controllerScale {
 		expectedCount += count
 	}
-
+	if !foundAtLeastOneController && len(pods) != 0 {
+		// if no ownerReference is found for all pods, probably something goes wrong, syncing process should be stopped
+		err = fmt.Errorf("found no controllers for pdb %q with pods %+v", pdb.Name, pods)
+		dc.recorder.Event(pdb, v1.EventTypeWarning, "NoControllersForAllPods", err.Error())
+	}
 	return
 }
 
