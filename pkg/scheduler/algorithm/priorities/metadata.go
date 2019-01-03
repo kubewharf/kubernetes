@@ -17,7 +17,7 @@ limitations under the License.
 package priorities
 
 import (
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/kubernetes/pkg/scheduler/algorithm"
@@ -30,6 +30,20 @@ type PriorityMetadataFactory struct {
 	controllerLister  algorithm.ControllerLister
 	replicaSetLister  algorithm.ReplicaSetLister
 	statefulSetLister algorithm.StatefulSetLister
+}
+
+// PriorityMetadata is a MetadataProducer.  Node info can be nil.
+func PriorityMetadata(pod *v1.Pod, nodeNameToInfo map[string]*schedulernodeinfo.NodeInfo) interface{} {
+	// If we cannot compute metadata, just return nil
+	if pod == nil {
+		return nil
+	}
+	return &priorityMetadata{
+		nonZeroRequest: getNonZeroRequests(pod),
+		podTolerations: getAllTolerationPreferNoSchedule(pod.Spec.Tolerations),
+		affinity:       pod.Spec.Affinity,
+		controllerRef:  metav1.GetControllerOf(pod),
+	}
 }
 
 // NewPriorityMetadataFactory creates a PriorityMetadataFactory.

@@ -27,7 +27,7 @@ func init() {
 	// Register functions that extract metadata used by priorities computations.
 	factory.RegisterPriorityMetadataProducerFactory(
 		func(args factory.PluginFactoryArgs) priorities.PriorityMetadataProducer {
-			return priorities.NewPriorityMetadataFactory(args.ServiceLister, args.ControllerLister, args.ReplicaSetLister, args.StatefulSetLister)
+			return priorities.PriorityMetadata
 		})
 
 	// ServiceSpreadingPriority is a priority config factory that spreads pods by minimizing
