@@ -139,6 +139,8 @@ func NodeRules() []rbacv1.PolicyRule {
 		// Used to create a certificatesigningrequest for a node-specific client certificate, and watch
 		// for it to be signed. This allows the kubelet to rotate it's own certificate.
 		rbacv1helpers.NewRule("create", "get", "list", "watch").Groups(certificatesGroup).Resources("certificatesigningrequests").RuleOrDie(),
+		// Used to drain node by itself
+		rbacv1helpers.NewRule("get").Groups(extensionsGroup).Resources("daemonsets").RuleOrDie(),
 	}
 
 	if utilfeature.DefaultFeatureGate.Enabled(features.ExpandPersistentVolumes) {
