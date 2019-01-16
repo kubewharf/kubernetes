@@ -31,7 +31,7 @@ import (
 	"k8s.io/klog"
 
 	coordv1beta1 "k8s.io/api/coordination/v1beta1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -104,6 +104,9 @@ var (
 		v1.NodePIDPressure: {
 			v1.ConditionTrue: schedulerapi.TaintNodePIDPressure,
 		},
+		v1.NodeCPUPressure: {
+			v1.ConditionTrue: schedulerapi.TaintNodeCPUPressure,
+		},
 	}
 
 	taintKeyToNodeConditionMap = map[string]v1.NodeConditionType{
@@ -113,6 +116,7 @@ var (
 		schedulerapi.TaintNodeMemoryPressure:     v1.NodeMemoryPressure,
 		schedulerapi.TaintNodeDiskPressure:       v1.NodeDiskPressure,
 		schedulerapi.TaintNodePIDPressure:        v1.NodePIDPressure,
+		schedulerapi.TaintNodeCPUPressure:        v1.NodeCPUPressure,
 	}
 )
 
@@ -947,6 +951,7 @@ func (nc *Controller) tryUpdateNodeHealth(node *v1.Node) (time.Duration, v1.Node
 			v1.NodeMemoryPressure,
 			v1.NodeDiskPressure,
 			v1.NodePIDPressure,
+			v1.NodeCPUPressure,
 			// We don't change 'NodeNetworkUnavailable' condition, as it's managed on a control plane level.
 			// v1.NodeNetworkUnavailable,
 		}
