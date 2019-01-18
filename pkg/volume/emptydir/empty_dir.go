@@ -111,15 +111,20 @@ func (plugin *emptyDirPlugin) NewMounter(spec *volume.Spec, pod *v1.Pod, opts vo
 
 func (plugin *emptyDirPlugin) newMounterInternal(spec *volume.Spec, pod *v1.Pod, mounter mount.Interface, mountDetector mountDetector, opts volume.VolumeOptions) (volume.Mounter, error) {
 	medium := v1.StorageMediumDefault
+	sizeLimit := &resource.Quantity{}
 
 	if spec.Volume.EmptyDir != nil { // Support a non-specified source as EmptyDir.
 		medium = spec.Volume.EmptyDir.Medium
+		if spec.Volume.EmptyDir.SizeLimit != nil {
+			sizeLimit = spec.Volume.EmptyDir.SizeLimit
+		}
 	}
 
 	return &emptyDir{
 		pod:             pod,
 		volName:         spec.Name(),
 		medium:          medium,
+		sizeLimit:       sizeLimit,
 		mounter:         mounter,
 		mountDetector:   mountDetector,
 		plugin:          plugin,
@@ -171,6 +176,7 @@ type emptyDir struct {
 	pod           *v1.Pod
 	volName       string
 	medium        v1.StorageMedium
+	sizeLimit     *resource.Quantity
 	mounter       mount.Interface
 	mountDetector mountDetector
 	plugin        *emptyDirPlugin
@@ -257,8 +263,16 @@ func (ed *emptyDir) setupTmpfs(dir string) error {
 		return nil
 	}
 
-	klog.V(3).Infof("pod %v: mounting tmpfs for volume %v", ed.pod.UID, ed.volName)
-	return ed.mounter.Mount("tmpfs", dir, "tmpfs", nil /* options */)
+	var options []string
+	// Linux system default is 50% of capacity.
+	if ed.sizeLimit != nil && ed.sizeLimit.Value() > 0 {
+		// Kubelet will evict pod when empty dir used more than sizeLimit. We set size option as 1.2 * sizeLimit
+		// and program will control used base on the size. The eviction will happen before no space error.
+		options = []string{fmt.Sprintf("size=%d", int64(float64(ed.sizeLimit.Value())*1.2))}
+	}
+	klog.V(3).Infof("pod %v: mounting tmpfs for volume %v with options %v", ed.pod.UID, ed.volName, options)
+	return ed.mounter.Mount("tmpfs", dir, "tmpfs", options /* options */)
+
 }
 
 // setupHugepages creates a hugepage mount at the specified directory.
