@@ -35,6 +35,7 @@ const (
 	// OperationLabel - operation label name
 	OperationLabel = "operation"
 	// Below are possible values for the operation label. Each represents a substep of e2e scheduling:
+	E2eSchedulingLatencyEvaluation = "e2e_scheduling_latency"
 
 	// PredicateEvaluation - predicate evaluation operation label value
 	PredicateEvaluation = "predicate_evaluation"
