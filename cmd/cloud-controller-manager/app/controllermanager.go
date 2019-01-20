@@ -180,10 +180,15 @@ func Run(c *cloudcontrollerconfig.CompletedConfig, stopCh <-chan struct{}) error
 	// add a uniquifier so that two processes on the same host don't accidentally both become active
 	id = id + "_" + string(uuid.NewUUID())
 
+	electResourceName := "cloud-controller-manager"
+	if len(c.ComponentConfig.Generic.LeaderElection.ResourceName) > 0 {
+		electResourceName = c.ComponentConfig.Generic.LeaderElection.ResourceName
+	}
+
 	// Lock required for leader election
 	rl, err := resourcelock.New(c.ComponentConfig.Generic.LeaderElection.ResourceLock,
 		"kube-system",
-		"cloud-controller-manager",
+		electResourceName,
 		c.LeaderElectionClient.CoreV1(),
 		c.LeaderElectionClient.CoordinationV1(),
 		resourcelock.ResourceLockConfig{

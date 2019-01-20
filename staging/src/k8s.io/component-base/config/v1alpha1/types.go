@@ -48,6 +48,8 @@ type LeaderElectionConfiguration struct {
 	// resourceLock indicates the resource object type that will be used to lock
 	// during leader election cycles.
 	ResourceLock string `json:"resourceLock"`
+	// resourceName indicates the name of resource object.
+	ResourceName string `json:"resource_name"`
 }
 
 // DebuggingConfiguration holds configuration for Debugging related features.

@@ -234,11 +234,16 @@ func Run(c *config.CompletedConfig, stopCh <-chan struct{}) error {
 		return err
 	}
 
+	electResourceName := "kube-controller-manager"
+	if len(c.ComponentConfig.Generic.LeaderElection.ResourceName) > 0 {
+		electResourceName = c.ComponentConfig.Generic.LeaderElection.ResourceName
+	}
+
 	// add a uniquifier so that two processes on the same host don't accidentally both become active
 	id = id + "_" + string(uuid.NewUUID())
 	rl, err := resourcelock.New(c.ComponentConfig.Generic.LeaderElection.ResourceLock,
 		"kube-system",
-		"kube-controller-manager",
+		electResourceName,
 		c.LeaderElectionClient.CoreV1(),
 		c.LeaderElectionClient.CoordinationV1(),
 		resourcelock.ResourceLockConfig{
