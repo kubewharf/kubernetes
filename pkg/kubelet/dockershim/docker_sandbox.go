@@ -46,6 +46,9 @@ const (
 
 	// Name of the underlying container runtime
 	runtimeName = "docker"
+
+	// RuntimeClass provides a way to select between different runtimes configured for docker on the node.
+	RuntimeClass = "io.kubernetes.docker.runtime-class"
 )
 
 var (
@@ -595,6 +598,9 @@ func (ds *dockerService) makeSandboxDockerConfig(c *runtimeapi.PodSandboxConfig,
 
 	hc := &dockercontainer.HostConfig{
 		IpcMode: dockercontainer.IpcMode("shareable"),
+	}
+	if runtimeClass, ok := c.GetAnnotations()[RuntimeClass]; ok {
+		hc.Runtime = runtimeClass
 	}
 	createConfig := &dockertypes.ContainerCreateConfig{
 		Name: makeSandboxName(c),

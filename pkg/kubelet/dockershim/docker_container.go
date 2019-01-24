@@ -142,6 +142,9 @@ func (ds *dockerService) CreateContainer(_ context.Context, r *runtimeapi.Create
 			},
 		},
 	}
+	if runtimeClass, ok := sandboxConfig.GetAnnotations()[RuntimeClass]; ok {
+		createConfig.HostConfig.Runtime = runtimeClass
+	}
 
 	hc := createConfig.HostConfig
 	err = ds.updateCreateConfig(&createConfig, config, sandboxConfig, podSandboxID, securityOptSeparator, apiVersion)
