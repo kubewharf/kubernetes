@@ -43,7 +43,7 @@ func getDecoder() runtime.Decoder {
 }
 
 func TestDecoder(t *testing.T) {
-	table := []watch.EventType{watch.Added, watch.Deleted, watch.Modified, watch.Error}
+	table := []watch.EventType{watch.Added, watch.Deleted, watch.Modified, watch.Error, watch.Bookmark}
 
 	for _, eventType := range table {
 		out, in := io.Pipe()
