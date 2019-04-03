@@ -25,7 +25,7 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -64,7 +64,7 @@ func TestCacheWatcherCleanupNotBlockedByResult(t *testing.T) {
 	// set the size of the buffer of w.result to 0, so that the writes to
 	// w.result is blocked.
 	w = newCacheWatcher(0, filter, forget, testVersioner{})
-	go w.process(initEvents, 0)
+	go w.process(context.Background(), initEvents, 0)
 	w.Stop()
 	if err := wait.PollImmediate(1*time.Second, 5*time.Second, func() (bool, error) {
 		lock.RLock()
@@ -182,8 +182,9 @@ TestCase:
 		for j := range testCase.events {
 			testCase.events[j].ResourceVersion = uint64(j) + 1
 		}
+
 		w := newCacheWatcher(0, filter, forget, testVersioner{})
-		go w.process(testCase.events, 0)
+		go w.process(context.Background(), testCase.events, 0)
 		ch := w.ResultChan()
 		for j, event := range testCase.expected {
 			e := <-ch
@@ -446,38 +447,40 @@ func TestWatcherNotGoingBackInTime(t *testing.T) {
 	}
 }
 
-func TestCacheWatcherStoppedOnDestroy(t *testing.T) {
-	backingStorage := &dummyStorage{}
-	cacher, _ := newTestCacher(backingStorage, 1000)
-	defer cacher.Stop()
-
-	// Wait until cacher is initialized.
-	cacher.ready.wait()
-
-	w, err := cacher.Watch(context.Background(), "pods/ns", "0", storage.Everything)
-	if err != nil {
-		t.Fatalf("Failed to create watch: %v", err)
+func TestCacheWatcherStoppedInAnotherGoroutine(t *testing.T) {
+	var w *cacheWatcher
+	done := make(chan struct{})
+	filter := func(string, labels.Set, fields.Set) bool { return true }
+	forget := func() {
+		w.stop()
+		done <- struct{}{}
 	}
 
-	watchClosed := make(chan struct{})
-	go func() {
-		defer close(watchClosed)
-		for event := range w.ResultChan() {
-			switch event.Type {
-			case watch.Added, watch.Modified, watch.Deleted:
-				// ok
-			default:
-				t.Errorf("unexpected event %#v", event)
-			}
+	maxRetriesToProduceTheRaceCondition := 1000
+	// Simulating the timer is fired and stopped concurrently by set time
+	// timeout to zero and run the Stop goroutine concurrently.
+	// May sure that the watch will not be blocked on Stop.
+	for i := 0; i < maxRetriesToProduceTheRaceCondition; i++ {
+		w = newCacheWatcher(0, filter, forget, testVersioner{})
+		go w.Stop()
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Fatal("stop is blocked when the timer is fired concurrently")
 		}
-	}()
-
-	cacher.Stop()
-
-	select {
-	case <-watchClosed:
-	case <-time.After(wait.ForeverTestTimeout):
-		t.Errorf("timed out waiting for watch to close")
 	}
 
+	// After that, verifies the cacheWatcher.process goroutine works correctly.
+	for i := 0; i < maxRetriesToProduceTheRaceCondition; i++ {
+		w = newCacheWatcher(2, filter, emptyFunc, testVersioner{})
+		w.input <- &watchCacheEvent{Object: &v1.Pod{}, ResourceVersion: uint64(i + 1)}
+		ctx, _ := context.WithTimeout(context.Background(), time.Hour)
+		go w.process(ctx, nil, 0)
+		select {
+		case <-w.ResultChan():
+		case <-time.After(time.Second):
+			t.Fatal("expected received a event on ResultChan")
+		}
+		w.Stop()
+	}
 }
