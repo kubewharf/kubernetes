@@ -54,6 +54,9 @@ const (
 	// is deployment.spec.replicas + maxSurge. Used by the underlying replica sets to estimate their
 	// proportions in case the deployment has surge replicas.
 	MaxReplicasAnnotation = "deployment.kubernetes.io/max-replicas"
+	// TCEDaemonAnnotation indicates the deployment is used as a daemon.
+	TCEDaemonAnnotationKey   = "deployment.kubernetes.io/daemon-deployment"
+	TCEDaemonAnnotationValue = "true"
 
 	// RollbackRevisionNotFound is not found rollback event reason
 	RollbackRevisionNotFound = "DeploymentRollbackRevisionNotFound"
@@ -97,6 +100,18 @@ const (
 	// available.
 	MinimumReplicasUnavailable = "MinimumReplicasUnavailable"
 )
+
+// IsTCEDaemon checks whether the deployment is a daemon.
+func IsTCEDaemon(deployment *apps.Deployment) bool {
+	if deployment.Annotations == nil {
+		return false
+	}
+
+	if value, ok := deployment.Annotations[TCEDaemonAnnotationKey]; !ok || value != TCEDaemonAnnotationValue {
+		return false
+	}
+	return true
+}
 
 // NewDeploymentCondition creates a new deployment condition.
 func NewDeploymentCondition(condType apps.DeploymentConditionType, status v1.ConditionStatus, reason, message string) *apps.DeploymentCondition {
