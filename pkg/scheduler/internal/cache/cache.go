@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -75,6 +75,8 @@ type schedulerCache struct {
 	nodeTree *NodeTree
 	// A map from image name to its imageState.
 	imageStates map[string]*imageState
+
+	suitableNodesForDP map[string]NodesSet
 }
 
 type podState struct {
@@ -92,6 +94,12 @@ type imageState struct {
 	nodes sets.String
 }
 
+type nodeTmpInfo struct {
+	settingTime time.Time
+}
+
+type NodesSet map[string]nodeTmpInfo
+
 // createImageStateSummary returns a summarizing snapshot of the given image's state.
 func (cache *schedulerCache) createImageStateSummary(state *imageState) *schedulernodeinfo.ImageStateSummary {
 	return &schedulernodeinfo.ImageStateSummary{
@@ -106,11 +114,76 @@ func newSchedulerCache(ttl, period time.Duration, stop <-chan struct{}) *schedul
 		period: period,
 		stop:   stop,
 
-		nodes:       make(map[string]*nodeInfoListItem),
-		nodeTree:    newNodeTree(nil),
-		assumedPods: make(map[string]bool),
-		podStates:   make(map[string]*podState),
-		imageStates: make(map[string]*imageState),
+		nodes:              make(map[string]*nodeInfoListItem),
+		nodeTree:           newNodeTree(nil),
+		assumedPods:        make(map[string]bool),
+		podStates:          make(map[string]*podState),
+		imageStates:        make(map[string]*imageState),
+		suitableNodesForDP: make(map[string]NodesSet),
+	}
+}
+
+func (cache *schedulerCache) CacheNodesForDP(dpName string, nodeName string) error {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	if cache.suitableNodesForDP == nil {
+		cache.suitableNodesForDP = make(map[string]NodesSet)
+	}
+	if cache.suitableNodesForDP[dpName] == nil {
+		cache.suitableNodesForDP[dpName] = make(NodesSet)
+	}
+	cache.suitableNodesForDP[dpName][nodeName] = nodeTmpInfo{
+		settingTime: time.Now(),
+	}
+	return nil
+}
+
+func (cache *schedulerCache) GetNodesForDP(dpName string) NodesSet {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	if cache.suitableNodesForDP == nil {
+		return nil
+	}
+	return cache.suitableNodesForDP[dpName]
+}
+
+func (cache *schedulerCache) DeleteNodeForDP(dpName string, nodeName string) error {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	if cache.suitableNodesForDP == nil {
+		return nil
+	}
+	if cache.suitableNodesForDP[dpName] == nil {
+		return nil
+	}
+
+	delete(cache.suitableNodesForDP[dpName], nodeName)
+	return nil
+}
+
+func (cache *schedulerCache) CleanupDPCachedInfo() {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	now := time.Now()
+	if cache.suitableNodesForDP != nil {
+		for dpName, nodesSet := range cache.suitableNodesForDP {
+			if len(nodesSet) == 0 {
+				delete(cache.suitableNodesForDP, dpName)
+			} else {
+				for nodeName, tmpInfo := range nodesSet {
+					if now.After(tmpInfo.settingTime.Add(5 * time.Minute)) {
+						delete(cache.suitableNodesForDP[dpName], nodeName)
+						if len(cache.suitableNodesForDP[dpName]) == 0 {
+							delete(cache.suitableNodesForDP, dpName)
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -622,6 +695,7 @@ func (cache *schedulerCache) removeNodeImageStates(node *v1.Node) {
 
 func (cache *schedulerCache) run() {
 	go wait.Until(cache.cleanupExpiredAssumedPods, cache.period, cache.stop)
+	go wait.Until(cache.CleanupDPCachedInfo, 2*time.Minute, cache.stop)
 }
 
 func (cache *schedulerCache) cleanupExpiredAssumedPods() {

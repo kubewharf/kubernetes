@@ -285,10 +285,34 @@ func (sched *Scheduler) schedule(pod *v1.Pod) (core.ScheduleResult, error) {
 	return result, err
 }
 
+func podHasLeastPriority(pod *v1.Pod) bool {
+	if pod.Spec.Priority == nil {
+		return true
+	}
+
+	if pod.Spec.Priority != nil {
+		if *pod.Spec.Priority == 0 && !util.HasResource(pod, util.ResourceGPU) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // preempt tries to create room for a pod that has failed to schedule, by preempting lower priority pods if possible.
 // If it succeeds, it adds the name of the node where preemption has happened to the pod annotations.
 // It returns the node name and an error if any.
 func (sched *Scheduler) preempt(preemptor *v1.Pod, scheduleErr error) (string, error) {
+	if !util.PodPriorityEnabled() {
+		klog.V(3).Infof("Pod priority feature is not enabled. No preemption is performed.")
+		return "", nil
+	}
+
+	if podHasLeastPriority(preemptor) {
+		klog.V(3).Infof("Pod has least priority or priority is not set")
+		return "", nil
+	}
+
 	preemptor, err := sched.config.PodPreemptor.GetUpdatedPod(preemptor)
 	if err != nil {
 		klog.Errorf("Error getting the updated preemptor pod object: %v", err)
@@ -302,6 +326,10 @@ func (sched *Scheduler) preempt(preemptor *v1.Pod, scheduleErr error) (string, e
 	}
 	var nodeName = ""
 	if node != nil {
+		klog.V(6).Infof("pods to be preempted is on node: %v", node.Name)
+		klog.V(6).Infof("victims number is: %d", len(victims))
+		klog.V(6).Infof("nominatedPods number to be cleared is: %d", len(nominatedPodsToClear))
+
 		nodeName = node.Name
 		// Update the scheduling queue with the nominated pod information. Without
 		// this, there would be a race condition between the next scheduling cycle
@@ -324,6 +352,8 @@ func (sched *Scheduler) preempt(preemptor *v1.Pod, scheduleErr error) (string, e
 			sched.config.Recorder.Eventf(victim, v1.EventTypeNormal, "Preempted", "by %v/%v on node %v", preemptor.Namespace, preemptor.Name, nodeName)
 		}
 		metrics.PreemptionVictims.Set(float64(len(victims)))
+	} else {
+		klog.V(6).Infof("the node selected by Preempt function is nil")
 	}
 	// Clearing nominated pods should happen outside of "if node != nil". Node could
 	// be nil when a pod with nominated node name is eligible to preempt again,
@@ -521,6 +551,7 @@ func (sched *Scheduler) scheduleOne() {
 		metrics.PodScheduleErrors.Inc()
 		return
 	}
+
 	// bind the pod to its host asynchronously (we can do this b/c of the assumption step above).
 	go func() {
 		// Bind volumes first before Pod

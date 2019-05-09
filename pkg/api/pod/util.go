@@ -328,6 +328,7 @@ func dropDisabledFields(
 		// does not specify any values for these fields.
 		podSpec.Priority = nil
 		podSpec.PriorityClassName = ""
+		podSpec.CanBePreempted = nil
 	}
 
 	if !utilfeature.DefaultFeatureGate.Enabled(features.Sysctls) && !sysctlsInUse(oldPodSpec) {

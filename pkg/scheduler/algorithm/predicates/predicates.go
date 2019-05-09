@@ -146,13 +146,14 @@ const (
 // The order is based on the restrictiveness & complexity of predicates.
 // Design doc: https://github.com/kubernetes/community/blob/master/contributors/design-proposals/scheduling/predicates-ordering.md
 var (
-	predicatesOrdering = []string{CheckNodeConditionPred, CheckNodeUnschedulablePred,
+	predicatesOrdering = []string{CheckNodeConditionPred, CheckNodeUnschedulablePred, CheckNodeMemoryPressurePred,
+		CheckNodePIDPressurePred, CheckNodeDiskPressurePred, CheckNodeLoadPressurePred,
 		GeneralPred, HostNamePred, PodFitsHostPortsPred,
 		MatchNodeSelectorPred, PodFitsResourcesPred, NoDiskConflictPred,
 		PodToleratesNodeTaintsPred, PodToleratesNodeNoExecuteTaintsPred, CheckNodeLabelPresencePred,
 		CheckServiceAffinityPred, MaxEBSVolumeCountPred, MaxGCEPDVolumeCountPred, MaxCSIVolumeCountPred,
 		MaxAzureDiskVolumeCountPred, MaxCinderVolumeCountPred, CheckVolumeBindingPred, NoVolumeZoneConflictPred,
-		CheckNodeMemoryPressurePred, CheckNodePIDPressurePred, CheckNodeDiskPressurePred, CheckNodeLoadPressurePred, MatchInterPodAffinityPred, MatchHostUniquePred}
+		MatchHostUniquePred, MatchInterPodAffinityPred}
 )
 
 // FitPredicate is a function that indicates if a pod fits into an existing node.
@@ -853,9 +854,19 @@ func nodeMatchesNodeSelectorTerms(node *v1.Node, nodeSelectorTerms []v1.NodeSele
 // the requirements in both NodeAffinity and nodeSelector.
 func podMatchesNodeSelectorAndAffinityTerms(pod *v1.Pod, node *v1.Node) bool {
 	// Check if node.Labels match pod.Spec.NodeSelector.
-	if len(pod.Spec.NodeSelector) > 0 {
+	/*if len(pod.Spec.NodeSelector) > 0 {
 		selector := labels.SelectorFromSet(pod.Spec.NodeSelector)
 		if !selector.Matches(labels.Set(node.Labels)) {
+			return false
+		}
+	}*/
+	// NOTE: operator must be Equal, and selector value must be one of the values of node labels
+	for key, value := range pod.Spec.NodeSelector {
+		if node.Labels == nil {
+			return false
+		}
+		nodeValue, ok := node.Labels[key]
+		if !ok || value != nodeValue {
 			return false
 		}
 	}
@@ -1342,17 +1353,26 @@ func (c *PodAffinityChecker) satisfiesExistingPodsAntiAffinity(pod *v1.Pod, meta
 	if node == nil {
 		return ErrExistingPodsAntiAffinityRulesNotMatch, fmt.Errorf("Node is nil")
 	}
+	var err error
 	var topologyMaps *topologyPairsMaps
 	if predicateMeta, ok := meta.(*predicateMetadata); ok {
 		topologyMaps = predicateMeta.topologyPairsAntiAffinityPodsMap
 	} else {
 		// Filter out pods whose nodeName is equal to nodeInfo.node.Name, but are not
 		// present in nodeInfo. Pods on other nodes pass the filter.
-		filteredPods, err := c.podLister.FilteredList(nodeInfo.Filter, labels.Everything())
+		/*filteredPods, err := c.podLister.FilteredList(nodeInfo.Filter, labels.Everything())
 		if err != nil {
 			errMessage := fmt.Sprintf("Failed to get all pods, %+v", err)
 			klog.Error(errMessage)
 			return ErrExistingPodsAntiAffinityRulesNotMatch, errors.New(errMessage)
+		}*/
+
+		// since we do not have anti-affinity whose topology key is not hostname,
+		// here we set filteredPods to pods assigned to the node already
+		// TODO: if we add new anti-affinity roles whose topology key is not hostname later, we need to revisit this
+		filteredPods := nodeInfo.Pods()
+		if len(filteredPods) == 0 {
+			return nil, nil
 		}
 		if topologyMaps, err = c.getMatchingAntiAffinityTopologyPairsOfPods(pod, filteredPods); err != nil {
 			errMessage := fmt.Sprintf("Failed to get all terms that pod %+v matches, err: %+v", podName(pod), err)
@@ -1447,9 +1467,17 @@ func (c *PodAffinityChecker) satisfiesPodsAffinityAntiAffinity(pod *v1.Pod,
 			}
 		}
 	} else { // We don't have precomputed metadata. We have to follow a slow path to check affinity terms.
-		filteredPods, err := c.podLister.FilteredList(nodeInfo.Filter, labels.Everything())
+		/*filteredPods, err := c.podLister.FilteredList(nodeInfo.Filter, labels.Everything())
 		if err != nil {
 			return ErrPodAffinityRulesNotMatch, err
+		}*/
+
+		// since we do not have anti-affinity whose topology key is not hostname,
+		// here we set filteredPods to pods assigned to the node already
+		// TODO: if we add new anti-affinity roles whose topology key is not hostname later, we need to revisit this
+		filteredPods := nodeInfo.Pods()
+		if len(filteredPods) == 0 {
+			return nil, nil
 		}
 
 		affinityTerms := GetPodAffinityTerms(affinity.PodAffinity)
@@ -1750,6 +1778,11 @@ func (c *HostUniqueChecker) predicate(pod *v1.Pod, meta PredicateMetadata, nodeI
 	if affinity == nil || affinity.PodAntiAffinity == nil {
 		return true, nil, nil
 	}
+	// if the node does not contain any host unique pods, return true directly
+	if nodeInfo.HostUniquePodsNumber() <= 0 {
+		return true, nil, nil
+	}
+
 	if failedPredicates, error := c.satisfiesPodsHostUnique(pod, nodeInfo, affinity); failedPredicates != nil {
 		failedPredicates := append([]PredicateFailureReason{ErrPodAffinityNotMatch}, failedPredicates)
 		return false, failedPredicates, error

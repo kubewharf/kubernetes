@@ -662,6 +662,7 @@ func describePod(pod *corev1.Pod, events *corev1.EventList) (string, error) {
 		if pod.Spec.Priority != nil {
 			w.Write(LEVEL_0, "Priority:\t%d\n", *pod.Spec.Priority)
 			w.Write(LEVEL_0, "PriorityClassName:\t%s\n", stringOrNone(pod.Spec.PriorityClassName))
+			w.Write(LEVEL_0, "CanBePreempted:\t%v\n", *pod.Spec.CanBePreempted)
 		}
 		if pod.Spec.NodeName == "" {
 			w.Write(LEVEL_0, "Node:\t<none>\n")

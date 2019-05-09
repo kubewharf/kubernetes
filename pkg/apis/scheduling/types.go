@@ -64,6 +64,11 @@ type PriorityClass struct {
 	// when this priority class should be used.
 	// +optional
 	Description string
+
+	// CanBePreempted indicates whether the pods with this priority class value can be preempted.
+	// For safety reasons， the default value is false.
+	// +optional
+	CanBePreempted *bool
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

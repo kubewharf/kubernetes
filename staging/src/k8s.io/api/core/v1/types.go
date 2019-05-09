@@ -2973,6 +2973,10 @@ type PodSpec struct {
 	// Optional: Defaults to true.
 	// +optional
 	EnableServiceLinks *bool `json:"enableServiceLinks,omitempty" protobuf:"varint,30,opt,name=enableServiceLinks"`
+	// CanBePreempted indicates whether the pods with this priority class value can be preempted.
+	// For safety reasons, the default value is false.
+	// +optional
+	CanBePreempted *bool `json:"canBePreempted,omitempty" protobuf:"bytes,31,opt,name=canBePreempted"`
 }
 
 const (

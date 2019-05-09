@@ -19,7 +19,7 @@ package api
 import (
 	"time"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -37,7 +37,7 @@ const (
 	MaxWeight = MaxInt / MaxPriority
 	// DefaultPercentageOfNodesToScore defines the percentage of nodes of all nodes
 	// that once found feasible, the scheduler stops looking for more nodes.
-	DefaultPercentageOfNodesToScore = 50
+	DefaultPercentageOfNodesToScore = 20
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

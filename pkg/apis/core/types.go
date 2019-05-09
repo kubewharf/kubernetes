@@ -2680,6 +2680,10 @@ type PodSpec struct {
 	// If not specified, the default is true.
 	// +optional
 	EnableServiceLinks *bool
+	// CanBePreempted indicates whether the pods with this priority class value can be preempted.
+	// For safety reasons, the default value is false.
+	// +optional
+	CanBePreempted *bool
 }
 
 // HostAlias holds the mapping between IP and hostnames that will be injected as an entry in the

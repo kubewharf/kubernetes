@@ -17,7 +17,7 @@ limitations under the License.
 package cache
 
 import (
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/kubernetes/pkg/scheduler/algorithm"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
@@ -111,6 +111,12 @@ type Cache interface {
 
 	// NodeTree returns a node tree structure
 	NodeTree() *NodeTree
+
+	CacheNodesForDP(dpName string, nodeName string) error
+
+	GetNodesForDP(dpName string) NodesSet
+
+	DeleteNodeForDP(dpName string, nodeName string) error
 }
 
 // Snapshot is a snapshot of cache state

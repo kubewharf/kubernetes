@@ -20,6 +20,7 @@ import (
 	"sort"
 
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/kubernetes/pkg/apis/scheduling"
 	"k8s.io/kubernetes/pkg/features"
@@ -63,6 +64,29 @@ func GetPodPriority(pod *v1.Pod) int32 {
 	return scheduling.DefaultPriorityWhenNoDefaultClassExists
 }
 
+// CanPodBePreempted indicates whether the pod can be preempted
+func CanPodBePreempted(pod *v1.Pod) bool {
+	if pod.Spec.CanBePreempted == nil {
+		return false
+	}
+
+	return *pod.Spec.CanBePreempted
+}
+
+// PreemptionScopeEqual compares the preemption scope label
+// return true if they are equal
+func PreemptionScopeEqual(pod1, pod2 *v1.Pod) bool {
+	if pod1.Labels == nil || pod2.Labels == nil {
+		return false
+	}
+
+	if len(pod1.Labels[PreemptionScopeKey]) == 0 || len(pod2.Labels[PreemptionScopeKey]) == 0 {
+		return false
+	}
+
+	return pod1.Labels[PreemptionScopeKey] == pod2.Labels[PreemptionScopeKey]
+}
+
 // SortableList is a list that implements sort.Interface.
 type SortableList struct {
 	Items    []interface{}
@@ -95,5 +119,225 @@ func (l *SortableList) Sort() {
 // the second one. It takes arguments of the type "interface{}" to be used with
 // SortableList, but expects those arguments to be *v1.Pod.
 func HigherPriorityPod(pod1, pod2 interface{}) bool {
-	return GetPodPriority(pod1.(*v1.Pod)) > GetPodPriority(pod2.(*v1.Pod))
+	p1 := GetPodPriority(pod1.(*v1.Pod))
+	p2 := GetPodPriority(pod2.(*v1.Pod))
+	if p1 != p2 {
+		return p1 > p2
+	}
+
+	pod1HasGPU := HasResource(pod1.(*v1.Pod), ResourceGPU)
+	pod2HasGPU := HasResource(pod2.(*v1.Pod), ResourceGPU)
+	if pod1HasGPU != pod2HasGPU {
+		if pod1HasGPU {
+			return true
+		} else {
+			return false
+		}
+	}
+
+	return true
 }
+
+func LessImportantPod(pod1, pod2 interface{}) bool {
+	// compare priority first
+	p1 := GetPodPriority(pod1.(*v1.Pod))
+	p2 := GetPodPriority(pod2.(*v1.Pod))
+	if p1 != p2 {
+		return p1 < p2
+	}
+	// if the priorities are equal, compare resource types.
+	// order is: GPU, Memory, CPU
+	// Since memory and cpu is not that special, put them behind request size comparisons.
+	pod1HasGPU := HasResource(pod1.(*v1.Pod), ResourceGPU)
+	pod2HasGPU := HasResource(pod2.(*v1.Pod), ResourceGPU)
+	if pod1HasGPU != pod2HasGPU {
+		if pod1HasGPU {
+			return false
+		} else {
+			return true
+		}
+	}
+
+	// compare request resource
+	// and the resources order is: GPU, Memory, CPU
+	// the smaller, the quicker to reprieve
+	if pod1HasGPU {
+		pod1GPURequest := getPodRequest(pod1.(*v1.Pod), ResourceGPU, resource.DecimalSI)
+		pod2GPURequest := getPodRequest(pod2.(*v1.Pod), ResourceGPU, resource.DecimalSI)
+		result := pod1GPURequest.Cmp(*pod2GPURequest)
+		if result < 0 {
+			// pod2 request is greater than pod1,
+			// since GPU resource is precious, pod1 is less important
+			return true
+		} else if result > 0 {
+			return false
+		}
+	}
+
+	pod1MemoryRequest := getPodRequest(pod1.(*v1.Pod), v1.ResourceMemory, resource.BinarySI)
+	pod2MemoryRequest := getPodRequest(pod2.(*v1.Pod), v1.ResourceMemory, resource.BinarySI)
+	result := pod1MemoryRequest.Cmp(*pod2MemoryRequest)
+	if result < 0 {
+		// pod2 request is greater than pod1
+		return false
+	} else if result > 0 {
+		return true
+	}
+
+	pod1CPURequest := getPodRequest(pod1.(*v1.Pod), v1.ResourceCPU, resource.DecimalSI)
+	pod2CPURequest := getPodRequest(pod2.(*v1.Pod), v1.ResourceCPU, resource.DecimalSI)
+	result = pod1CPURequest.Cmp(*pod2CPURequest)
+	if result < 0 {
+		// pod2 request is greater than pod1
+		return false
+	} else if result > 0 {
+		return true
+	}
+
+	return true
+}
+
+// MoreImportantPod return true when priority of the first pod is higher than
+// the second one. It takes arguments of the type "interface{}" to be used with
+// SortableList, but expects those arguments to be *v1.Pod.
+func MoreImportantPod(pod1, pod2 interface{}) bool {
+	// compare priority first
+	p1 := GetPodPriority(pod1.(*v1.Pod))
+	p2 := GetPodPriority(pod2.(*v1.Pod))
+	if p1 != p2 {
+		return p1 > p2
+	}
+	// if the priorities are equal, compare resource types.
+	// order is: GPU, Memory, CPU
+	// Since memory and cpu is not that special, put them behind request size comparisons.
+	pod1HasGPU := HasResource(pod1.(*v1.Pod), ResourceGPU)
+	pod2HasGPU := HasResource(pod2.(*v1.Pod), ResourceGPU)
+	if pod1HasGPU != pod2HasGPU {
+		if pod1HasGPU {
+			return true
+		} else {
+			return false
+		}
+	}
+
+	// compare request resource
+	// and the resources order is: GPU, Memory, CPU
+	// the smaller, the quicker to reprieve
+	if pod1HasGPU {
+		pod1GPURequest := getPodRequest(pod1.(*v1.Pod), ResourceGPU, resource.DecimalSI)
+		pod2GPURequest := getPodRequest(pod2.(*v1.Pod), ResourceGPU, resource.DecimalSI)
+		result := pod1GPURequest.Cmp(*pod2GPURequest)
+		if result < 0 {
+			// pod2 request is greater than pod1,
+			// since GPU resource is precious, pod2 is more important
+			return false
+		} else if result > 0 {
+			return true
+		}
+	}
+
+	pod1MemoryRequest := getPodRequest(pod1.(*v1.Pod), v1.ResourceMemory, resource.BinarySI)
+	pod2MemoryRequest := getPodRequest(pod2.(*v1.Pod), v1.ResourceMemory, resource.BinarySI)
+	result := pod1MemoryRequest.Cmp(*pod2MemoryRequest)
+	if result < 0 {
+		// pod2 request is greater than pod1, pod1 is more important
+		return true
+	} else if result > 0 {
+		return false
+	}
+
+	pod1CPURequest := getPodRequest(pod1.(*v1.Pod), v1.ResourceCPU, resource.DecimalSI)
+	pod2CPURequest := getPodRequest(pod2.(*v1.Pod), v1.ResourceCPU, resource.DecimalSI)
+	result = pod1CPURequest.Cmp(*pod2CPURequest)
+	if result < 0 {
+		// pod2 request is greater than pod1, pod1 is more important
+		return true
+	} else if result > 0 {
+		return false
+	}
+
+	// TODO: Does CPU and Memory worth this ?
+	pod1HasMemory := HasResource(pod1.(*v1.Pod), v1.ResourceMemory)
+	pod2HasMemory := HasResource(pod2.(*v1.Pod), v1.ResourceMemory)
+	if pod1HasMemory != pod2HasMemory {
+		if pod1HasMemory {
+			return true
+		} else {
+			return false
+		}
+	}
+
+	pod1HasCPU := HasResource(pod1.(*v1.Pod), v1.ResourceCPU)
+	pod2HasCPU := HasResource(pod2.(*v1.Pod), v1.ResourceCPU)
+	if pod1HasCPU != pod2HasCPU {
+		if pod1HasCPU {
+			return true
+		} else {
+			return false
+		}
+	}
+
+	return true
+}
+
+func HasResource(pod *v1.Pod, resourceType v1.ResourceName) bool {
+	zeroQuantity := resource.MustParse("0")
+	for _, container := range pod.Spec.Containers {
+		for key, quantity  := range container.Resources.Requests {
+			if key == resourceType && quantity.Cmp(zeroQuantity) == 1 {
+				return true
+			}
+		}
+		for key, quantity := range container.Resources.Limits {
+			if key == resourceType && quantity.Cmp(zeroQuantity) == 1 {
+				return true
+			}
+		}
+	}
+
+	for _, container := range pod.Spec.InitContainers {
+		for key, quantity := range container.Resources.Requests {
+			if key == resourceType && quantity.Cmp(zeroQuantity) == 1 {
+				return true
+			}
+		}
+		for key, quantity := range container.Resources.Limits {
+			if key == resourceType && quantity.Cmp(zeroQuantity) == 1 {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+const (
+	// hardcode GPU name here
+	// TODO: support more GPU names
+	ResourceGPU v1.ResourceName = "nvidia.com/gpu"
+)
+
+func getPodRequest(pod *v1.Pod, resourceType v1.ResourceName, format resource.Format) *resource.Quantity {
+	result := resource.NewQuantity(0, format)
+	for _, container := range pod.Spec.Containers {
+		for key, value := range container.Resources.Requests {
+			if key == resourceType {
+				result.Add(value)
+			}
+		}
+	}
+
+	for _, container := range pod.Spec.InitContainers {
+		for key, value := range container.Resources.Requests {
+			if key == resourceType {
+				if result.Cmp(value) < 0 {
+					result.SetMilli(value.MilliValue())
+				}
+			}
+		}
+	}
+
+	return result
+}
+
+const PreemptionScopeKey = "PreemptionScopeKey"

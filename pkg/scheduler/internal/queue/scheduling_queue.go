@@ -34,7 +34,7 @@ import (
 
 	"k8s.io/klog"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ktypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -214,7 +214,7 @@ type PriorityQueue struct {
 	stop  <-chan struct{}
 	clock util.Clock
 	// podBackoff tracks backoff for pods attempting to be rescheduled
-	podBackoff *util.PodBackoff
+	podBackoff *PodBackoffMap
 
 	lock sync.RWMutex
 	cond sync.Cond
@@ -295,7 +295,7 @@ func NewPriorityQueueWithClock(stop <-chan struct{}, clock util.Clock) *Priority
 	pq := &PriorityQueue{
 		clock:            clock,
 		stop:             stop,
-		podBackoff:       util.CreatePodBackoffWithClock(1*time.Second, 10*time.Second, clock),
+		podBackoff:       NewPodBackoffMap(1*time.Second, 120*time.Second),
 		activeQ:          util.NewHeap(podInfoKeyFunc, activeQComp),
 		unschedulableQ:   newUnschedulablePodsMap(clock),
 		nominatedPods:    newNominatedPodMap(),
@@ -312,7 +312,8 @@ func NewPriorityQueueWithClock(stop <-chan struct{}, clock util.Clock) *Priority
 // run starts the goroutine to pump from podBackoffQ to activeQ
 func (p *PriorityQueue) run() {
 	go wait.Until(p.flushBackoffQCompleted, 1.0*time.Second, p.stop)
-	go wait.Until(p.flushUnschedulableQLeftover, 30*time.Second, p.stop)
+	go wait.Until(p.MoveAllToActiveQueue, 15.0*time.Second, p.stop)
+	// go wait.Until(p.flushUnschedulableQLeftover, 30*time.Second, p.stop)
 }
 
 // Add adds a pod to the active queue. It should be called only when a new pod
@@ -396,7 +397,7 @@ func (p *PriorityQueue) isPodBackingOff(pod *v1.Pod) bool {
 // backoffPod checks if pod is currently undergoing backoff. If it is not it updates the backoff
 // timeout otherwise it does nothing.
 func (p *PriorityQueue) backoffPod(pod *v1.Pod) {
-	p.podBackoff.Gc()
+	p.podBackoff.CleanupPodsCompletesBackingoff()
 
 	podID := nsNameForPod(pod)
 	boTime, found := p.podBackoff.GetBackoffTime(podID)
@@ -641,19 +642,31 @@ func (p *PriorityQueue) AssignedPodUpdated(pod *v1.Pod) {
 func (p *PriorityQueue) MoveAllToActiveQueue() {
 	p.lock.Lock()
 	defer p.lock.Unlock()
+
+	// There is a chance of errors when adding pods to other queues,
+	// we make a temporary slice to store the pods,
+	// since the probability is low, we set its len to 0
+	addErrorPodInfos := make([]*podInfo, 0)
+
 	for _, pInfo := range p.unschedulableQ.podInfoMap {
 		pod := pInfo.pod
 		if p.isPodBackingOff(pod) {
 			if err := p.podBackoffQ.Add(pInfo); err != nil {
 				klog.Errorf("Error adding pod %v to the backoff queue: %v", pod.Name, err)
+				addErrorPodInfos = append(addErrorPodInfos, pInfo)
 			}
 		} else {
 			if err := p.activeQ.Add(pInfo); err != nil {
 				klog.Errorf("Error adding pod %v to the scheduling queue: %v", pod.Name, err)
+				addErrorPodInfos = append(addErrorPodInfos, pInfo)
 			}
 		}
 	}
 	p.unschedulableQ.clear()
+	// Adding pods that we could not move to Active queue or Backoff queue back to the Unschedulable queue
+	for _, pInfo := range addErrorPodInfos {
+		p.unschedulableQ.addOrUpdate(pInfo)
+	}
 	p.moveRequestCycle = p.schedulingCycle
 	p.cond.Broadcast()
 }

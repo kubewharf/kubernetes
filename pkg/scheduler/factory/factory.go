@@ -661,8 +661,8 @@ func MakeDefaultErrorFunc(client clientset.Interface, backoff *util.PodBackoff, 
 			}
 		}
 
-		backoff.Gc()
 		podSchedulingCycle := podQueue.SchedulingCycle()
+		// backoff.Gc()
 		// Retry asynchronously.
 		// Note that this is extremely rudimentary and we need a more real error handling path.
 		go func() {
@@ -676,12 +676,12 @@ func MakeDefaultErrorFunc(client clientset.Interface, backoff *util.PodBackoff, 
 			// pod in the unschedulable queue. This ensures that if the pod is nominated
 			// to run on a node, scheduler takes the pod into account when running
 			// predicates for the node.
-			if !util.PodPriorityEnabled() {
+			/*if !util.PodPriorityEnabled() {
 				if !backoff.TryBackoffAndWait(podID, stopEverything) {
 					klog.Warningf("Request for pod %v already in flight, abandoning", podID)
 					return
 				}
-			}
+			}*/
 			// Get the pod again; it may have changed/been scheduled already.
 			getBackoff := initialGetBackoff
 			for {
