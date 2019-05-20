@@ -328,6 +328,7 @@ func CreateListener(network, addr string) (net.Listener, int, error) {
 		network = "tcp"
 	}
 	ln, err := net.Listen(network, addr)
+	ln = &Listener{Listener: ln}
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to listen on %v: %v", addr, err)
 	}
