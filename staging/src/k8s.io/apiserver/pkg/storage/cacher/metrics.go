@@ -31,10 +31,18 @@ var (
 			Name:      "cache_ready",
 			Help:      "Gauge of apiserver storage cache is ready.",
 		})
+	initSlowProcessingDuration = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "apiserver_init_events_slowly_processing",
+			Help:    "Duration of init events processed slowly in watchcache",
+			Buckets: prometheus.ExponentialBuckets(100, 2, 12),
+		},
+	)
 )
 
 func init() {
 	prometheus.MustRegister(cacheStatus)
+	prometheus.MustRegister(initSlowProcessingDuration)
 }
 
 // ObserveCacheStatus updates the relevant prometheus metrics for the cache status.

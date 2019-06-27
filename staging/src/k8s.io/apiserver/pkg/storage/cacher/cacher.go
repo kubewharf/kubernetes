@@ -40,7 +40,7 @@ import (
 	"k8s.io/apiserver/pkg/storage"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/tools/cache"
-        "k8s.io/kubernetes/pkg/apis/core"
+	"k8s.io/kubernetes/pkg/apis/core"
 	utiltrace "k8s.io/utils/trace"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -1042,6 +1042,7 @@ func (c *cacheWatcher) process(initEvents []*watchCacheEvent, resourceVersion ui
 			objType = reflect.TypeOf(initEvents[0].Object).String()
 		}
 		klog.V(2).Infof("processing %d initEvents of %s took %v", len(initEvents), objType, processingTime)
+		initSlowProcessingDuration.Observe(float64(processingTime.Nanoseconds() / time.Millisecond.Nanoseconds()))
 	}
 
 	defer close(c.result)
