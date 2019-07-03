@@ -125,7 +125,7 @@ func (r *EvictionREST) Create(ctx context.Context, obj runtime.Object, createVal
 	}
 	var rtStatus *metav1.Status
 	var pdbName string
-	err = retry.RetryOnConflict(EvictionsRetry, func() error {
+	err = func() error {
 		pdbs, err := r.getPodDisruptionBudgets(ctx, pod)
 		if err != nil {
 			return err
@@ -138,19 +138,28 @@ func (r *EvictionREST) Create(ctx context.Context, obj runtime.Object, createVal
 				Code:    500,
 			}
 			return nil
-		} else if len(pdbs) == 1 {
-			pdb := pdbs[0]
-			pdbName = pdb.Name
+		}
+		if len(pdbs) == 0 {
+			return nil
+		}
+		pdb := &pdbs[0]
+		pdbName = pdb.Name
+		err = retry.RetryOnConflict(EvictionsRetry, func() error {
+			pdb, err = r.podDisruptionBudgetClient.PodDisruptionBudgets(pod.Namespace).Get(pdbName, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
 			// Try to verify-and-decrement
 
 			// If it was false already, or if it becomes false during the course of our retries,
 			// raise an error marked as a 429.
-			if err := r.checkAndDecrement(pod.Namespace, pod.Name, pdb, dryrun.IsDryRun(deletionOptions.DryRun)); err != nil {
+			if err := r.checkAndDecrement(pod.Namespace, pod.Name, *pdb, dryrun.IsDryRun(deletionOptions.DryRun)); err != nil {
 				return err
 			}
-		}
-		return nil
-	})
+			return nil
+		})
+		return err
+	}()
 	if err == wait.ErrWaitTimeout {
 		err = errors.NewTimeoutError(fmt.Sprintf("couldn't update PodDisruptionBudget %q due to conflicts", pdbName), 10)
 	}
@@ -176,12 +185,13 @@ func (r *EvictionREST) Create(ctx context.Context, obj runtime.Object, createVal
 
 // checkAndDecrement checks if the provided PodDisruptionBudget allows any disruption.
 func (r *EvictionREST) checkAndDecrement(namespace string, podName string, pdb policy.PodDisruptionBudget, dryRun bool) error {
+	retryAfterSeconds := 60
 	if pdb.Status.ObservedGeneration < pdb.Generation {
 		// TODO(mml): Add a Retry-After header.  Once there are time-based
 		// budgets, we can sometimes compute a sensible suggested value.  But
 		// even without that, we can give a suggestion (10 minutes?) that
 		// prevents well-behaved clients from hammering us.
-		err := errors.NewTooManyRequests("Cannot evict pod as it would violate the pod's disruption budget.", 0)
+		err := errors.NewTooManyRequests("Cannot evict pod as it would violate the pod's disruption budget.", retryAfterSeconds)
 		err.ErrStatus.Details.Causes = append(err.ErrStatus.Details.Causes, metav1.StatusCause{Type: "DisruptionBudget", Message: fmt.Sprintf("The disruption budget %s is still being processed by the server.", pdb.Name)})
 		return err
 	}
@@ -192,7 +202,7 @@ func (r *EvictionREST) checkAndDecrement(namespace string, podName string, pdb p
 		return errors.NewForbidden(policy.Resource("poddisruptionbudget"), pdb.Name, fmt.Errorf("DisruptedPods map too big - too many evictions not confirmed by PDB controller"))
 	}
 	if pdb.Status.PodDisruptionsAllowed == 0 {
-		err := errors.NewTooManyRequests("Cannot evict pod as it would violate the pod's disruption budget.", 0)
+		err := errors.NewTooManyRequests("Cannot evict pod as it would violate the pod's disruption budget.", retryAfterSeconds)
 		err.ErrStatus.Details.Causes = append(err.ErrStatus.Details.Causes, metav1.StatusCause{Type: "DisruptionBudget", Message: fmt.Sprintf("The disruption budget %s needs %d healthy pods and has %d currently", pdb.Name, pdb.Status.DesiredHealthy, pdb.Status.CurrentHealthy)})
 		return err
 	}
@@ -225,7 +235,7 @@ func (r *EvictionREST) getPodDisruptionBudgets(ctx context.Context, pod *api.Pod
 		return nil, nil
 	}
 
-	pdbList, err := r.podDisruptionBudgetClient.PodDisruptionBudgets(pod.Namespace).List(metav1.ListOptions{})
+	pdbList, err := r.podDisruptionBudgetClient.PodDisruptionBudgets(pod.Namespace).List(metav1.ListOptions{ResourceVersion: "0"})
 	if err != nil {
 		return nil, err
 	}
