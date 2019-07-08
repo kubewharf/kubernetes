@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -637,6 +638,13 @@ func (ds *dockerService) makeSandboxDockerConfig(c *runtimeapi.PodSandboxConfig,
 		return nil, fmt.Errorf("failed to generate sandbox security options for sandbox %q: %v", c.Metadata.Name, err)
 	}
 	hc.SecurityOpt = append(hc.SecurityOpt, securityOpts...)
+
+	// Set container shm size. Containers share shm volume with sandbox when using docker.
+	if size, ok := c.GetAnnotations()[types.ContainerShmSizeAnnotationKey]; ok {
+		if shmSize, err := strconv.ParseInt(size, 10, 64); err == nil && shmSize > 0 {
+			hc.ShmSize = shmSize
+		}
+	}
 
 	applyExperimentalCreateConfig(createConfig, c.Annotations)
 	return createConfig, nil

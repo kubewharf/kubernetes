@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	dockertypes "github.com/docker/docker/api/types"
@@ -31,6 +32,7 @@ import (
 
 	runtimeapi "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 	"k8s.io/kubernetes/pkg/kubelet/dockershim/libdocker"
+	"k8s.io/kubernetes/pkg/kubelet/types"
 )
 
 // ListContainers lists all containers matching the filter.
@@ -168,10 +170,17 @@ func (ds *dockerService) CreateContainer(_ context.Context, r *runtimeapi.Create
 	}
 
 	hc.SecurityOpt = append(hc.SecurityOpt, securityOpts...)
-
-	cleanupInfo, err := ds.applyPlatformSpecificDockerConfig(r, &createConfig)
 	if err != nil {
 		return nil, err
+	}
+
+	cleanupInfo, err := ds.applyPlatformSpecificDockerConfig(r, &createConfig)
+	// Set shm size for container. Shm volume is created during sandbox creation when using docker,
+	// but we still pass this parameter to catch compatibility with other runtime.
+	if size, ok := sandboxConfig.GetAnnotations()[types.ContainerShmSizeAnnotationKey]; ok {
+		if shmSize, err := strconv.ParseInt(size, 10, 64); err == nil && shmSize > 0 {
+			hc.ShmSize = shmSize
+		}
 	}
 
 	createResp, createErr := ds.client.CreateContainer(createConfig)
