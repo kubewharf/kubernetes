@@ -19,6 +19,7 @@ package images
 import (
 	"fmt"
 
+	kubetracing "code.byted.org/tce/kube-tracing"
 	dockerref "github.com/docker/distribution/reference"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
@@ -87,6 +88,9 @@ func (m *imageManager) logIt(ref *v1.ObjectReference, eventtype, event, prefix, 
 // EnsureImageExists pulls the image for the specified pod and container, and returns
 // (imageRef, error message, error).
 func (m *imageManager) EnsureImageExists(pod *v1.Pod, container *v1.Container, pullSecrets []v1.Secret, podSandboxConfig *runtimeapi.PodSandboxConfig) (string, string, error) {
+	span := kubetracing.Trace(nil, kubetracing.TraceStart, "kubeGenericRuntimeManager.startContainer"+"_"+string(pod.GetUID()), "imageManager.EnsureImageExists", "imageManager.EnsureImageExists"+"_"+string(pod.GetUID()))
+	defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "imageManager.EnsureImageExists")
+
 	logPrefix := fmt.Sprintf("%s/%s", pod.Name, container.Image)
 	ref, err := kubecontainer.GenerateContainerRef(pod, container)
 	if err != nil {
@@ -106,6 +110,7 @@ func (m *imageManager) EnsureImageExists(pod *v1.Pod, container *v1.Container, p
 	if err != nil {
 		msg := fmt.Sprintf("Failed to inspect image %q: %v", container.Image, err)
 		m.logIt(ref, v1.EventTypeWarning, events.FailedToInspectImage, logPrefix, msg, klog.Warning)
+		span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "error", "#1 "+msg)
 		return "", msg, ErrImageInspect
 	}
 
@@ -114,10 +119,12 @@ func (m *imageManager) EnsureImageExists(pod *v1.Pod, container *v1.Container, p
 		if present {
 			msg := fmt.Sprintf("Container image %q already present on machine", container.Image)
 			m.logIt(ref, v1.EventTypeNormal, events.PulledImage, logPrefix, msg, klog.Info)
+			span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", "#2 "+msg)
 			return imageRef, "", nil
 		}
 		msg := fmt.Sprintf("Container image %q is not present with pull policy of Never", container.Image)
 		m.logIt(ref, v1.EventTypeWarning, events.ErrImageNeverPullPolicy, logPrefix, msg, klog.Warning)
+		span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "warn", "#3 "+msg)
 		return "", msg, ErrImageNeverPull
 	}
 
@@ -125,6 +132,7 @@ func (m *imageManager) EnsureImageExists(pod *v1.Pod, container *v1.Container, p
 	if m.backOff.IsInBackOffSinceUpdate(backOffKey, m.backOff.Clock.Now()) {
 		msg := fmt.Sprintf("Back-off pulling image %q", container.Image)
 		m.logIt(ref, v1.EventTypeNormal, events.BackOffPullImage, logPrefix, msg, klog.Info)
+		span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", "#4 "+msg)
 		return "", msg, ErrImagePullBackOff
 	}
 	m.logIt(ref, v1.EventTypeNormal, events.PullingImage, logPrefix, fmt.Sprintf("Pulling image %q", container.Image), klog.Info)
@@ -133,15 +141,18 @@ func (m *imageManager) EnsureImageExists(pod *v1.Pod, container *v1.Container, p
 	imagePullResult := <-pullChan
 	if imagePullResult.err != nil {
 		m.logIt(ref, v1.EventTypeWarning, events.FailedToPullImage, logPrefix, fmt.Sprintf("Failed to pull image %q: %v", container.Image, imagePullResult.err), klog.Warning)
+		span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "warn", fmt.Sprintf("#5 Failed to pull image %q: %v", container.Image, imagePullResult.err))
 		m.backOff.Next(backOffKey, m.backOff.Clock.Now())
 		if imagePullResult.err == ErrRegistryUnavailable {
 			msg := fmt.Sprintf("image pull failed for %s because the registry is unavailable.", container.Image)
+			span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "error", "#6 "+msg)
 			return "", msg, imagePullResult.err
 		}
 
 		return "", imagePullResult.err.Error(), ErrImagePull
 	}
 	m.logIt(ref, v1.EventTypeNormal, events.PulledImage, logPrefix, fmt.Sprintf("Successfully pulled image %q", container.Image), klog.Info)
+	span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("#7 Successfully pulled image %q", container.Image))
 	m.backOff.GC()
 	return imagePullResult.imageRef, "", nil
 }

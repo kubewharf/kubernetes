@@ -28,6 +28,7 @@ import (
 	"sync"
 	"time"
 
+	kubetracing "code.byted.org/tce/kube-tracing"
 	"k8s.io/klog"
 
 	dockertypes "github.com/docker/docker/api/types"
@@ -36,6 +37,7 @@ import (
 	dockerapi "github.com/docker/docker/client"
 	dockermessage "github.com/docker/docker/pkg/jsonmessage"
 	dockerstdcopy "github.com/docker/docker/pkg/stdcopy"
+	kubelettypes "k8s.io/kubernetes/pkg/kubelet/types"
 )
 
 // kubeDockerClient is a wrapped layer of docker client for kubelet internal use. This layer is added to:
@@ -141,6 +143,16 @@ func (d *kubeDockerClient) InspectContainerWithSize(id string) (*dockertypes.Con
 func (d *kubeDockerClient) CreateContainer(opts dockertypes.ContainerCreateConfig) (*dockercontainer.ContainerCreateCreatedBody, error) {
 	ctx, cancel := d.getTimeoutContext()
 	defer cancel()
+
+	if podUID, ok := opts.Config.Labels[kubelettypes.KubernetesPodUIDLabel]; ok {
+		span := kubetracing.Trace(nil, kubetracing.TraceStart, "dockerService.CreateContainer"+"_"+podUID, "kubeDockerClient.CreateContainer")
+		defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "kubeDockerClient.CreateContainer")
+		if span != nil {
+			headers := map[string]string{kubetracing.KubetracingSpanContextKey: kubetracing.ContextStringFromSpan(span)}
+			d.client.SetCustomHTTPHeaders(headers)
+		}
+	}
+
 	// we provide an explicit default shm size as to not depend on docker daemon.
 	// TODO: evaluate exposing this as a knob in the API
 	if opts.HostConfig != nil && opts.HostConfig.ShmSize <= 0 {
@@ -159,6 +171,14 @@ func (d *kubeDockerClient) CreateContainer(opts dockertypes.ContainerCreateConfi
 func (d *kubeDockerClient) StartContainer(id string) error {
 	ctx, cancel := d.getTimeoutContext()
 	defer cancel()
+
+	span := kubetracing.Trace(nil, kubetracing.TraceStart, "dockerService.StartContainer"+"_"+id, "kubeDockerClient.StartContainer")
+	defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "kubeDockerClient.StartContainer")
+	if span != nil {
+		headers := map[string]string{kubetracing.KubetracingSpanContextKey: kubetracing.ContextStringFromSpan(span)}
+		d.client.SetCustomHTTPHeaders(headers)
+	}
+
 	err := d.client.ContainerStart(ctx, id, dockertypes.ContainerStartOptions{})
 	if ctxErr := contextError(ctx); ctxErr != nil {
 		return ctxErr
@@ -170,6 +190,14 @@ func (d *kubeDockerClient) StartContainer(id string) error {
 func (d *kubeDockerClient) StopContainer(id string, timeout time.Duration) error {
 	ctx, cancel := d.getCustomTimeoutContext(timeout)
 	defer cancel()
+
+	span := kubetracing.Trace(nil, kubetracing.TraceStart, "dockerService.StopContainer"+"_"+id, "kubeDockerClient.StopContainer")
+	defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "kubeDockerClient.StopContainer")
+	if span != nil {
+		headers := map[string]string{kubetracing.KubetracingSpanContextKey: kubetracing.ContextStringFromSpan(span)}
+		d.client.SetCustomHTTPHeaders(headers)
+	}
+
 	err := d.client.ContainerStop(ctx, id, &timeout)
 	if ctxErr := contextError(ctx); ctxErr != nil {
 		return ctxErr

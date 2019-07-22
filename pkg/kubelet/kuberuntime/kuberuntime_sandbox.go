@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"sort"
 
+	"code.byted.org/tce/kube-tracing"
 	"k8s.io/api/core/v1"
 	kubetypes "k8s.io/apimachinery/pkg/types"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
@@ -34,7 +35,10 @@ import (
 )
 
 // createPodSandbox creates a pod sandbox and returns (podSandBoxID, message, error).
-func (m *kubeGenericRuntimeManager) createPodSandbox(pod *v1.Pod, attempt uint32) (string, string, error) {
+func (m *kubeGenericRuntimeManager) createPodSandbox(traceCtx interface{}, pod *v1.Pod, attempt uint32) (string, string, error) {
+	span := kubetracing.Trace(nil, kubetracing.TraceStart, traceCtx, "kubeGenericRuntimeManager.createPodSandbox", "kubeGenericRuntimeManager.createPodSandbox"+"_"+string(pod.GetUID()))
+	defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "kubeGenericRuntimeManager.createPodSandbox")
+
 	podSandboxConfig, err := m.generatePodSandboxConfig(pod, attempt)
 	if err != nil {
 		message := fmt.Sprintf("GeneratePodSandboxConfig for pod %q failed: %v", format.Pod(pod), err)

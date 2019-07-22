@@ -31,6 +31,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	kubetracing "code.byted.org/tce/kube-tracing"
+
 	cadvisorapi "github.com/google/cadvisor/info/v1"
 	cadvisorapiv2 "github.com/google/cadvisor/info/v2"
 	v1 "k8s.io/api/core/v1"
@@ -1484,6 +1486,18 @@ func (kl *Kubelet) syncPod(o syncPodOptions) error {
 	podStatus := o.podStatus
 	updateType := o.updateType
 
+	span := kubetracing.Trace(nil, kubetracing.TraceStart, "Kubelet.HandlePod"+"_"+string(pod.GetUID()), "Kubelet.syncPod", "Kubelet.syncPod"+"_"+string(pod.GetUID()))
+	defer func() {
+		kubetracing.Trace(span, kubetracing.TraceFinish, nil, "Kubelet.syncPod")
+
+		// NOTE: 1. The parent span should be delete explicitly here.
+		//       2. Retrieve parent span here, not using for a context for syncPod span start, so we can block
+		//          redundant span creation from HandlePodSyncs.
+		parentSpan := kubetracing.Trace(nil, kubetracing.TraceGetSpan, nil, "", "Kubelet.HandlePod"+"_"+string(pod.GetUID()))
+		kubetracing.Trace(parentSpan, kubetracing.TraceFinish, nil, "")
+	}()
+	span = kubetracing.Trace(span, kubetracing.TraceBaggage, nil, "", "podName", pod.GetName())
+
 	// if we want to kill a pod, do it now!
 	if updateType == kubetypes.SyncPodKill {
 		killPodOptions := o.killPodOptions
@@ -2049,6 +2063,19 @@ func (kl *Kubelet) HandlePodAdditions(pods []*v1.Pod) {
 		if kl.dnsConfigurer != nil && kl.dnsConfigurer.ResolverConfig != "" {
 			kl.dnsConfigurer.CheckLimitsForResolvConf()
 		}
+
+		span := kubetracing.Trace(nil, kubetracing.TraceStart, nil, "Kubelet.HandlePodAdditions", "Kubelet.HandlePod"+"_"+string(pod.GetUID()))
+		span = kubetracing.Trace(span, kubetracing.TraceTag, nil, "", "action", "HandlePodAdditions")
+		span = kubetracing.Trace(span, kubetracing.TraceTag, nil, "", "podName", pod.GetName())
+		defer func() {
+			go func() {
+				// TODO: Some update events may be merged and spans starts here will not be finished in syncPod.
+				//       A better way shall we have to finish these spans?
+				time.Sleep(100 * time.Millisecond)
+				kubetracing.Trace(span, kubetracing.TraceFinish, nil, "Kubelet.HandlePodAdditions")
+			}()
+		}()
+
 		existingPods := kl.podManager.GetPods()
 		// Always add the pod to the pod manager. Kubelet relies on the pod
 		// manager as the source of truth for the desired state. If a pod does
@@ -2090,6 +2117,17 @@ func (kl *Kubelet) HandlePodUpdates(pods []*v1.Pod) {
 		if kl.dnsConfigurer != nil && kl.dnsConfigurer.ResolverConfig != "" {
 			kl.dnsConfigurer.CheckLimitsForResolvConf()
 		}
+
+		span := kubetracing.Trace(nil, kubetracing.TraceStart, nil, "Kubelet.HandlePodUpdates", "Kubelet.HandlePod"+"_"+string(pod.GetUID()))
+		span = kubetracing.Trace(span, kubetracing.TraceTag, nil, "", "action", "HandlePodUpdates")
+		span = kubetracing.Trace(span, kubetracing.TraceTag, nil, "", "podName", pod.GetName())
+		defer func() {
+			go func() {
+				time.Sleep(100 * time.Millisecond)
+				kubetracing.Trace(span, kubetracing.TraceFinish, nil, "Kubelet.HandlePodUpdates")
+			}()
+		}()
+
 		kl.podManager.UpdatePod(pod)
 		if kubepod.IsMirrorPod(pod) {
 			kl.handleMirrorPod(pod, start)
@@ -2152,6 +2190,16 @@ func (kl *Kubelet) HandlePodReconcile(pods []*v1.Pod) {
 func (kl *Kubelet) HandlePodSyncs(pods []*v1.Pod) {
 	start := kl.clock.Now()
 	for _, pod := range pods {
+		span := kubetracing.Trace(nil, kubetracing.TraceStart, nil, "Kubelet.HandlePodSyncs", "Kubelet.HandlePod"+"_"+string(pod.GetUID()))
+		span = kubetracing.Trace(span, kubetracing.TraceTag, nil, "", "action", "HandlePodSyncs")
+		span = kubetracing.Trace(span, kubetracing.TraceTag, nil, "", "podName", pod.GetName())
+		defer func() {
+			go func() {
+				time.Sleep(100 * time.Millisecond)
+				kubetracing.Trace(span, kubetracing.TraceFinish, nil, "Kubelet.HandlePodSyncs")
+			}()
+		}()
+
 		mirrorPod, _ := kl.podManager.GetMirrorPodByPod(pod)
 		kl.dispatchWork(pod, kubetypes.SyncPodSync, mirrorPod, start)
 	}

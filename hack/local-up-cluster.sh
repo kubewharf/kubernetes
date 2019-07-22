@@ -766,6 +766,7 @@ function start_kubelet {
       --eviction-pressure-transition-period="${EVICTION_PRESSURE_TRANSITION_PERIOD}"
       --pod-manifest-path="${POD_MANIFEST_PATH}"
       --fail-swap-on="${FAIL_SWAP_ON}"
+      --pod-infra-container-image="hub.byted.org/google_containers/pause-amd64:3.0"
       ${auth_args}
       ${dns_args}
       ${cni_conf_dir_args}

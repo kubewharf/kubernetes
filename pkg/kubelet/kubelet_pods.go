@@ -32,7 +32,9 @@ import (
 	"strings"
 	"sync"
 
-	v1 "k8s.io/api/core/v1"
+	"code.byted.org/tce/kube-tracing"
+	"github.com/opentracing/opentracing-go"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -823,6 +825,12 @@ func containerResourceRuntimeValue(fs *v1.ResourceFieldSelector, pod *v1.Pod, co
 // One of the following arguments must be non-nil: runningPod, status.
 // TODO: Modify containerRuntime.KillPod() to accept the right arguments.
 func (kl *Kubelet) killPod(pod *v1.Pod, runningPod *kubecontainer.Pod, status *kubecontainer.PodStatus, gracePeriodOverride *int64) error {
+	var span opentracing.Span
+	if pod != nil {
+		span = kubetracing.Trace(nil, kubetracing.TraceStart, "Kubelet.syncPod"+"_"+string(pod.GetUID()), "Kubelet.killPod", "Kubelet.killPod"+"_"+string(pod.GetUID()))
+		defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "Kubelet.killPod")
+	}
+
 	var p kubecontainer.Pod
 	if runningPod != nil {
 		p = *runningPod
@@ -838,6 +846,7 @@ func (kl *Kubelet) killPod(pod *v1.Pod, runningPod *kubecontainer.Pod, status *k
 	}
 	if err := kl.containerManager.UpdateQOSCgroups(); err != nil {
 		klog.V(2).Infof("Failed to update QoS cgroups while killing pod: %v", err)
+		span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "error", fmt.Sprintf("Failed to update QoS cgroups while killing pod: %v", err))
 	}
 	return nil
 }

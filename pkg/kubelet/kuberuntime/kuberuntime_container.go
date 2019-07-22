@@ -32,7 +32,9 @@ import (
 
 	"google.golang.org/grpc"
 
+	kubetracing "code.byted.org/tce/kube-tracing"
 	"github.com/armon/circbuf"
+	"github.com/opentracing/opentracing-go"
 	"k8s.io/klog"
 
 	v1 "k8s.io/api/core/v1"
@@ -91,10 +93,15 @@ func (m *kubeGenericRuntimeManager) recordContainerEvent(pod *v1.Pod, container 
 // * start the container
 // * run the post start lifecycle hooks (if applicable)
 func (m *kubeGenericRuntimeManager) startContainer(podSandboxID string, podSandboxConfig *runtimeapi.PodSandboxConfig, container *v1.Container, pod *v1.Pod, podStatus *kubecontainer.PodStatus, pullSecrets []v1.Secret, podIP string) (string, error) {
+	span := kubetracing.Trace(nil, kubetracing.TraceStart, "kubeGenericRuntimeManager.SyncPod"+"_"+string(pod.GetUID()), "kubeGenericRuntimeManager.startContainer", "kubeGenericRuntimeManager.startContainer"+"_"+string(pod.GetUID()))
+	defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "kubeGenericRuntimeManager.startContainer")
+
 	// Step 1: pull the image.
+	span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", "#1 Pull the image")
 	imageRef, msg, err := m.imagePuller.EnsureImageExists(pod, container, pullSecrets, podSandboxConfig)
 	if err != nil {
 		m.recordContainerEvent(pod, container, "", v1.EventTypeWarning, events.FailedToCreateContainer, "Error: %v", grpc.ErrorDesc(err))
+		span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "error", fmt.Sprintf("#2 Pull image failed, error: %v", grpc.ErrorDesc(err)))
 		return msg, err
 	}
 
@@ -122,6 +129,7 @@ func (m *kubeGenericRuntimeManager) startContainer(podSandboxID string, podSandb
 	}
 
 	containerID, err := m.runtimeService.CreateContainer(podSandboxID, containerConfig, podSandboxConfig)
+	span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("#3 Call runtimeService to create container %s", containerID))
 	if err != nil {
 		m.recordContainerEvent(pod, container, containerID, v1.EventTypeWarning, events.FailedToCreateContainer, "Error: %v", grpc.ErrorDesc(err))
 		return grpc.ErrorDesc(err), ErrCreateContainer
@@ -141,6 +149,9 @@ func (m *kubeGenericRuntimeManager) startContainer(podSandboxID string, podSandb
 	}
 
 	// Step 3: start the container.
+	span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("#4 Call runtimeService to start container %s", containerID))
+	kubetracing.Trace(span, kubetracing.TraceSetSpan, nil, "", "kubeGenericRuntimeManager.startContainer"+containerID)
+	defer kubetracing.Trace(nil, kubetracing.TraceDelSpan, nil, "", "kubeGenericRuntimeManager.startContainer"+containerID)
 	err = m.runtimeService.StartContainer(containerID)
 	if err != nil {
 		m.recordContainerEvent(pod, container, containerID, v1.EventTypeWarning, events.FailedToStartContainer, "Error: %v", grpc.ErrorDesc(err))
@@ -176,7 +187,7 @@ func (m *kubeGenericRuntimeManager) startContainer(podSandboxID string, podSandb
 		msg, handlerErr := m.runner.Run(kubeContainerID, pod, container, container.Lifecycle.PostStart)
 		if handlerErr != nil {
 			m.recordContainerEvent(pod, container, kubeContainerID.ID, v1.EventTypeWarning, events.FailedPostStartHook, msg)
-			if err := m.killContainer(pod, kubeContainerID, container.Name, "FailedPostStartHook", nil); err != nil {
+			if err := m.killContainer(span, pod, kubeContainerID, container.Name, "FailedPostStartHook", nil); err != nil {
 				klog.Errorf("Failed to kill container %q(id=%q) in pod %q: %v, %v",
 					container.Name, kubeContainerID.String(), format.Pod(pod), ErrPostStartHook, err)
 			}
@@ -530,7 +541,14 @@ func (m *kubeGenericRuntimeManager) restoreSpecsFromContainerLabels(containerID 
 // killContainer kills a container through the following steps:
 // * Run the pre-stop lifecycle hooks (if applicable).
 // * Stop the container.
-func (m *kubeGenericRuntimeManager) killContainer(pod *v1.Pod, containerID kubecontainer.ContainerID, containerName string, message string, gracePeriodOverride *int64) error {
+func (m *kubeGenericRuntimeManager) killContainer(traceCtx interface{}, pod *v1.Pod, containerID kubecontainer.ContainerID, containerName string, message string, gracePeriodOverride *int64) error {
+	var span opentracing.Span
+	if pod != nil && traceCtx != nil {
+		span = kubetracing.Trace(nil, kubetracing.TraceStart, traceCtx, "kubeGenericRuntimeManager.killContainer", "kubeGenericRuntimeManager.killContainer"+"_"+containerID.ID)
+		defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "kubeGenericRuntimeManager.killContainer")
+		span = kubetracing.Trace(span, kubetracing.TraceBaggage, nil, "", "containerID", containerID.ID)
+	}
+
 	var containerSpec *v1.Container
 	if pod != nil {
 		if containerSpec = kubecontainer.GetContainerSpec(pod, containerName); containerSpec == nil {
@@ -560,8 +578,11 @@ func (m *kubeGenericRuntimeManager) killContainer(pod *v1.Pod, containerID kubec
 	}
 	m.recordContainerEvent(pod, containerSpec, containerID.ID, v1.EventTypeNormal, events.KillingContainer, message)
 
+	span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("Killing container %q with %d second grace period", containerID.String(), gracePeriod))
+
 	// Run internal pre-stop lifecycle hook
 	if err := m.internalLifecycle.PreStopContainer(containerID.ID); err != nil {
+		span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "error", fmt.Sprintf("Failed to run pre-stop hook, %v", err))
 		return err
 	}
 
@@ -593,7 +614,7 @@ func (m *kubeGenericRuntimeManager) killContainer(pod *v1.Pod, containerID kubec
 }
 
 // killContainersWithSyncResult kills all pod's containers with sync results.
-func (m *kubeGenericRuntimeManager) killContainersWithSyncResult(pod *v1.Pod, runningPod kubecontainer.Pod, gracePeriodOverride *int64) (syncResults []*kubecontainer.SyncResult) {
+func (m *kubeGenericRuntimeManager) killContainersWithSyncResult(traceCtx interface{}, pod *v1.Pod, runningPod kubecontainer.Pod, gracePeriodOverride *int64) (syncResults []*kubecontainer.SyncResult) {
 	containerResults := make(chan *kubecontainer.SyncResult, len(runningPod.Containers))
 	wg := sync.WaitGroup{}
 
@@ -604,7 +625,7 @@ func (m *kubeGenericRuntimeManager) killContainersWithSyncResult(pod *v1.Pod, ru
 			defer wg.Done()
 
 			killContainerResult := kubecontainer.NewSyncResult(kubecontainer.KillContainer, container.Name)
-			if err := m.killContainer(pod, container.ID, container.Name, "", gracePeriodOverride); err != nil {
+			if err := m.killContainer(traceCtx, pod, container.ID, container.Name, "", gracePeriodOverride); err != nil {
 				killContainerResult.Fail(kubecontainer.ErrKillContainer, err.Error())
 			}
 			containerResults <- killContainerResult

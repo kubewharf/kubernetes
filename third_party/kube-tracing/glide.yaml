@@ -1,0 +1,9 @@
+package: code.byted.org/tce/kube-tracing
+import:
+- package: github.com/golang/glog
+- package: github.com/opentracing/opentracing-go
+  repo: git@code.byted.org:tce/opentracing-go.git 
+  version: v1.1.0-tce-kube-tracing
+- package: github.com/uber/jaeger-client-go
+  repo: git@code.byted.org:tce/jaeger-client-go.git
+  version: v2.16.0-tce-kube-tracing

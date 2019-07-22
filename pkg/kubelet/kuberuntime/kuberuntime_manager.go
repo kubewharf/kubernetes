@@ -23,7 +23,9 @@ import (
 	"sync"
 	"time"
 
+	kubetracing "code.byted.org/tce/kube-tracing"
 	cadvisorapi "github.com/google/cadvisor/info/v1"
+	"github.com/opentracing/opentracing-go"
 	"k8s.io/klog"
 
 	v1 "k8s.io/api/core/v1"
@@ -616,6 +618,9 @@ func (m *kubeGenericRuntimeManager) computePodActions(pod *v1.Pod, podStatus *ku
 //  5. Create init containers.
 //  6. Create normal containers.
 func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontainer.PodStatus, pullSecrets []v1.Secret, backOff *flowcontrol.Backoff) (result kubecontainer.PodSyncResult) {
+	span := kubetracing.Trace(nil, kubetracing.TraceStart, "Kubelet.syncPod"+"_"+string(pod.GetUID()), "kubeGenericRuntimeManager.SyncPod", "kubeGenericRuntimeManager.SyncPod"+"_"+string(pod.GetUID()))
+	defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "kubeGenericRuntimeManager.SyncPod")
+
 	// Step 1: Compute sandbox and container changes.
 	podContainerChanges := m.computePodActions(pod, podStatus)
 	klog.V(3).Infof("computePodActions got %+v for pod %q", podContainerChanges, format.Pod(pod))
@@ -635,11 +640,13 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 	if podContainerChanges.KillPod {
 		if podContainerChanges.CreateSandbox {
 			klog.V(4).Infof("Stopping PodSandbox for %q, will start new one", format.Pod(pod))
+			span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("#1 Stopping PodSandbox for %q because all other containers are dead.", format.Pod(pod)))
 		} else {
 			klog.V(4).Infof("Stopping PodSandbox for %q because all other containers are dead.", format.Pod(pod))
+			span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("#2 Stopping PodSandbox for %q, will start new one", format.Pod(pod)))
 		}
 
-		killResult := m.killPodWithSyncResult(pod, kubecontainer.ConvertPodStatusToRunningPod(m.runtimeName, podStatus), nil)
+		killResult := m.killPodWithSyncResult(span, pod, kubecontainer.ConvertPodStatusToRunningPod(m.runtimeName, podStatus), nil)
 		result.AddPodSyncResult(killResult)
 		if killResult.Error() != nil {
 			klog.Errorf("killPodWithSyncResult failed: %v", killResult.Error())
@@ -653,11 +660,13 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 		// Step 3: kill any running containers in this pod which are not to keep.
 		for containerID, containerInfo := range podContainerChanges.ContainersToKill {
 			klog.V(3).Infof("Killing unwanted container %q(id=%q) for pod %q", containerInfo.name, containerID, format.Pod(pod))
+			span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("#3 Killing unwanted container %q(id=%q) for pod %q", containerInfo.name, containerID, format.Pod(pod)))
 			killContainerResult := kubecontainer.NewSyncResult(kubecontainer.KillContainer, containerInfo.name)
 			result.AddSyncResult(killContainerResult)
-			if err := m.killContainer(pod, containerID, containerInfo.name, containerInfo.message, nil); err != nil {
+			if err := m.killContainer(span, pod, containerID, containerInfo.name, containerInfo.message, nil); err != nil {
 				killContainerResult.Fail(kubecontainer.ErrKillContainer, err.Error())
 				klog.Errorf("killContainer %q(id=%q) for pod %q failed: %v", containerInfo.name, containerID, format.Pod(pod), err)
+				span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "error", fmt.Sprintf("#4 killContainer %q(id=%q) for pod %q failed: %v", containerInfo.name, containerID, format.Pod(pod), err))
 				return
 			}
 		}
@@ -689,12 +698,14 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 		var err error
 
 		klog.V(4).Infof("Creating sandbox for pod %q", format.Pod(pod))
+		span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("#5 Creating sandbox for pod %q", format.Pod(pod)))
 		createSandboxResult := kubecontainer.NewSyncResult(kubecontainer.CreatePodSandbox, format.Pod(pod))
 		result.AddSyncResult(createSandboxResult)
-		podSandboxID, msg, err = m.createPodSandbox(pod, podContainerChanges.Attempt)
+		podSandboxID, msg, err = m.createPodSandbox(span, pod, podContainerChanges.Attempt)
 		if err != nil {
 			createSandboxResult.Fail(kubecontainer.ErrCreatePodSandbox, msg)
 			klog.Errorf("createPodSandbox for pod %q failed: %v", format.Pod(pod), err)
+			span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "error", fmt.Sprintf("#6 createPodSandbox for pod %q failed: %v", format.Pod(pod), err))
 			ref, referr := ref.GetReference(legacyscheme.Scheme, pod)
 			if referr != nil {
 				klog.Errorf("Couldn't make a ref to pod %q: '%v'", format.Pod(pod), referr)
@@ -703,6 +714,7 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 			return
 		}
 		klog.V(4).Infof("Created PodSandbox %q for pod %q", podSandboxID, format.Pod(pod))
+		span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("#7 Created PodSandbox %q for pod %q", podSandboxID, format.Pod(pod)))
 
 		podSandboxStatus, err := m.runtimeService.PodSandboxStatus(podSandboxID)
 		if err != nil {
@@ -749,6 +761,7 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 		}
 
 		klog.V(4).Infof("Creating init container %+v in pod %v", container, format.Pod(pod))
+		span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("#8 Creating init container %+v in pod %v", container, format.Pod(pod)))
 		if msg, err := m.startContainer(podSandboxID, podSandboxConfig, container, pod, podStatus, pullSecrets, podIP); err != nil {
 			startContainerResult.Fail(err, msg)
 			utilruntime.HandleError(fmt.Errorf("init container start failed: %v: %s", err, msg))
@@ -757,6 +770,7 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 
 		// Successfully started the container; clear the entry in the failure
 		klog.V(4).Infof("Completed init container %q for pod %q", container.Name, format.Pod(pod))
+		span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("#9 Completed init container %q for pod %q", container.Name, format.Pod(pod)))
 	}
 
 	// Step 6: start containers in podContainerChanges.ContainersToStart.
@@ -769,10 +783,12 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 		if isInBackOff {
 			startContainerResult.Fail(err, msg)
 			klog.V(4).Infof("Backing Off restarting container %+v in pod %v", container, format.Pod(pod))
+			span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("#10 Backing Off restarting container %s in pod %v", container.Name, format.Pod(pod)))
 			continue
 		}
 
 		klog.V(4).Infof("Creating container %+v in pod %v", container, format.Pod(pod))
+		span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("#11 Creating container %s in pod %v", container.Name, format.Pod(pod)))
 		if msg, err := m.startContainer(podSandboxID, podSandboxConfig, container, pod, podStatus, pullSecrets, podIP); err != nil {
 			startContainerResult.Fail(err, msg)
 			// known errors that are logged in other places are logged at higher levels here to avoid
@@ -783,6 +799,7 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 			default:
 				utilruntime.HandleError(fmt.Errorf("container start failed: %v: %s", err, msg))
 			}
+			span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "error", fmt.Sprintf("#12 container start failed: %v: %s", err, msg))
 			continue
 		}
 	}
@@ -828,14 +845,20 @@ func (m *kubeGenericRuntimeManager) doBackOff(pod *v1.Pod, container *v1.Contain
 // only hard kill paths are allowed to specify a gracePeriodOverride in the kubelet in order to not corrupt user data.
 // it is useful when doing SIGKILL for hard eviction scenarios, or max grace period during soft eviction scenarios.
 func (m *kubeGenericRuntimeManager) KillPod(pod *v1.Pod, runningPod kubecontainer.Pod, gracePeriodOverride *int64) error {
-	err := m.killPodWithSyncResult(pod, runningPod, gracePeriodOverride)
+	var span opentracing.Span
+	if pod != nil {
+		span = kubetracing.Trace(nil, kubetracing.TraceStart, "Kubelet.killPod"+"_"+string(pod.GetUID()), "kubeGenericRuntimeManager.KillPod", "kubeGenericRuntimeManager.KillPod"+"_"+string(pod.GetUID()))
+		defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "kubeGenericRuntimeManager.KillPod")
+	}
+
+	err := m.killPodWithSyncResult(span, pod, runningPod, gracePeriodOverride)
 	return err.Error()
 }
 
 // killPodWithSyncResult kills a runningPod and returns SyncResult.
 // Note: The pod passed in could be *nil* when kubelet restarted.
-func (m *kubeGenericRuntimeManager) killPodWithSyncResult(pod *v1.Pod, runningPod kubecontainer.Pod, gracePeriodOverride *int64) (result kubecontainer.PodSyncResult) {
-	killContainerResults := m.killContainersWithSyncResult(pod, runningPod, gracePeriodOverride)
+func (m *kubeGenericRuntimeManager) killPodWithSyncResult(traceCtx interface{}, pod *v1.Pod, runningPod kubecontainer.Pod, gracePeriodOverride *int64) (result kubecontainer.PodSyncResult) {
+	killContainerResults := m.killContainersWithSyncResult(traceCtx, pod, runningPod, gracePeriodOverride)
 	for _, containerResult := range killContainerResults {
 		result.AddSyncResult(containerResult)
 	}

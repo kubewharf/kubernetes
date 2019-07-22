@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	kubetracing "code.byted.org/tce/kube-tracing"
 	dockertypes "github.com/docker/docker/api/types"
 	dockercontainer "github.com/docker/docker/api/types/container"
 	dockerfilters "github.com/docker/docker/api/types/filters"
@@ -83,9 +84,13 @@ func (ds *dockerService) clearNetworkReady(podSandboxID string) {
 // namespace for the pod.
 // Note: docker doesn't use LogDirectory (yet).
 func (ds *dockerService) RunPodSandbox(ctx context.Context, r *runtimeapi.RunPodSandboxRequest) (*runtimeapi.RunPodSandboxResponse, error) {
+	span := kubetracing.Trace(nil, kubetracing.TraceStart, "kubeGenericRuntimeManager.createPodSandbox"+"_"+r.Config.Metadata.Uid, "dockerService.RunPodSandbox", "dockerService.RunPodSandbox"+"_"+r.Config.Metadata.Uid)
+	defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "dockerService.RunPodSandbox")
+
 	config := r.GetConfig()
 
 	// Step 1: Pull the image for the sandbox.
+	span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("#1 Pull the image for the sandbox"))
 	image := defaultSandboxImage
 	podSandboxImage := ds.podSandboxImage
 	if len(podSandboxImage) != 0 {
@@ -99,10 +104,11 @@ func (ds *dockerService) RunPodSandbox(ctx context.Context, r *runtimeapi.RunPod
 		return nil, err
 	}
 
-	// Step 2: Create the sandbox container.
 	if r.GetRuntimeHandler() != "" {
 		return nil, fmt.Errorf("RuntimeHandler %q not supported", r.GetRuntimeHandler())
 	}
+	// Step 2: Create the sandbox container.
+	span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("#2 Create the sandbox container"))
 	createConfig, err := ds.makeSandboxDockerConfig(config, image)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make sandbox docker config for pod %q: %v", config.Metadata.Name, err)
@@ -127,6 +133,7 @@ func (ds *dockerService) RunPodSandbox(ctx context.Context, r *runtimeapi.RunPod
 	}(&err)
 
 	// Step 3: Create Sandbox Checkpoint.
+	span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("#3 Create Sandbox Checkpoint"))
 	if err = ds.checkpointManager.CreateCheckpoint(createResp.ID, constructPodSandboxCheckpoint(config)); err != nil {
 		return nil, err
 	}
@@ -134,6 +141,7 @@ func (ds *dockerService) RunPodSandbox(ctx context.Context, r *runtimeapi.RunPod
 	// Step 4: Start the sandbox container.
 	// Assume kubelet's garbage collector would remove the sandbox later, if
 	// startContainer failed.
+	span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("#4 Start the sandbox container"))
 	err = ds.client.StartContainer(createResp.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start sandbox container for pod %q: %v", config.Metadata.Name, err)
@@ -168,6 +176,7 @@ func (ds *dockerService) RunPodSandbox(ctx context.Context, r *runtimeapi.RunPod
 	// sandbox networking, but it might insert iptables rules or open ports
 	// on the host as well, to satisfy parts of the pod spec that aren't
 	// recognized by the CNI standard yet.
+	span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("#5 Setup networking for the sandbox"))
 	cID := kubecontainer.BuildContainerID(runtimeName, createResp.ID)
 	networkOptions := make(map[string]string)
 	if dnsConfig := config.GetDnsConfig(); dnsConfig != nil {

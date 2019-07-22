@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"time"
 
+	"code.byted.org/tce/kube-tracing"
 	dockertypes "github.com/docker/docker/api/types"
 	dockercontainer "github.com/docker/docker/api/types/container"
 	dockerfilters "github.com/docker/docker/api/types/filters"
@@ -91,6 +92,9 @@ func (ds *dockerService) CreateContainer(_ context.Context, r *runtimeapi.Create
 	podSandboxID := r.PodSandboxId
 	config := r.GetConfig()
 	sandboxConfig := r.GetSandboxConfig()
+
+	span := kubetracing.Trace(nil, kubetracing.TraceStart, "kubeGenericRuntimeManager.startContainer"+"_"+config.GetLabels()[types.KubernetesPodUIDLabel], "dockerService.CreateContainer", "dockerService.CreateContainer"+"_"+config.GetLabels()[types.KubernetesPodUIDLabel])
+	defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "dockerService.CreateContainer")
 
 	if config == nil {
 		return nil, fmt.Errorf("container config is nil")
@@ -274,6 +278,9 @@ func (ds *dockerService) removeContainerLogSymlink(containerID string) error {
 
 // StartContainer starts the container.
 func (ds *dockerService) StartContainer(_ context.Context, r *runtimeapi.StartContainerRequest) (*runtimeapi.StartContainerResponse, error) {
+	span := kubetracing.Trace(nil, kubetracing.TraceStart, "kubeGenericRuntimeManager.startContainer"+r.ContainerId, "dockerService.StartContainer", "dockerService.StartContainer"+"_"+r.ContainerId)
+	defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "dockerService.StartContainer")
+
 	err := ds.client.StartContainer(r.ContainerId)
 
 	// Create container log symlink for all containers (including failed ones).
@@ -297,6 +304,9 @@ func (ds *dockerService) StartContainer(_ context.Context, r *runtimeapi.StartCo
 
 // StopContainer stops a running container with a grace period (i.e., timeout).
 func (ds *dockerService) StopContainer(_ context.Context, r *runtimeapi.StopContainerRequest) (*runtimeapi.StopContainerResponse, error) {
+	span := kubetracing.Trace(nil, kubetracing.TraceStart, "kubeGenericRuntimeManager.killContainer"+"_"+r.ContainerId, "dockerService.StopContainer", "dockerService.StopContainer"+"_"+r.ContainerId)
+	defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "dockerService.StartContainer")
+
 	err := ds.client.StopContainer(r.ContainerId, time.Duration(r.Timeout)*time.Second)
 	if err != nil {
 		return nil, err
