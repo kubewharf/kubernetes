@@ -26,12 +26,21 @@ import (
 	"time"
 
 	"k8s.io/klog"
+
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	"k8s.io/kubernetes/pkg/features"
+)
+
+const (
+	// maxHistory is max length of metrics keeped in the ring buffer.
+	maxHistory = 10
+	// thresholdMetPercentage is a percentage, beyond which a threshold considered to be exceeded.
+	thresholdMetPercentage = 0.8
 )
 
 var (
 	collectkeepingInterval = flag.Duration("collectkeeping_interval", 30*time.Second, "Interval between collect keepings")
 	tceMetricsUrl          = flag.String("tceMetrics_url", "http://127.0.0.1:8087/load", "tceMetricsUrl")
-	maxHistory             = 10
 	httpClient             = &http.Client{
 		Timeout: 3 * time.Second,
 	}
@@ -65,11 +74,25 @@ func (ring *tceMetricRing) Count(softLimit, hardLimit int64) (softOverCount, har
 	defer ring.mutex.Unlock()
 
 	for _, snapshot := range ring.Queue {
-		if snapshot != nil {
-			if snapshot.Info.Value > snapshot.Info.UpperBound*float64(softLimit)/100 {
+		if snapshot == nil {
+			continue
+		}
+		if utilfeature.DefaultFeatureGate.Enabled(features.DynamicLoadEvictionThreshold) && snapshot.Info.LowerBound > 0 {
+			if snapshot.Info.Value > snapshot.Info.LowerBound {
 				softOverCount++
 			}
-			if snapshot.Info.Value > snapshot.Info.UpperBound*float64(hardLimit)/100 {
+			if snapshot.Info.Value > snapshot.Info.UpperBound {
+				hardOverCount++
+			}
+		} else {
+			bound := snapshot.Info.LowerBound
+			if bound == 0 {
+				bound = snapshot.Info.UpperBound
+			}
+			if snapshot.Info.Value > bound*float64(softLimit)/100 {
+				softOverCount++
+			}
+			if snapshot.Info.Value > bound*float64(hardLimit)/100 {
 				hardOverCount++
 			}
 		}
@@ -145,13 +168,12 @@ func (tmc *tceMetricsClient) ThresholdsMet(softLimit int64, hardLimit int64) (bo
 	if !ok {
 		return false, false
 	}
-	isSoftOver := false
-	isHardOver := false
+	isSoftOver, isHardOver := false, false
 	softOverCount, hardOverCount := metricRing.Count(softLimit, hardLimit)
-	if softOverCount/float64(metricRing.MaxLen) >= 0.8 {
+	if softOverCount/float64(metricRing.MaxLen) >= thresholdMetPercentage {
 		isSoftOver = true
 	}
-	if hardOverCount/float64(metricRing.MaxLen) >= 0.8 {
+	if hardOverCount/float64(metricRing.MaxLen) >= thresholdMetPercentage {
 		isHardOver = true
 	}
 	return isSoftOver, isHardOver
