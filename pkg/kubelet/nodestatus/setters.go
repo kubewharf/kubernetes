@@ -239,6 +239,7 @@ func MachineInfo(nodeName string,
 			node.Status.Capacity[v1.ResourceCPU] = *resource.NewMilliQuantity(0, resource.DecimalSI)
 			node.Status.Capacity[v1.ResourceMemory] = resource.MustParse("0Gi")
 			node.Status.Capacity[v1.ResourcePods] = *resource.NewQuantity(int64(maxPods), resource.DecimalSI)
+			node.Status.Capacity[v1.ResourceBytedanceSocket] = *resource.NewQuantity(0, resource.DecimalSI)
 			klog.Errorf("Error getting machine info: %v", err)
 		} else {
 			node.Status.NodeInfo.MachineID = info.MachineID

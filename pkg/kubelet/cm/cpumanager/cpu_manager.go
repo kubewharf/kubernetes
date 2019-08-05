@@ -122,6 +122,8 @@ func policyForNotNone(cpuPolicyName string, machineInfo *cadvisorapi.MachineInfo
 	numReservedCPUs := int(math.Ceil(reservedCPUsFloat))
 	if policyName(cpuPolicyName) == PolicyNuma {
 		policy = NewNumaPolicy(topo, numReservedCPUs)
+	} else if policyName(cpuPolicyName) == PolicySocket {
+		policy = NewSocketPolicy(topo, numReservedCPUs)
 	} else {
 		policy = NewStaticPolicy(topo, numReservedCPUs)
 	}
@@ -137,7 +139,7 @@ func NewManager(cpuPolicyName string, reconcilePeriod time.Duration, machineInfo
 	case PolicyNone:
 		policy = NewNonePolicy()
 
-	case PolicyStatic, PolicyNuma:
+	case PolicyStatic, PolicyNuma, PolicySocket:
 		policy, err = policyForNotNone(cpuPolicyName, machineInfo, nodeAllocatableReservation, policy)
 		if err != nil {
 			return nil, err

@@ -4212,6 +4212,8 @@ const (
 	// Local ephemeral storage, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)
 	// The resource name for ResourceEphemeralStorage is alpha and it can change across releases.
 	ResourceEphemeralStorage ResourceName = "ephemeral-storage"
+	// Bytedance Socket, in socket nodes.
+	ResourceBytedanceSocket ResourceName = "bytedance.com/socket"
 )
 
 const (

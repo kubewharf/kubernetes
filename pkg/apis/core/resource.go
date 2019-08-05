@@ -47,6 +47,13 @@ func (self *ResourceList) Pods() *resource.Quantity {
 	return &resource.Quantity{}
 }
 
+func (self *ResourceList) BytedanceSocket() *resource.Quantity {
+	if val, ok := (*self)[ResourceBytedanceSocket]; ok {
+		return &val
+	}
+	return &resource.Quantity{}
+}
+
 func (self *ResourceList) StorageEphemeral() *resource.Quantity {
 	if val, ok := (*self)[ResourceEphemeralStorage]; ok {
 		return &val
