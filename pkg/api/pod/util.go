@@ -30,6 +30,7 @@ const (
 	PodAutoPortAnnotation            = "pod.tce.kubernetes.io/autoport"
 	PodHostPathTemplateAnnotation    = "pod.tce.kubernetes.io/hostPathTemplate"
 	PodHostUniqueToleranceAnnotation = "pod.tce.kubernetes.io/host-unique-tolerance-count"
+	TCEDaemonPodAnnotationKey        = "pod.tce.kubernetes.io/tce-daemon"
 )
 
 // Visitor is called with each object name, and returns true if visiting should continue

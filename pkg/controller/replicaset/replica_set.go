@@ -54,8 +54,10 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
+	apipod "k8s.io/kubernetes/pkg/api/pod"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/pkg/controller"
+	deploymentutil "k8s.io/kubernetes/pkg/controller/deployment/util"
 	"k8s.io/kubernetes/pkg/util/metrics"
 	"k8s.io/utils/integer"
 )
@@ -68,6 +70,9 @@ const (
 	// The number of times we retry updating a ReplicaSet's status.
 	statusUpdateRetries = 1
 )
+
+// deploymentKind contains the schema.GroupVersionKind for this deployment type.
+var deploymentKind = apps.SchemeGroupVersion.WithKind("Deployment")
 
 // ReplicaSetController is responsible for synchronizing ReplicaSet objects stored
 // in the system with actual running pods.
@@ -575,13 +580,24 @@ func (rsc *ReplicaSetController) manageReplicas(filteredPods []*v1.Pod, rs *apps
 
 		errCh := make(chan error, diff)
 		var wg sync.WaitGroup
+		var rsIsDaemonWithLatestRevision = rsc.replicaSetIsDaemonWithLatestRevision(rs)
 		wg.Add(diff)
 		for _, pod := range podsToDelete {
 			go func(targetPod *v1.Pod) {
 				defer wg.Done()
+
+				podKey := controller.PodKey(targetPod)
+
+				// don't delete po iff current replicaSet is the latest revision, current pod is a daemon and has been assigned.
+				// TODO: when we migrate from daemon-controller to daemon-set, we should delete this logic.
+				if rsIsDaemonWithLatestRevision && podIsDaemonAndIsAssigned(targetPod) {
+					klog.V(4).Infof("skip deleting daemon pods %s", targetPod.Name)
+					rsc.expectations.DeletionObserved(rsKey, podKey)
+					return
+				}
+
 				if err := rsc.podControl.DeletePod(rs.Namespace, targetPod.Name, rs); err != nil {
 					// Decrement the expected number of deletes because the informer won't observe this deletion
-					podKey := controller.PodKey(targetPod)
 					klog.V(2).Infof("Failed to delete %v, decrementing expectations for %v %s/%s", podKey, rsc.Kind, rs.Namespace, rs.Name)
 					rsc.expectations.DeletionObserved(rsKey, podKey)
 					errCh <- err
@@ -691,6 +707,50 @@ func (rsc *ReplicaSetController) claimPods(rs *apps.ReplicaSet, selector labels.
 	return cm.ClaimPods(filteredPods)
 }
 
+// check if current replicaSet belongs to a daemon and is the latest version.
+// TODO: delete this function if we have migrated to daemonSet.
+func (rsc *ReplicaSetController) replicaSetIsDaemonWithLatestRevision(rs *apps.ReplicaSet) bool {
+	replicaSetIsDaemon := func(rs *apps.ReplicaSet) bool {
+		if rs == nil || rs.Annotations == nil {
+			return false
+		}
+
+		v, ok := rs.Annotations[deploymentutil.TCEDaemonAnnotationKey]
+		return ok && v == deploymentutil.TCEDaemonAnnotationValue
+	}
+
+	replicaSetIsLatest := func(currentRS *apps.ReplicaSet) bool {
+		currentRevision, err := deploymentutil.Revision(currentRS)
+		if err != nil {
+			klog.Errorf("get revision for replicaSet %s failed: %v", currentRS.Name, err)
+			return true
+		}
+
+		controllerRef := metav1.GetControllerOf(currentRS)
+		if controllerRef == nil || controllerRef.Kind != deploymentKind.Kind {
+			return true
+		}
+
+		selector := map[string]string{"name": controllerRef.Name}
+		replicaSetList, err := rsc.rsLister.ReplicaSets(currentRS.Namespace).List(labels.Set(selector).AsSelector())
+		if err != nil {
+			klog.Errorf("get replicaSet list with label %v failed: %v", selector, err)
+			return true
+		}
+
+		for _, rs := range replicaSetList {
+			revision, err := deploymentutil.Revision(rs)
+			if err == nil && revision > currentRevision {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	return replicaSetIsDaemon(rs) && replicaSetIsLatest(rs)
+}
+
 // slowStartBatch tries to call the provided function a total of 'count' times,
 // starting slow to check for errors, then speeding up if calls succeed.
 //
@@ -746,4 +806,20 @@ func getPodKeys(pods []*v1.Pod) []string {
 		podKeys = append(podKeys, controller.PodKey(pod))
 	}
 	return podKeys
+}
+
+// check current pod belongs to a daemon and has been assigned to a node.
+// TODO: delete this function if we have migrated to daemonSet.
+func podIsDaemonAndIsAssigned(pod *v1.Pod) bool {
+	podIsDaemon := func(pod *v1.Pod) bool {
+		if pod == nil || pod.Annotations == nil {
+			return false
+		}
+
+		v, ok := pod.Annotations[apipod.TCEDaemonPodAnnotationKey]
+		return ok && v == ""
+	}
+
+	// if a pod is a TCEDaemon pod and it has been successfully assigned to a node.
+	return podIsDaemon(pod) && len(pod.Spec.NodeName) > 0
 }
