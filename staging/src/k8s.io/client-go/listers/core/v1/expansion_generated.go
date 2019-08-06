@@ -70,14 +70,6 @@ type PersistentVolumeClaimListerExpansion interface{}
 // PersistentVolumeClaimNamespaceLister.
 type PersistentVolumeClaimNamespaceListerExpansion interface{}
 
-// PodListerExpansion allows custom methods to be added to
-// PodLister.
-type PodListerExpansion interface{}
-
-// PodNamespaceListerExpansion allows custom methods to be added to
-// PodNamespaceLister.
-type PodNamespaceListerExpansion interface{}
-
 // PodTemplateListerExpansion allows custom methods to be added to
 // PodTemplateLister.
 type PodTemplateListerExpansion interface{}

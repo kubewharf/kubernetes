@@ -28,10 +28,9 @@ import (
 	"k8s.io/klog"
 
 	apps "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -537,7 +536,7 @@ func (dc *DeploymentController) handleErr(err error, key interface{}) {
 func (dc *DeploymentController) getReplicaSetsForDeployment(d *apps.Deployment) ([]*apps.ReplicaSet, error) {
 	// List all ReplicaSets to find those we own but that no longer match our
 	// selector. They will be orphaned by ClaimReplicaSets().
-	rsList, err := dc.rsLister.ReplicaSets(d.Namespace).List(labels.Everything())
+	rsList, err := dc.rsLister.ReplicaSetsForTCELabel(d.Namespace).List(d.Spec.Selector)
 	if err != nil {
 		return nil, err
 	}
@@ -567,18 +566,16 @@ func (dc *DeploymentController) getReplicaSetsForDeployment(d *apps.Deployment) 
 // according to the Pod's ControllerRef.
 func (dc *DeploymentController) getPodMapForDeployment(d *apps.Deployment, rsList []*apps.ReplicaSet) (map[types.UID]*v1.PodList, error) {
 	// Get all Pods that potentially belong to this Deployment.
-	selector, err := metav1.LabelSelectorAsSelector(d.Spec.Selector)
-	if err != nil {
-		return nil, err
-	}
-	pods, err := dc.podLister.Pods(d.Namespace).List(selector)
+	pods, err := dc.podLister.PodsForTCELabel(d.Namespace).List(d.Spec.Selector)
 	if err != nil {
 		return nil, err
 	}
 	// Group Pods by their controller (if it's in rsList).
 	podMap := make(map[types.UID]*v1.PodList, len(rsList))
 	for _, rs := range rsList {
-		podMap[rs.UID] = &v1.PodList{}
+		podMap[rs.UID] = &v1.PodList{
+			Items: make([]v1.Pod, 0, *rs.Spec.Replicas),
+		}
 	}
 	for _, pod := range pods {
 		// Do not ignore inactive Pods because Recreate Deployments need to verify that no

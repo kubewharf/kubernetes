@@ -653,7 +653,8 @@ func (rsc *ReplicaSetController) syncReplicaSet(key string) error {
 	// list all pods to include the pods that don't match the rs`s selector
 	// anymore but has the stale controller ref.
 	// TODO: Do the List and Filter in a single pass, or use an index.
-	allPods, err := rsc.podLister.Pods(rs.Namespace).List(labels.Everything())
+	allPods, err := rsc.podLister.PodsForTCELabel(rs.Namespace).List(rs.Spec.Selector)
+	//allPods, err := rsc.podLister.Pods(rs.Namespace).List(labels.Everything())
 	if err != nil {
 		return err
 	}

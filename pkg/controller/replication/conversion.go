@@ -28,7 +28,7 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -92,6 +92,24 @@ func (l conversionLister) ReplicaSets(namespace string) appslisters.ReplicaSetNa
 
 func (l conversionLister) GetPodReplicaSets(pod *v1.Pod) ([]*apps.ReplicaSet, error) {
 	rcList, err := l.rcLister.GetPodControllers(pod)
+	if err != nil {
+		return nil, err
+	}
+	return convertSlice(rcList)
+}
+
+func (l conversionLister) ReplicaSetsForTCELabel(namespace string) appslisters.ReplicaSetTCELabelLister {
+	return conversionTCELabelLister{
+		rcTCELabelLister: l.rcLister.ReplicationControllersForTCELabel(namespace),
+	}
+}
+
+type conversionTCELabelLister struct {
+	rcTCELabelLister v1listers.ReplicationControllerTCELabelLister
+}
+
+func (s conversionTCELabelLister) List(labelSelector *metav1.LabelSelector) (ret []*apps.ReplicaSet, err error) {
+	rcList, err := s.rcTCELabelLister.List(labelSelector)
 	if err != nil {
 		return nil, err
 	}

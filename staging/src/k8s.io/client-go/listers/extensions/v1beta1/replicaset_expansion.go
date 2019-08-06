@@ -19,16 +19,63 @@ package v1beta1
 import (
 	"fmt"
 
+	"k8s.io/klog"
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/tools/cache"
 )
 
 // ReplicaSetListerExpansion allows custom methods to be added to
 // ReplicaSetLister.
 type ReplicaSetListerExpansion interface {
 	GetPodReplicaSets(pod *v1.Pod) ([]*extensions.ReplicaSet, error)
+	ReplicaSetsForTCELabel(namespace string) ReplicaSetTCELabelLister
+}
+
+func (s *replicaSetLister) ReplicaSetsForTCELabel(namespace string) ReplicaSetTCELabelLister {
+	return replicasetTCELabelLister{
+		indexer:   s.indexer,
+		namespace: namespace,
+	}
+}
+
+type ReplicaSetTCELabelLister interface {
+	List(labelSelector *metav1.LabelSelector) (ret []*extensions.ReplicaSet, err error)
+}
+
+type replicasetTCELabelLister struct {
+	indexer   cache.Indexer
+	namespace string
+}
+
+func (s replicasetTCELabelLister) List(labelSelector *metav1.LabelSelector) (ret []*extensions.ReplicaSet, err error) {
+	items, err := s.indexer.Index(cache.LabelIndex, &metav1.ObjectMeta{Labels: labelSelector.MatchLabels})
+	if err != nil {
+		// Ignore error; do slow search without index.
+		klog.Warningf("can not retrieve list of objects using index : %v", err)
+
+		selector, err := metav1.LabelSelectorAsSelector(labelSelector)
+		if err != nil {
+			return ret, err
+		}
+		for _, m := range s.indexer.List() {
+			metadata, err := meta.Accessor(m)
+			if err != nil {
+				return nil, err
+			}
+			if metadata.GetNamespace() == s.namespace && selector.Matches(labels.Set(metadata.GetLabels())) {
+				ret = append(ret, m.(*extensions.ReplicaSet))
+			}
+		}
+		return ret, nil
+	}
+	for _, m := range items {
+		ret = append(ret, m.(*extensions.ReplicaSet))
+	}
+	return ret, nil
 }
 
 // ReplicaSetNamespaceListerExpansion allows custom methods to be added to

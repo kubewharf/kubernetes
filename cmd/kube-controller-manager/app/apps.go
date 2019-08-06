@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/kubernetes/pkg/controller/daemon"
 	"k8s.io/kubernetes/pkg/controller/deployment"
@@ -70,6 +71,9 @@ func startReplicaSetController(ctx ControllerContext) (http.Handler, bool, error
 	if !ctx.AvailableResources[schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "replicasets"}] {
 		return nil, false, nil
 	}
+	if err := ctx.InformerFactory.Core().V1().Pods().Informer().AddIndexers(cache.Indexers{cache.LabelIndex: cache.LabelNameIndexFunc}); err != nil {
+		return nil, false, err
+	}
 	go replicaset.NewReplicaSetController(
 		ctx.InformerFactory.Apps().V1().ReplicaSets(),
 		ctx.InformerFactory.Core().V1().Pods(),
@@ -82,6 +86,9 @@ func startReplicaSetController(ctx ControllerContext) (http.Handler, bool, error
 func startDeploymentController(ctx ControllerContext) (http.Handler, bool, error) {
 	if !ctx.AvailableResources[schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}] {
 		return nil, false, nil
+	}
+	if err := ctx.InformerFactory.Apps().V1().ReplicaSets().Informer().AddIndexers(cache.Indexers{cache.LabelIndex: cache.LabelNameIndexFunc}); err != nil {
+		return nil, false, err
 	}
 	dc, err := deployment.NewDeploymentController(
 		ctx.InformerFactory.Apps().V1().Deployments(),

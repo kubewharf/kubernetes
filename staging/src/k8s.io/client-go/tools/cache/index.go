@@ -66,6 +66,10 @@ func IndexFuncToKeyFuncAdapter(indexFunc IndexFunc) KeyFunc {
 
 const (
 	NamespaceIndex string = "namespace"
+	LabelIndex     string = "label"
+
+	labelName  string = "name"
+	labelEmpty string = "empty"
 )
 
 // MetaNamespaceIndexFunc is a default index function that indexes based on an object's namespace
@@ -75,6 +79,23 @@ func MetaNamespaceIndexFunc(obj interface{}) ([]string, error) {
 		return []string{""}, fmt.Errorf("object has no meta: %v", err)
 	}
 	return []string{meta.GetNamespace()}, nil
+}
+
+// LabelNameIndexFunc is a index function that indexes based on object's label[name]
+func LabelNameIndexFunc(obj interface{}) ([]string, error) {
+	meta, err := meta.Accessor(obj)
+	if err != nil {
+		return []string{""}, fmt.Errorf("object has no meta: %v", err)
+	}
+	labels := meta.GetLabels()
+	if labels == nil {
+		return []string{labelEmpty}, nil
+	}
+	name, ok := labels[labelName]
+	if !ok {
+		return []string{labelEmpty}, nil
+	}
+	return []string{name}, nil
 }
 
 // Index maps the indexed value to a set of keys in the store that match on that value
