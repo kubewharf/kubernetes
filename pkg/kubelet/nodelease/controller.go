@@ -60,6 +60,9 @@ type controller struct {
 	renewInterval              time.Duration
 	clock                      clock.Clock
 	onRepeatedHeartbeatFailure func()
+
+	// latestLease is the latest node lease which Kubelet updated or created
+	latestLease *coordv1beta1.Lease
 }
 
 // NewController constructs and returns a controller
@@ -99,7 +102,25 @@ func (c *controller) Run(stopCh <-chan struct{}) {
 }
 
 func (c *controller) sync() {
+	if c.latestLease != nil {
+		// As long as node lease is not (or very rarely) updated by any other agent than Kubelet,
+		// we can optimistically assume it didn't change since our last update and try updating
+		// based on the version from that time. Thanks to it we avoid GET call and reduce load
+		// on etcd and kube-apiserver.
+		// If at some point other agents will also be frequently updating the Lease object, this
+		// can result in performance degradation, because we will end up with calling additional
+		// GET/PUT - at this point this whole "if" should be removed.
+		lease, err := c.leaseClient.Update(c.newLease(c.latestLease))
+		if err == nil {
+			c.latestLease = lease
+			return
+		}
+
+		klog.Infof("failed to update lease using latest lease, fallback to ensure lease, err: %v", err)
+	}
+
 	lease, created := c.backoffEnsureLease()
+	c.latestLease = lease
 	// we don't need to update the lease if we just created it
 	if !created {
 		if err := c.retryUpdateLease(lease); err != nil {
@@ -155,8 +176,9 @@ func (c *controller) ensureLease() (*coordv1beta1.Lease, bool, error) {
 // call this once you're sure the lease has been created
 func (c *controller) retryUpdateLease(base *coordv1beta1.Lease) error {
 	for i := 0; i < maxUpdateRetries; i++ {
-		_, err := c.leaseClient.Update(c.newLease(base))
+		lease, err := c.leaseClient.Update(c.newLease(base))
 		if err == nil {
+			c.latestLease = lease
 			return nil
 		}
 		klog.Errorf("failed to update node lease, error: %v", err)
