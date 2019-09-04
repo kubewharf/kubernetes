@@ -263,6 +263,7 @@ func (sched *Scheduler) Config() *factory.Config {
 // NOTE: This function modifies "pod". "pod" should be copied before being passed.
 func (sched *Scheduler) recordSchedulingFailure(pod *v1.Pod, err error, reason string, message string) {
 	sched.config.Error(pod, err)
+	metrics.SchedulingFailedCounter.Inc()
 	sched.config.Recorder.Event(pod, v1.EventTypeWarning, "FailedScheduling", message)
 	sched.config.PodConditionUpdater.Update(pod, &v1.PodCondition{
 		Type:    v1.PodScheduled,

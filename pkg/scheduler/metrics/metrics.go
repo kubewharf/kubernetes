@@ -192,6 +192,13 @@ var (
 			Name:      "total_preemption_attempts",
 			Help:      "Total preemption attempts in the cluster till now",
 		})
+	SchedulingFailedCounter = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Subsystem: SchedulerSubsystem,
+			Name:      "total_scheduling_failed_counts",
+			Help:      "Total scheduling failed counts in the cluster till now",
+		},
+	)
 
 	metricsList = []prometheus.Collector{
 		scheduleAttempts,
@@ -211,6 +218,7 @@ var (
 		DeprecatedSchedulingAlgorithmPremptionEvaluationDuration,
 		PreemptionVictims,
 		PreemptionAttempts,
+		SchedulingFailedCounter,
 	}
 )
 
