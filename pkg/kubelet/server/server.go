@@ -293,6 +293,15 @@ func (s *Server) InstallDefaultHandlers() {
 		Operation("getPods"))
 	s.restfulCont.Add(ws)
 
+	ws = new(restful.WebService)
+	ws.
+		Path("/node").
+		Produces(restful.MIME_JSON)
+	ws.Route(ws.GET("").
+		To(s.getNode).
+		Operation("getNode"))
+	s.restfulCont.Add(ws)
+
 	s.restfulCont.Add(stats.CreateHandlers(statsPath, s.host, s.resourceAnalyzer))
 	s.restfulCont.Handle(metricsPath, prometheus.Handler())
 
@@ -604,6 +613,27 @@ func encodePods(pods []*v1.Pod) (data []byte, err error) {
 func (s *Server) getPods(request *restful.Request, response *restful.Response) {
 	pods := s.host.GetPods()
 	data, err := encodePods(pods)
+	if err != nil {
+		response.WriteError(http.StatusInternalServerError, err)
+		return
+	}
+	writeJSONResponse(response, data)
+}
+
+// getNode returns node spec and status
+func (s *Server) getNode(request *restful.Request, response *restful.Response) {
+	node, err := s.host.GetNode()
+
+	if err != nil {
+		response.WriteError(http.StatusInternalServerError, err)
+		return
+	}
+
+	// TODO: this needs to be parameterized to the kubelet, not hardcoded. Depends on Kubelet
+	//   as API server refactor.
+	// TODO: Locked to v1, needs to be made generic
+	codec := legacyscheme.Codecs.LegacyCodec(schema.GroupVersion{Group: v1.GroupName, Version: "v1"})
+	data, err := runtime.Encode(codec, node)
 	if err != nil {
 		response.WriteError(http.StatusInternalServerError, err)
 		return
