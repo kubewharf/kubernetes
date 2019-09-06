@@ -655,6 +655,13 @@ func (ds *dockerService) makeSandboxDockerConfig(c *runtimeapi.PodSandboxConfig,
 		}
 	}
 
+	// Set pids limit for container.
+	if limit, ok := c.GetAnnotations()[types.ContainerPidsLimitAnnotationKey]; ok {
+		if pidsLimit, err := strconv.ParseInt(limit, 10, 64); err == nil && pidsLimit >= -1 {
+			hc.Resources.PidsLimit = pidsLimit
+		}
+	}
+
 	applyExperimentalCreateConfig(createConfig, c.Annotations)
 	return createConfig, nil
 }

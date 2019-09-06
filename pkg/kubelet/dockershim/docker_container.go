@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"time"
 
-	"code.byted.org/tce/kube-tracing"
+	kubetracing "code.byted.org/tce/kube-tracing"
 	dockertypes "github.com/docker/docker/api/types"
 	dockercontainer "github.com/docker/docker/api/types/container"
 	dockerfilters "github.com/docker/docker/api/types/filters"
@@ -184,6 +184,13 @@ func (ds *dockerService) CreateContainer(_ context.Context, r *runtimeapi.Create
 	if size, ok := sandboxConfig.GetAnnotations()[types.ContainerShmSizeAnnotationKey]; ok {
 		if shmSize, err := strconv.ParseInt(size, 10, 64); err == nil && shmSize > 0 {
 			hc.ShmSize = shmSize
+		}
+	}
+
+	// Set pids limit for container.
+	if limit, ok := sandboxConfig.GetAnnotations()[types.ContainerPidsLimitAnnotationKey]; ok {
+		if pidsLimit, err := strconv.ParseInt(limit, 10, 64); err == nil && pidsLimit >= -1 {
+			hc.Resources.PidsLimit = pidsLimit
 		}
 	}
 

@@ -45,6 +45,7 @@ const (
 	RequestMemCfsShareBurstRatioAnnotationKey = "pod.tce.kubernetes.io/requestMemCfsShareBurstRatio"
 	LimitCpuCfsQuotaPeriodAnnotationKey       = "pod.tce.kubernetes.io/limitCpuCfsQuotaPeriod"
 	ContainerShmSizeAnnotationKey             = "pod.tce.kubernetes.io/container-shm-size"
+	ContainerPidsLimitAnnotationKey           = "pod.tce.kubernetes.io/container-pids-limit"
 )
 
 // PodOperation defines what changes will be made on a pod configuration.
