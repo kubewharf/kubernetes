@@ -35,6 +35,7 @@ import (
 	core "k8s.io/kubernetes/pkg/apis/core/install"
 	events "k8s.io/kubernetes/pkg/apis/events/install"
 	extensions "k8s.io/kubernetes/pkg/apis/extensions/install"
+	flowcontrol "k8s.io/kubernetes/pkg/apis/flowcontrol/install"
 	networking "k8s.io/kubernetes/pkg/apis/networking/install"
 	node "k8s.io/kubernetes/pkg/apis/node/install"
 	policy "k8s.io/kubernetes/pkg/apis/policy/install"
@@ -67,6 +68,7 @@ func Install(scheme *runtime.Scheme) {
 	coordination.Install(scheme)
 	events.Install(scheme)
 	extensions.Install(scheme)
+	flowcontrol.Install(scheme)
 	networking.Install(scheme)
 	node.Install(scheme)
 	policy.Install(scheme)

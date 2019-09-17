@@ -49,6 +49,8 @@ import (
 	fakeeventsinternalversion "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/events/internalversion/fake"
 	extensionsinternalversion "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/extensions/internalversion"
 	fakeextensionsinternalversion "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/extensions/internalversion/fake"
+	flowcontrolinternalversion "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/flowcontrol/internalversion"
+	fakeflowcontrolinternalversion "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/flowcontrol/internalversion/fake"
 	networkinginternalversion "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/networking/internalversion"
 	fakenetworkinginternalversion "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/networking/internalversion/fake"
 	nodeinternalversion "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/node/internalversion"
@@ -165,6 +167,11 @@ func (c *Clientset) Events() eventsinternalversion.EventsInterface {
 // Extensions retrieves the ExtensionsClient
 func (c *Clientset) Extensions() extensionsinternalversion.ExtensionsInterface {
 	return &fakeextensionsinternalversion.FakeExtensions{Fake: &c.Fake}
+}
+
+// Flowcontrol retrieves the FlowcontrolClient
+func (c *Clientset) Flowcontrol() flowcontrolinternalversion.FlowcontrolInterface {
+	return &fakeflowcontrolinternalversion.FakeFlowcontrol{Fake: &c.Fake}
 }
 
 // Networking retrieves the NetworkingClient

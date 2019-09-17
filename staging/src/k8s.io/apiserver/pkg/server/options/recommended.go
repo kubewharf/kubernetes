@@ -18,11 +18,15 @@ package options
 
 import (
 	"github.com/spf13/pflag"
+	"k8s.io/client-go/kubernetes"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/admission"
+	"k8s.io/apiserver/pkg/features"
 	"k8s.io/apiserver/pkg/server"
 	"k8s.io/apiserver/pkg/storage/storagebackend"
+	"k8s.io/apiserver/pkg/util/feature"
+	utilflowcontrol "k8s.io/apiserver/pkg/util/flowcontrol"
 )
 
 // RecommendedOptions contains the recommended options for running an API server.
@@ -111,6 +115,14 @@ func (o *RecommendedOptions) ApplyTo(config *server.RecommendedConfig) error {
 		return err
 	}
 
+	if feature.DefaultFeatureGate.Enabled(features.RequestManagement) {
+		config.FlowControl = utilflowcontrol.NewRequestManager(
+			config.SharedInformerFactory,
+			kubernetes.NewForConfigOrDie(config.ClientConfig).FlowcontrolV1alpha1(),
+			config.MaxRequestsInFlight+config.MaxMutatingRequestsInFlight,
+			config.RequestTimeout/4,
+			false)
+	}
 	return nil
 }
 

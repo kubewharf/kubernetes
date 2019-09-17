@@ -34,6 +34,7 @@ import (
 	coreinternalversion "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/core/internalversion"
 	eventsinternalversion "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/events/internalversion"
 	extensionsinternalversion "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/extensions/internalversion"
+	flowcontrolinternalversion "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/flowcontrol/internalversion"
 	networkinginternalversion "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/networking/internalversion"
 	nodeinternalversion "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/node/internalversion"
 	policyinternalversion "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/policy/internalversion"
@@ -57,6 +58,7 @@ type Interface interface {
 	Coordination() coordinationinternalversion.CoordinationInterface
 	Events() eventsinternalversion.EventsInterface
 	Extensions() extensionsinternalversion.ExtensionsInterface
+	Flowcontrol() flowcontrolinternalversion.FlowcontrolInterface
 	Networking() networkinginternalversion.NetworkingInterface
 	Node() nodeinternalversion.NodeInterface
 	Policy() policyinternalversion.PolicyInterface
@@ -82,6 +84,7 @@ type Clientset struct {
 	coordination          *coordinationinternalversion.CoordinationClient
 	events                *eventsinternalversion.EventsClient
 	extensions            *extensionsinternalversion.ExtensionsClient
+	flowcontrol           *flowcontrolinternalversion.FlowcontrolClient
 	networking            *networkinginternalversion.NetworkingClient
 	node                  *nodeinternalversion.NodeClient
 	policy                *policyinternalversion.PolicyClient
@@ -149,6 +152,11 @@ func (c *Clientset) Events() eventsinternalversion.EventsInterface {
 // Extensions retrieves the ExtensionsClient
 func (c *Clientset) Extensions() extensionsinternalversion.ExtensionsInterface {
 	return c.extensions
+}
+
+// Flowcontrol retrieves the FlowcontrolClient
+func (c *Clientset) Flowcontrol() flowcontrolinternalversion.FlowcontrolInterface {
+	return c.flowcontrol
 }
 
 // Networking retrieves the NetworkingClient
@@ -250,6 +258,10 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
+	cs.flowcontrol, err = flowcontrolinternalversion.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
 	cs.networking, err = networkinginternalversion.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
@@ -302,6 +314,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 	cs.coordination = coordinationinternalversion.NewForConfigOrDie(c)
 	cs.events = eventsinternalversion.NewForConfigOrDie(c)
 	cs.extensions = extensionsinternalversion.NewForConfigOrDie(c)
+	cs.flowcontrol = flowcontrolinternalversion.NewForConfigOrDie(c)
 	cs.networking = networkinginternalversion.NewForConfigOrDie(c)
 	cs.node = nodeinternalversion.NewForConfigOrDie(c)
 	cs.policy = policyinternalversion.NewForConfigOrDie(c)
@@ -329,6 +342,7 @@ func New(c rest.Interface) *Clientset {
 	cs.coordination = coordinationinternalversion.New(c)
 	cs.events = eventsinternalversion.New(c)
 	cs.extensions = extensionsinternalversion.New(c)
+	cs.flowcontrol = flowcontrolinternalversion.New(c)
 	cs.networking = networkinginternalversion.New(c)
 	cs.node = nodeinternalversion.New(c)
 	cs.policy = policyinternalversion.New(c)

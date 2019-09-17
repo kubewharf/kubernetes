@@ -44,11 +44,14 @@ import (
 	"k8s.io/apiserver/pkg/authentication/authenticator"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	openapinamer "k8s.io/apiserver/pkg/endpoints/openapi"
+	genericfeatures "k8s.io/apiserver/pkg/features"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/apiserver/pkg/server/filters"
 	serveroptions "k8s.io/apiserver/pkg/server/options"
 	serverstorage "k8s.io/apiserver/pkg/server/storage"
 	"k8s.io/apiserver/pkg/storage/etcd3/preflight"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	utilflowcontrol "k8s.io/apiserver/pkg/util/flowcontrol"
 	"k8s.io/apiserver/pkg/util/term"
 	"k8s.io/apiserver/pkg/util/webhook"
 	clientgoinformers "k8s.io/client-go/informers"
@@ -494,8 +497,24 @@ func buildGenericConfig(
 		lastErr = fmt.Errorf("failed to initialize admission: %v", err)
 	}
 
+	if utilfeature.DefaultFeatureGate.Enabled(genericfeatures.RequestManagement) {
+		genericConfig.FlowControl = BuildRequestManager(s, clientgoExternalClient, versionedInformers)
+	}
+
 	return
 }
+
+// BuildRequestManager constructs the request manager
+func BuildRequestManager(s *options.ServerRunOptions, extclient clientgoclientset.Interface, versionedInformer clientgoinformers.SharedInformerFactory) utilflowcontrol.Interface {
+	return utilflowcontrol.NewRequestManager(
+		versionedInformer,
+		extclient.FlowcontrolV1alpha1(),
+		s.GenericServerRunOptions.MaxRequestsInFlight+s.GenericServerRunOptions.MaxMutatingRequestsInFlight,
+		s.GenericServerRunOptions.RequestTimeout/4,
+		true,
+	)
+}
+
 
 // BuildAuthenticator constructs the authenticator
 func BuildAuthenticator(s *options.ServerRunOptions, extclient clientgoclientset.Interface, versionedInformer clientgoinformers.SharedInformerFactory) (authenticator.Request, *spec.SecurityDefinitions, error) {

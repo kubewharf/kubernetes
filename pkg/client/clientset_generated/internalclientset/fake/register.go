@@ -36,6 +36,7 @@ import (
 	coreinternalversion "k8s.io/kubernetes/pkg/apis/core"
 	eventsinternalversion "k8s.io/kubernetes/pkg/apis/events"
 	extensionsinternalversion "k8s.io/kubernetes/pkg/apis/extensions"
+	flowcontrolinternalversion "k8s.io/kubernetes/pkg/apis/flowcontrol"
 	networkinginternalversion "k8s.io/kubernetes/pkg/apis/networking"
 	nodeinternalversion "k8s.io/kubernetes/pkg/apis/node"
 	policyinternalversion "k8s.io/kubernetes/pkg/apis/policy"
@@ -61,6 +62,7 @@ var localSchemeBuilder = runtime.SchemeBuilder{
 	coordinationinternalversion.AddToScheme,
 	eventsinternalversion.AddToScheme,
 	extensionsinternalversion.AddToScheme,
+	flowcontrolinternalversion.AddToScheme,
 	networkinginternalversion.AddToScheme,
 	nodeinternalversion.AddToScheme,
 	policyinternalversion.AddToScheme,

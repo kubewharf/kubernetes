@@ -47,6 +47,8 @@ pkg/apis/events
 pkg/apis/events/v1beta1
 pkg/apis/extensions
 pkg/apis/extensions/v1beta1
+pkg/apis/flowcontrol/v1alpha1
+pkg/apis/flowcontrol/validation
 pkg/apis/imagepolicy
 pkg/apis/networking
 pkg/apis/networking/v1
@@ -278,6 +280,11 @@ pkg/registry/core/serviceaccount/storage
 pkg/registry/events/rest
 pkg/registry/extensions/controller/storage
 pkg/registry/extensions/rest
+pkg/registry/flowcontrol/flowschema
+pkg/registry/flowcontrol/flowschema/storage
+pkg/registry/flowcontrol/prioritylevelconfiguration
+pkg/registry/flowcontrol/prioritylevelconfiguration/storage
+pkg/registry/flowcontrol/rest
 pkg/registry/networking/networkpolicy/storage
 pkg/registry/networking/rest
 pkg/registry/node/rest
@@ -526,6 +533,7 @@ staging/src/k8s.io/apiserver/pkg/storage/storagebackend
 staging/src/k8s.io/apiserver/pkg/storage/testing
 staging/src/k8s.io/apiserver/pkg/storage/tests
 staging/src/k8s.io/apiserver/pkg/storage/value
+staging/src/k8s.io/apiserver/pkg/util/flowcontrol/metrics
 staging/src/k8s.io/apiserver/pkg/util/feature
 staging/src/k8s.io/apiserver/pkg/util/proxy
 staging/src/k8s.io/apiserver/pkg/util/webhook
