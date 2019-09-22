@@ -426,7 +426,11 @@ func evictPodNow(kubeClient clientset.Interface, recorder record.EventRecorder) 
 					doneCh <- true
 					return
 				} else if apierrors.IsTooManyRequests(err) {
-					time.Sleep(5 * time.Second)
+					delay, retry := apierrors.SuggestsClientDelay(err)
+					if !retry {
+						delay = 5
+					}
+					time.Sleep(time.Duration(delay) * time.Second)
 				} else {
 					errCh <- fmt.Errorf("error when evicting pod %q: %v", pod.Name, err)
 					return
