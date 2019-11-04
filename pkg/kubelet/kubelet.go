@@ -41,6 +41,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/clock"
+	netutil "k8s.io/apimachinery/pkg/util/net"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -54,6 +55,7 @@ import (
 	"k8s.io/client-go/util/flowcontrol"
 	cloudprovider "k8s.io/cloud-provider"
 	"k8s.io/klog"
+	utilpod "k8s.io/kubernetes/pkg/api/pod"
 	api "k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/features"
 	kubeletconfiginternal "k8s.io/kubernetes/pkg/kubelet/apis/config"
@@ -70,6 +72,7 @@ import (
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/dockershim"
 	dockerremote "k8s.io/kubernetes/pkg/kubelet/dockershim/remote"
+	dynamic "k8s.io/kubernetes/pkg/kubelet/dynamicpodspec"
 	"k8s.io/kubernetes/pkg/kubelet/events"
 	"k8s.io/kubernetes/pkg/kubelet/eviction"
 	"k8s.io/kubernetes/pkg/kubelet/images"
@@ -540,6 +543,8 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 		keepTerminatedPodVolumes:                keepTerminatedPodVolumes,
 		nodeStatusMaxImages:                     nodeStatusMaxImages,
 		enablePluginsWatcher:                    utilfeature.DefaultFeatureGate.Enabled(features.KubeletPluginsWatcher),
+		guaranteedQosHostPortRange:              kubeCfg.GuaranteedQOSHostPortRange,
+		hostPortRange:                           kubeCfg.HostPortRange,
 	}
 
 	if klet.cloud != nil {
@@ -866,6 +871,20 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 
 	criticalPodAdmissionHandler := preemption.NewCriticalPodAdmissionHandler(klet.GetActivePods, killPodNow(klet.podWorkers, kubeDeps.Recorder), kubeDeps.Recorder)
 	klet.admitHandlers.AddPodAdmitHandler(lifecycle.NewPredicateAdmitHandler(klet.getNodeAnyWay, criticalPodAdmissionHandler, klet.containerManager.UpdatePluginResources))
+
+	podUpdater := dynamic.NewPodUpdater(klet.kubeClient)
+	assignQosPort := dynamic.NewAssignPortHandler(utilpod.PodAutoPortHighPriorityAnnotation, klet.guaranteedQosHostPortRange, podUpdater)
+	klet.admitHandlers.AddPodAdmitHandler(assignQosPort)
+
+	assignPort := dynamic.NewAssignPortHandler(utilpod.PodAutoPortAnnotation, klet.hostPortRange, podUpdater)
+	klet.admitHandlers.AddPodAdmitHandler(assignPort)
+
+	assignPodTemplate := dynamic.NewAssignVolumeAdmitHandler(podUpdater)
+	klet.admitHandlers.AddPodAdmitHandler(assignPodTemplate)
+
+	// podUpdater must be registered after all dynamic pod spec handlers have been registered
+	klet.admitHandlers.AddPodAdmitHandler(podUpdater)
+
 	// apply functional Option's
 	for _, opt := range kubeDeps.Options {
 		opt(klet)
@@ -1214,6 +1233,9 @@ type Kubelet struct {
 	// This flag, if set, instructs the kubelet to keep volumes from terminated pods mounted to the node.
 	// This can be useful for debugging volume related issues.
 	keepTerminatedPodVolumes bool // DEPRECATED
+
+	guaranteedQosHostPortRange netutil.PortRange
+	hostPortRange              netutil.PortRange
 
 	// pluginwatcher is a utility for Kubelet to register different types of node-level plugins
 	// such as device plugins or CSI plugins. It discovers plugins by monitoring inotify events under the

@@ -19,6 +19,7 @@ package config
 import (
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	netutil "k8s.io/apimachinery/pkg/util/net"
 )
 
 // HairpinMode denotes how the kubelet should configure networking to handle
@@ -311,6 +312,9 @@ type KubeletConfiguration struct {
 	// This flag accepts a list of options. Acceptable options are `pods`, `system-reserved` & `kube-reserved`.
 	// Refer to [Node Allocatable](https://git.k8s.io/community/contributors/design-proposals/node/node-allocatable.md) doc for more information.
 	EnforceNodeAllocatable []string
+
+	GuaranteedQOSHostPortRange netutil.PortRange
+	HostPortRange              netutil.PortRange
 }
 
 type KubeletAuthorizationMode string
