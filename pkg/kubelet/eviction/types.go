@@ -44,6 +44,8 @@ type Config struct {
 	PressureTransitionPeriod time.Duration
 	// Maximum allowed grace period (in seconds) to use when terminating pods in response to a soft eviction threshold being met.
 	MaxPodGracePeriodSeconds int64
+	// Maximum allowed grace period (in seconds) to use when terminating pods in response to a hard eviction threshold being met.
+	MaxPodGracePeriodSecondsInHardEviction int64
 	// Thresholds define the set of conditions monitored to trigger eviction.
 	Thresholds []evictionapi.Threshold
 	// KernelMemcgNotification if true will integrate with the kernel memcg notification to determine if memory thresholds are crossed.

@@ -435,11 +435,12 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 		return nil, err
 	}
 	evictionConfig := eviction.Config{
-		PressureTransitionPeriod: kubeCfg.EvictionPressureTransitionPeriod.Duration,
-		MaxPodGracePeriodSeconds: int64(kubeCfg.EvictionMaxPodGracePeriod),
-		Thresholds:               thresholds,
-		KernelMemcgNotification:  experimentalKernelMemcgNotification,
-		PodCgroupRoot:            kubeDeps.ContainerManager.GetPodCgroupRoot(),
+		PressureTransitionPeriod:               kubeCfg.EvictionPressureTransitionPeriod.Duration,
+		MaxPodGracePeriodSeconds:               int64(kubeCfg.EvictionMaxPodGracePeriod),
+		MaxPodGracePeriodSecondsInHardEviction: int64(kubeCfg.EvictionHardMaxPodGracePeriod),
+		Thresholds:                             thresholds,
+		KernelMemcgNotification:                experimentalKernelMemcgNotification,
+		PodCgroupRoot:                          kubeDeps.ContainerManager.GetPodCgroupRoot(),
 	}
 
 	serviceIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})

@@ -17,7 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	netutil "k8s.io/apimachinery/pkg/util/net"
 )
@@ -567,6 +567,10 @@ type KubeletConfiguration struct {
 	// Default: 0
 	// +optional
 	EvictionMaxPodGracePeriod int32 `json:"evictionMaxPodGracePeriod,omitempty"`
+	// Maximum allowed grace period (in seconds) to use when terminating pods in response to a hard eviction threshold being met.
+	// Default: 50
+	// +optional
+	EvictionHardMaxPodGracePeriod int32 `json:"evictionHardMaxPodGracePeriod,omitempty"`
 	// Map of signal names to quantities that defines minimum reclaims, which describe the minimum
 	// amount of a given resource the kubelet will reclaim when performing a pod eviction while
 	// that resource is under pressure. For example: {"imagefs.available": "2Gi"}

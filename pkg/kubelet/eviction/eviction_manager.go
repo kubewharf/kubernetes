@@ -293,11 +293,12 @@ func (m *managerImpl) synchronizeLoad(diskInfoProvider DiskInfoProvider, podFunc
 
 	// determine the set of resources under starvation
 	starvedResources := getStarvedResources(thresholds)
-	if len(starvedResources) == 0 {
+	if len(thresholds) == 0 || len(starvedResources) == 0 {
 		klog.V(3).Infof("eviction manager: no resources are starved")
 		return nil
 	}
 
+	thresholdToReclaim := thresholds[0]
 	resourceToReclaim := starvedResources[0]
 	klog.Warningf("eviction manager: attempting to reclaim %v", resourceToReclaim)
 
@@ -329,7 +330,11 @@ func (m *managerImpl) synchronizeLoad(diskInfoProvider DiskInfoProvider, podFunc
 			}
 		}
 
-		gracePeriodOverride := int64(0)
+		gracePeriodOverride := m.config.MaxPodGracePeriodSecondsInHardEviction
+		// determine if this is a soft or hard eviction associated with the resource
+		if !isHardEvictionThreshold(thresholdToReclaim) {
+			gracePeriodOverride = m.config.MaxPodGracePeriodSeconds
+		}
 
 		message := fmt.Sprintf(nodeLowMessageFmt, resourceToReclaim)
 		annotations := make(map[string]string)
@@ -496,7 +501,7 @@ func (m *managerImpl) synchronize(diskInfoProvider DiskInfoProvider, podFunc Act
 	// we kill at most a single pod during each eviction interval
 	for i := range activePods {
 		pod := activePods[i]
-		gracePeriodOverride := int64(0)
+		gracePeriodOverride := m.config.MaxPodGracePeriodSecondsInHardEviction
 		if !isHardEvictionThreshold(thresholdToReclaim) {
 			gracePeriodOverride = m.config.MaxPodGracePeriodSeconds
 		}
@@ -606,7 +611,7 @@ func (m *managerImpl) emptyDirLimitEviction(podStats statsapi.PodStats, pod *v1.
 			used := podVolumeUsed[pod.Spec.Volumes[i].Name]
 			if used != nil && size != nil && size.Sign() == 1 && used.Cmp(*size) > 0 {
 				// the emptyDir usage exceeds the size limit, evict the pod
-				return m.evictPod(pod, 0, fmt.Sprintf(emptyDirMessageFmt, pod.Spec.Volumes[i].Name, size.String()), nil)
+				return m.evictPod(pod, m.config.MaxPodGracePeriodSecondsInHardEviction, fmt.Sprintf(emptyDirMessageFmt, pod.Spec.Volumes[i].Name, size.String()), nil)
 			}
 		}
 	}
@@ -638,7 +643,7 @@ func (m *managerImpl) podEphemeralStorageLimitEviction(podStats statsapi.PodStat
 	podEphemeralStorageLimit := podLimits[v1.ResourceEphemeralStorage]
 	if podEphemeralStorageTotalUsage.Cmp(podEphemeralStorageLimit) > 0 {
 		// the total usage of pod exceeds the total size limit of containers, evict the pod
-		return m.evictPod(pod, 0, fmt.Sprintf(podEphemeralStorageMessageFmt, podEphemeralStorageLimit.String()), nil)
+		return m.evictPod(pod, m.config.MaxPodGracePeriodSecondsInHardEviction, fmt.Sprintf(podEphemeralStorageMessageFmt, podEphemeralStorageLimit.String()), nil)
 	}
 	return false
 }
@@ -660,7 +665,7 @@ func (m *managerImpl) containerEphemeralStorageLimitEviction(podStats statsapi.P
 
 		if ephemeralStorageThreshold, ok := thresholdsMap[containerStat.Name]; ok {
 			if ephemeralStorageThreshold.Cmp(*containerUsed) < 0 {
-				return m.evictPod(pod, 0, fmt.Sprintf(containerEphemeralStorageMessageFmt, containerStat.Name, ephemeralStorageThreshold.String()), nil)
+				return m.evictPod(pod, m.config.MaxPodGracePeriodSecondsInHardEviction, fmt.Sprintf(containerEphemeralStorageMessageFmt, containerStat.Name, ephemeralStorageThreshold.String()), nil)
 
 			}
 		}
