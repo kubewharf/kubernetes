@@ -29,6 +29,11 @@ func (in *PriorityClass) DeepCopyInto(out *PriorityClass) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	if in.CanBePreempted != nil {
+		in, out := &in.CanBePreempted, &out.CanBePreempted
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

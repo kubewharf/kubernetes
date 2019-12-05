@@ -52,6 +52,11 @@ message PriorityClass {
   // when this priority class should be used.
   // +optional
   optional string description = 4;
+
+  // CanBePreempted indicates whether the pods with this priority class value can be preempted.
+  // For safety reasons， the default value is false.
+  // +optional
+  optional bool canBePreempted = 101;
 }
 
 // PriorityClassList is a collection of priority classes.

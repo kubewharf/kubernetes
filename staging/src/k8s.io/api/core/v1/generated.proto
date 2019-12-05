@@ -3194,6 +3194,11 @@ message PodSpec {
   // Optional: Defaults to true.
   // +optional
   optional bool enableServiceLinks = 30;
+
+  // CanBePreempted indicates whether the pods with this priority class value can be preempted.
+  // For safety reasons, the default value is false.
+  // +optional
+  optional bool canBePreempted = 101;
 }
 
 // PodStatus represents information about the status of a pod. Status may trail the actual

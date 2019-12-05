@@ -13,6 +13,7 @@ go_library(
         "cadvisor_unsupported.go",
         "cadvisor_windows.go",
         "doc.go",
+        "fake_tce_metrics.go",
         "helpers_linux.go",
         "helpers_unsupported.go",
         "tce_metrics.go",
@@ -28,17 +29,57 @@ go_library(
         "//vendor/github.com/google/cadvisor/events:go_default_library",
         "//vendor/github.com/google/cadvisor/info/v1:go_default_library",
         "//vendor/github.com/google/cadvisor/info/v2:go_default_library",
+        "//vendor/k8s.io/klog:go_default_library",
     ] + select({
+        "@io_bazel_rules_go//go/platform:android": [
+            "//pkg/features:go_default_library",
+            "//staging/src/k8s.io/apiserver/pkg/util/feature:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:darwin": [
+            "//pkg/features:go_default_library",
+            "//staging/src/k8s.io/apiserver/pkg/util/feature:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:dragonfly": [
+            "//pkg/features:go_default_library",
+            "//staging/src/k8s.io/apiserver/pkg/util/feature:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:freebsd": [
+            "//pkg/features:go_default_library",
+            "//staging/src/k8s.io/apiserver/pkg/util/feature:go_default_library",
+        ],
         "@io_bazel_rules_go//go/platform:linux": [
+            "//pkg/features:go_default_library",
+            "//staging/src/k8s.io/apiserver/pkg/util/feature:go_default_library",
             "//vendor/github.com/google/cadvisor/cache/memory:go_default_library",
             "//vendor/github.com/google/cadvisor/container:go_default_library",
             "//vendor/github.com/google/cadvisor/fs:go_default_library",
             "//vendor/github.com/google/cadvisor/manager:go_default_library",
             "//vendor/github.com/google/cadvisor/utils/sysfs:go_default_library",
-            "//vendor/k8s.io/klog:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:nacl": [
+            "//pkg/features:go_default_library",
+            "//staging/src/k8s.io/apiserver/pkg/util/feature:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:netbsd": [
+            "//pkg/features:go_default_library",
+            "//staging/src/k8s.io/apiserver/pkg/util/feature:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:openbsd": [
+            "//pkg/features:go_default_library",
+            "//staging/src/k8s.io/apiserver/pkg/util/feature:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:plan9": [
+            "//pkg/features:go_default_library",
+            "//staging/src/k8s.io/apiserver/pkg/util/feature:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:solaris": [
+            "//pkg/features:go_default_library",
+            "//staging/src/k8s.io/apiserver/pkg/util/feature:go_default_library",
         ],
         "@io_bazel_rules_go//go/platform:windows": [
+            "//pkg/features:go_default_library",
             "//pkg/kubelet/winstats:go_default_library",
+            "//staging/src/k8s.io/apiserver/pkg/util/feature:go_default_library",
         ],
         "//conditions:default": [],
     }),

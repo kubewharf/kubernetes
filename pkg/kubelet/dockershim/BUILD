@@ -61,6 +61,7 @@ go_library(
         "//staging/src/k8s.io/apimachinery/pkg/types:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/util/errors:go_default_library",
         "//staging/src/k8s.io/client-go/tools/remotecommand:go_default_library",
+        "//vendor/code.byted.org/tce/kube-tracing:go_default_library",
         "//vendor/github.com/armon/circbuf:go_default_library",
         "//vendor/github.com/blang/semver:go_default_library",
         "//vendor/github.com/docker/docker/api/types:go_default_library",

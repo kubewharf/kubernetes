@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "cacher.go",
+        "metrics.go",
         "time_budget.go",
         "util.go",
         "watch_cache.go",
@@ -12,6 +13,7 @@ go_library(
     importpath = "k8s.io/apiserver/pkg/storage/cacher",
     visibility = ["//visibility:public"],
     deps = [
+        "//pkg/apis/core:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/api/errors:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/api/meta:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",

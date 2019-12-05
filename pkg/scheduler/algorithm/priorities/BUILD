@@ -14,6 +14,7 @@ go_library(
         "interpod_affinity.go",
         "least_requested.go",
         "metadata.go",
+        "most_gpu_requested.go",
         "most_requested.go",
         "node_affinity.go",
         "node_label.go",

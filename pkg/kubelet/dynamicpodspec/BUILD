@@ -3,20 +3,20 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 go_library(
     name = "go_default_library",
     srcs = [
-        "doc.go",
-        "register.go",
-        "types.go",
-        "zz_generated.deepcopy.go",
+        "interfaces.go",
+        "ports.go",
+        "volumes.go",
     ],
-    importmap = "k8s.io/kubernetes/vendor/k8s.io/kubelet/config/v1beta1",
-    importpath = "k8s.io/kubelet/config/v1beta1",
+    importpath = "k8s.io/kubernetes/pkg/kubelet/dynamicpodspec",
     visibility = ["//visibility:public"],
     deps = [
+        "//pkg/api/pod:go_default_library",
+        "//pkg/kubelet/lifecycle:go_default_library",
         "//staging/src/k8s.io/api/core/v1:go_default_library",
-        "//staging/src/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
-        "//staging/src/k8s.io/apimachinery/pkg/runtime:go_default_library",
-        "//staging/src/k8s.io/apimachinery/pkg/runtime/schema:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/util/net:go_default_library",
+        "//staging/src/k8s.io/client-go/kubernetes:go_default_library",
+        "//staging/src/k8s.io/client-go/util/retry:go_default_library",
+        "//vendor/k8s.io/klog:go_default_library",
     ],
 )
 

@@ -71,7 +71,7 @@ func (FlowSchemaList) SwaggerDoc() map[string]string {
 }
 
 var map_FlowSchemaSpec = map[string]string{
-	"": "FlowSchemaSpec describes how the flow-schema's specification looks like.",
+	"":                           "FlowSchemaSpec describes how the flow-schema's specification looks like.",
 	"priorityLevelConfiguration": "`priorityLevelConfiguration` should reference a PriorityLevelConfiguration in the cluster. If the reference cannot be resolved, the flow-schema will be ignored and marked as invalid in its status. Required.",
 	"matchingPrecedence":         "`matchingPrecedence` is used to choose among the FlowSchemas that match a given request.  The chosen FlowSchema is among those with the numerically lowest (which we take to be logically highest) MatchingPrecedence.  Each MatchingPrecedence value must be non-negative.",
 	"distinguisherMethod":        "`distinguisherMethod` defines how to compute the flow distinguisher for requests that match this schema. `nil` specifies that the distinguisher is disabled and thus will always be the empty string.",
@@ -157,7 +157,7 @@ func (PriorityLevelConfigurationReference) SwaggerDoc() map[string]string {
 }
 
 var map_PriorityLevelConfigurationSpec = map[string]string{
-	"": "PriorityLevelConfigurationSpec is specification of a priority level",
+	"":                         "PriorityLevelConfigurationSpec is specification of a priority level",
 	"assuredConcurrencyShares": "`assuredConcurrencyShares` is a positive number for a non-exempt priority level. The concurrency limit of an apiserver is divided among the non-exempt priority levels in proportion to their assured concurrency shares. Basically this produces the assured concurrency value (ACV) for each priority level:\n\n            ACV(l) = ceil( SCL * ACS(l) / ( sum[priority levels k] ACS(k) ) )",
 	"queues":                   "`queues` is a number of queues that belong to a non-exempt PriorityLevelConfiguration object. The queues exist independently at each apiserver. The value must be positive for a non-exempt priority level and setting it to 1 disables shufflesharding and makes the distinguisher method irrelevant.",
 	"handSize":                 "`handSize` is a small positive number for applying shuffle sharding. When a request arrives at an apiserver the request flow identifier’s string pair is hashed and the hash value is used to shuffle the queue indices and deal a hand of the size specified here. If empty, the hand size will the be set to 1. NOTE: To figure out a better value for your cluster, please refer to (#76846)[https://github.com/kubernetes/kubernetes/issues/76846#issuecomment-523700960]",

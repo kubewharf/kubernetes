@@ -15,6 +15,7 @@ go_library(
     importpath = "k8s.io/kubernetes/pkg/apis/core/validation",
     visibility = ["//visibility:public"],
     deps = [
+        "//pkg/api/pod:go_default_library",
         "//pkg/api/service:go_default_library",
         "//pkg/apis/core:go_default_library",
         "//pkg/apis/core/helper:go_default_library",

@@ -64,6 +64,7 @@ func autoConvert_v1alpha1_PriorityClass_To_scheduling_PriorityClass(in *v1alpha1
 	out.Value = in.Value
 	out.GlobalDefault = in.GlobalDefault
 	out.Description = in.Description
+	out.CanBePreempted = (*bool)(unsafe.Pointer(in.CanBePreempted))
 	return nil
 }
 
@@ -77,6 +78,7 @@ func autoConvert_scheduling_PriorityClass_To_v1alpha1_PriorityClass(in *scheduli
 	out.Value = in.Value
 	out.GlobalDefault = in.GlobalDefault
 	out.Description = in.Description
+	out.CanBePreempted = (*bool)(unsafe.Pointer(in.CanBePreempted))
 	return nil
 }
 

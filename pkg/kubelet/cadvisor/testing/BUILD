@@ -10,6 +10,7 @@ go_library(
     srcs = [
         "cadvisor_fake.go",
         "cadvisor_mock.go",
+        "tce_metrics_mock.go",
     ],
     importpath = "k8s.io/kubernetes/pkg/kubelet/cadvisor/testing",
     deps = [

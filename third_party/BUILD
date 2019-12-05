@@ -28,6 +28,7 @@ filegroup(
         "//third_party/forked/golang/template:all-srcs",
         "//third_party/forked/gonum/graph:all-srcs",
         "//third_party/go-srcimporter:all-srcs",
+        "//third_party/kube-tracing:all-srcs",
     ],
     tags = ["automanaged"],
 )
