@@ -773,6 +773,9 @@ kube::golang::build_binaries() {
     local goflags goldflags goasmflags gogcflags
     goldflags="${GOLDFLAGS:-} -s -w $(kube::version::ldflags)"
     echo "111"
+    pwd
+    git --work-tree ./ describe --tags --abbrev=14
+    git --work-tree ./ describe --tags --abbrev=14 | sed "s/-\([0-9]\{1,\}\)-g\([0-9a-f]\{14\}\)$/.\1\+\2/"
     echo ${goldflags}
     goasmflags="-trimpath=${KUBE_ROOT}"
     gogcflags="${GOGCFLAGS:-} -trimpath=${KUBE_ROOT}"
