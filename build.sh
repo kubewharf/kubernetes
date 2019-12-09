@@ -1,5 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
+GO111MODULE=off
 bash ./hack/update-tracing-packages.sh
 
 make hyperkube && \
