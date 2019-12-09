@@ -2976,7 +2976,7 @@ type PodSpec struct {
 	// CanBePreempted indicates whether the pods with this priority class value can be preempted.
 	// For safety reasons, the default value is false.
 	// +optional
-	CanBePreempted *bool `json:"canBePreempted,omitempty" protobuf:"bytes,31,opt,name=canBePreempted"`
+	CanBePreempted *bool `json:"canBePreempted,omitempty" protobuf:"bytes,101,opt,name=canBePreempted"`
 }
 
 const (
