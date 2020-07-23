@@ -764,21 +764,6 @@ func skipTestProxyRequestContentLengthAndTransferEncoding(t *testing.T) {
 			expectedBody: sampleData,
 		},
 
-		"content-length + identity transfer-encoding": {
-			reqHeaders: http.Header{
-				"Content-Length":    []string{"5"},
-				"Transfer-Encoding": []string{"identity"},
-			},
-			reqBody: sampleData,
-
-			expectedHeaders: http.Header{
-				"Content-Length":    []string{"5"},
-				"Content-Encoding":  nil, // none set
-				"Transfer-Encoding": nil, // gets removed
-			},
-			expectedBody: sampleData,
-		},
-
 		"content-length + gzip content-encoding": {
 			reqHeaders: http.Header{
 				"Content-Length":   []string{strconv.Itoa(len(zip(sampleData)))},
