@@ -183,7 +183,7 @@ func TestAzureTokenSource(t *testing.T) {
 				expiresOn    = "foo"
 			)
 			cfg := map[string]string{
-				cfgConfigMode:   string(configMode),
+				cfgConfigMode:   strconv.Itoa(int(configMode)),
 				cfgApiserverID:  serverID,
 				cfgClientID:     clientID,
 				cfgTenantID:     tenantID,
@@ -270,6 +270,155 @@ func TestAzureTokenSource(t *testing.T) {
 				t.Errorf("Token() didn't return the cached token")
 			}
 		})
+	}
+}
+
+func TestAzureTokenSourceScenarios(t *testing.T) {
+	expiredToken := newFakeAzureToken("expired token", time.Now().Add(-time.Second))
+	extendedToken := newFakeAzureToken("extend token", time.Now().Add(1000*time.Second))
+	fakeToken := newFakeAzureToken("fake token", time.Now().Add(1000*time.Second))
+	wrongToken := newFakeAzureToken("wrong token", time.Now().Add(1000*time.Second))
+	tests := []struct {
+		name         string
+		sourceToken  *azureToken
+		refreshToken *azureToken
+		cachedToken  *azureToken
+		configToken  *azureToken
+		expectToken  *azureToken
+		tokenErr     error
+		refreshErr   error
+		expectErr    string
+		tokenCalls   uint
+		refreshCalls uint
+		persistCalls uint
+	}{
+		{
+			name:         "new config",
+			sourceToken:  fakeToken,
+			expectToken:  fakeToken,
+			tokenCalls:   1,
+			persistCalls: 1,
+		},
+		{
+			name:        "load token from cache",
+			sourceToken: wrongToken,
+			cachedToken: fakeToken,
+			configToken: wrongToken,
+			expectToken: fakeToken,
+		},
+		{
+			name:        "load token from config",
+			sourceToken: wrongToken,
+			configToken: fakeToken,
+			expectToken: fakeToken,
+		},
+		{
+			name:         "cached token timeout, extend success, config token should never load",
+			cachedToken:  expiredToken,
+			refreshToken: extendedToken,
+			configToken:  wrongToken,
+			expectToken:  extendedToken,
+			refreshCalls: 1,
+			persistCalls: 1,
+		},
+		{
+			name:         "config token timeout, extend failure, acquire new token",
+			configToken:  expiredToken,
+			refreshErr:   fakeTokenRefreshError{message: "FakeError happened when refreshing"},
+			sourceToken:  fakeToken,
+			expectToken:  fakeToken,
+			refreshCalls: 1,
+			tokenCalls:   1,
+			persistCalls: 1,
+		},
+		{
+			name:         "unexpected error when extend",
+			configToken:  expiredToken,
+			refreshErr:   errors.New("unexpected refresh error"),
+			sourceToken:  fakeToken,
+			expectErr:    "unexpected refresh error",
+			refreshCalls: 1,
+		},
+		{
+			name:       "token error",
+			tokenErr:   errors.New("tokenerr"),
+			expectErr:  "tokenerr",
+			tokenCalls: 1,
+		},
+		{
+			name:        "Token() got expired token",
+			sourceToken: expiredToken,
+			expectErr:   "newly acquired token is expired",
+			tokenCalls:  1,
+		},
+		{
+			name:        "Token() got nil but no error",
+			sourceToken: nil,
+			expectErr:   "unable to acquire token",
+			tokenCalls:  1,
+		},
+	}
+	for _, tc := range tests {
+		configModes := []configMode{configModeOmitSPNPrefix, configModeDefault}
+
+		for _, configMode := range configModes {
+			t.Run(fmt.Sprintf("%s with configMode: %v", tc.name, configMode), func(t *testing.T) {
+				persister := newFakePersister()
+
+				cfg := map[string]string{
+					cfgConfigMode: strconv.Itoa(int(configMode)),
+				}
+				if tc.configToken != nil {
+					cfg = token2Cfg(tc.configToken)
+				}
+
+				tokenCache := newAzureTokenCache()
+				if tc.cachedToken != nil {
+					tokenCache.setToken(azureTokenKey, tc.cachedToken)
+				}
+
+				fakeSource := fakeTokenSource{
+					token:        tc.sourceToken,
+					tokenErr:     tc.tokenErr,
+					refreshToken: tc.refreshToken,
+					refreshErr:   tc.refreshErr,
+				}
+
+				tokenSource := newAzureTokenSource(&fakeSource, tokenCache, cfg, configMode, &persister)
+				token, err := tokenSource.Token()
+
+				if token != nil && fakeSource.token != nil && token.apiserverID != fakeSource.token.apiserverID {
+					t.Errorf("expecting apiservierID: %s, got: %s", fakeSource.token.apiserverID, token.apiserverID)
+				}
+				if fakeSource.tokenCalls != tc.tokenCalls {
+					t.Errorf("expecting tokenCalls: %v, got: %v", tc.tokenCalls, fakeSource.tokenCalls)
+				}
+
+				if fakeSource.refreshCalls != tc.refreshCalls {
+					t.Errorf("expecting refreshCalls: %v, got: %v", tc.refreshCalls, fakeSource.refreshCalls)
+				}
+
+				if persister.calls != tc.persistCalls {
+					t.Errorf("expecting persister calls: %v, got: %v", tc.persistCalls, persister.calls)
+				}
+
+				if tc.expectErr != "" {
+					if !strings.Contains(err.Error(), tc.expectErr) {
+						t.Errorf("expecting error %v, got %v", tc.expectErr, err)
+					}
+					if token != nil {
+						t.Errorf("token should be nil in err situation, got %v", token)
+					}
+				} else {
+					if err != nil {
+						t.Fatalf("error should be nil, got %v", err)
+					}
+					if token.token.AccessToken != tc.expectToken.token.AccessToken {
+						t.Errorf("token should have accessToken %v, got %v", token.token.AccessToken, tc.expectToken.token.AccessToken)
+					}
+				}
+			})
+		}
 	}
 }
 

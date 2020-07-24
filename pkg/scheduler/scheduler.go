@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"strconv"
 	"time"
 
 	bytedinformers "code.byted.org/kubernetes/clientsets/k8s/informers"
@@ -1051,6 +1052,15 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 			prof.RunPostBindPlugins(bindingCycleCtx, state, assumedPod, scheduleResult.SuggestedHost)
 		}
 	}()
+}
+
+func getAttemptsLabel(p *framework.QueuedPodInfo) string {
+	// We breakdown the pod scheduling duration by attempts capped to a limit
+	// to avoid ending up with a high cardinality metric.
+	if p.Attempts >= 15 {
+		return "15+"
+	}
+	return strconv.Itoa(p.Attempts)
 }
 
 func (sched *Scheduler) profileForPod(pod *v1.Pod) (*profile.Profile, error) {
