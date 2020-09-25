@@ -54,6 +54,7 @@ func TestValidateKubeletConfiguration(t *testing.T) {
 		HairpinMode:                 kubeletconfig.PromiscuousBridge,
 		NodeLeaseDurationSeconds:    1,
 		CPUCFSQuotaPeriod:           metav1.Duration{Duration: 100 * time.Millisecond},
+		TopologyManagerPolicy:       "none",
 	}
 	if allErrors := ValidateKubeletConfiguration(successCase1); allErrors != nil {
 		t.Errorf("expect no errors, got %v", allErrors)
@@ -117,6 +118,7 @@ func TestValidateKubeletConfiguration(t *testing.T) {
 		HairpinMode:                 "foo",
 		NodeLeaseDurationSeconds:    -1,
 		CPUCFSQuotaPeriod:           metav1.Duration{Duration: 0},
+		TopologyManagerPolicy:       "",
 	}
 	const numErrsErrorCase1 = 25
 	if allErrors := ValidateKubeletConfiguration(errorCase1); len(allErrors.(utilerrors.Aggregate).Errors()) != numErrsErrorCase1 {

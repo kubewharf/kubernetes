@@ -150,6 +150,7 @@ var (
 		"CPUCFSQuota",
 		"CPUCFSQuotaPeriod.Duration",
 		"CPUManagerPolicy",
+		"TopologyManagerPolicy",
 		"CPUManagerReconcilePeriod.Duration",
 		"TopologyManagerPolicy",
 		"QOSReserved[*]",

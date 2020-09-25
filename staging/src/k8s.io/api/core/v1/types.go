@@ -4632,6 +4632,10 @@ const (
 	ResourceEphemeralStorage ResourceName = "ephemeral-storage"
 	// Bytedance Socket, in socket nodes.
 	ResourceBytedanceSocket ResourceName = "bytedance.com/socket"
+	// Bytedance nic SR-IOV, in vfs.
+	ResourceBytedanceSriov ResourceName = "bytedance.com/sriov.nic"
+	// Bytedance aep device
+	ResourceBytedanceAEP ResourceName = "bytedance.com/aep"
 )
 
 const (
