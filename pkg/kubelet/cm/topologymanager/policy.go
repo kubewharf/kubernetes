@@ -17,6 +17,8 @@ limitations under the License.
 package topologymanager
 
 import (
+	"strings"
+
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager/bitmask"
 )
@@ -52,8 +54,15 @@ func mergePermutation(numaNodes []int, permutation []TopologyHint) TopologyHint 
 		}
 	}
 
+	var numaAffinitiStrs []string
+	for _, numaAffinity := range numaAffinities {
+		numaAffinitiStrs = append(numaAffinitiStrs, numaAffinity.String())
+	}
+	klog.V(6).Info("numaAffinities is ", strings.Join(numaAffinitiStrs, ":"), " default affinity is ", defaultAffinity.String())
 	// Merge the affinities using a bitwise-and operation.
 	mergedAffinity := bitmask.And(defaultAffinity, numaAffinities...)
+	klog.V(6).Info("megred affinity is ", mergedAffinity.String())
+
 	// Build a mergedHint from the merged affinity mask, indicating if an
 	// preferred allocation was used to generate the affinity mask or not.
 	return TopologyHint{mergedAffinity, preferred}
