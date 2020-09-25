@@ -32,9 +32,9 @@ import (
 	"strings"
 	"sync"
 
-	"code.byted.org/tce/kube-tracing"
+	kubetracing "code.byted.org/tce/kube-tracing"
 	"github.com/opentracing/opentracing-go"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -44,12 +44,14 @@ import (
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"k8s.io/klog"
+
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/pkg/api/v1/resource"
 	podshelper "k8s.io/kubernetes/pkg/apis/core/pods"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	v1qos "k8s.io/kubernetes/pkg/apis/core/v1/helper/qos"
 	"k8s.io/kubernetes/pkg/features"
+	kubefeatures "k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/fieldpath"
 	"k8s.io/kubernetes/pkg/kubelet/cm"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
@@ -520,7 +522,27 @@ func (kl *Kubelet) GenerateRunContainerOptions(pod *v1.Pod, container *v1.Contai
 	}
 	opts.Envs = append(opts.Envs, envs...)
 
-	// only podIPs is sent to makeMounts, as podIPs is populated even if dual-stack feature flag is not enabled.
+	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.GPUSidecarVisibleDevice) {
+		// add NVIDIA_VISIBLE_DEVICES env to mps sidecar
+		const gpuResource = "nvidia.com/gpu"
+		const nvidiaVisibleDevicesEnv = "NVIDIA_VISIBLE_DEVICES"
+		for _, c := range pod.Spec.Containers {
+			if gpuLimit, ok := c.Resources.Limits[gpuResource]; ok {
+				// pod has gpu limit, but this container has no gpu limit
+				if !gpuLimit.IsZero() && c.Name != container.Name {
+					// get option of gpu container, extract NVIDIA_VISIBLE_DEVICES env
+					if resourceOptions, err := kl.containerManager.GetResources(pod, &c); err == nil {
+						for _, env := range resourceOptions.Envs {
+							if env.Name == nvidiaVisibleDevicesEnv {
+								opts.Envs = append(opts.Envs, env)
+								break
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 	mounts, cleanupAction, err := makeMounts(pod, kl.getPodDir(pod.UID), container, hostname, hostDomainName, podIPs, volumes, kl.hostutil, kl.subpather, opts.Envs)
 	if err != nil {
 		return nil, cleanupAction, err
