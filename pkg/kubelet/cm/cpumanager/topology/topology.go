@@ -17,13 +17,16 @@ limitations under the License.
 package topology
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"strings"
 
 	cadvisorapi "github.com/google/cadvisor/info/v1"
 	"k8s.io/klog"
+
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
+	"k8s.io/kubernetes/staging/src/k8s.io/apimachinery/pkg/util/sets"
 )
 
 // NUMANodeInfo is a map from NUMANode ID to a list of CPU IDs associated with
@@ -62,7 +65,37 @@ func (topo *CPUTopology) CPUsPerSocket() int {
 	return topo.NumCPUs / topo.NumSockets
 }
 
-// CPUInfo contains the NUMA, socket, and core IDs associated with a CPU.
+func (topo *CPUTopology) CheckValid() error {
+	if topo.CPUDetails == nil || len(topo.CPUDetails) == 0 {
+		return errors.New("cpu topology cpu detail is nil or empty")
+	}
+	if topo.CPUDetails.Sockets().Size() == 0 {
+		return errors.New("cpu topology cpu detail socket is zero")
+	}
+	if topo.CPUDetails.Numas().Size()%topo.CPUDetails.Sockets().Size() != 0 {
+		return fmt.Errorf("cpu topology cpu detail numa size %d can't divide by socket size %d", topo.CPUDetails.Numas().Size(), topo.CPUDetails.Sockets().Size())
+	}
+
+	avgNumaSizeInSocket := topo.CPUDetails.Numas().Size() / topo.CPUDetails.Sockets().Size()
+	// key is socket id, value is numa in socket
+	socketInfo := make(map[int]sets.Int)
+	for _, cpuInfo := range topo.CPUDetails {
+		// calculate numa number in socket
+		if _, ok := socketInfo[cpuInfo.SocketID]; !ok {
+			socketInfo[cpuInfo.SocketID] = sets.NewInt()
+		}
+		socketInfo[cpuInfo.SocketID].Insert(cpuInfo.NUMANodeID)
+	}
+	for socketId, numaIdSet := range socketInfo {
+		if len(numaIdSet) != avgNumaSizeInSocket {
+			return fmt.Errorf("cpu topology cpu detail socket id %d numa size is %d, avg numa size is %d",
+				socketId, numaIdSet, avgNumaSizeInSocket)
+		}
+	}
+	return nil
+}
+
+// CPUInfo contains the socket and core IDs associated with a CPU.
 type CPUInfo struct {
 	NUMANodeID int
 	SocketID   int
