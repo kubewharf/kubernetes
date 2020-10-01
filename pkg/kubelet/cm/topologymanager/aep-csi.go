@@ -40,6 +40,11 @@ func NewAepCSIHintProvider(kubeClient clientset.Interface, numaBits []int, topol
 	}
 }
 
+func (aepCSIHintProvider *AepCSIHintProvider) GetPodTopologyHints(pod *v1.Pod) map[string][]TopologyHint {
+	// [TODO] need to implement when apply pod scode affinity for aep
+	return nil
+}
+
 func (aepCSIHintProvider *AepCSIHintProvider) GetTopologyHints(pod *v1.Pod, container *v1.Container) map[string][]TopologyHint {
 	// container numa request is zero, return
 	socketLimit := container.Resources.Limits[v1.ResourceBytedanceSocket]
