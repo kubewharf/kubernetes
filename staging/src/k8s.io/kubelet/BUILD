@@ -16,6 +16,7 @@ filegroup(
         "//staging/src/k8s.io/kubelet/pkg/apis/pluginregistration/v1alpha1:all-srcs",
         "//staging/src/k8s.io/kubelet/pkg/apis/pluginregistration/v1beta1:all-srcs",
         "//staging/src/k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1:all-srcs",
+        "//staging/src/k8s.io/kubelet/pkg/apis/podresources/v1:all-srcs",
         "//staging/src/k8s.io/kubelet/pkg/apis/podresources/v1alpha1:all-srcs",
     ],
     tags = ["automanaged"],
