@@ -60,12 +60,18 @@ const (
 	// Metrics keys of device plugin operations
 	DevicePluginRegistrationCountKey  = "device_plugin_registration_total"
 	DevicePluginAllocationDurationKey = "device_plugin_alloc_duration_seconds"
+
 	// Metrics keys of pod resources operations
 	PodResourcesEndpointRequestsTotalKey          = "pod_resources_endpoint_requests_total"
 	PodResourcesEndpointRequestsListKey           = "pod_resources_endpoint_requests_list"
 	PodResourcesEndpointRequestsGetAllocatableKey = "pod_resources_endpoint_requests_get_allocatable"
 	PodResourcesEndpointErrorsListKey             = "pod_resources_endpoint_errors_list"
 	PodResourcesEndpointErrorsGetAllocatableKey   = "pod_resources_endpoint_errors_get_allocatable"
+
+	// Metrics keys of resouce plugin operations
+	ResourcePluginRegistrationCountKey        = "resource_plugin_registration_total"
+	ResourcePluginAllocationDurationKey       = "resource_plugin_alloc_duration_seconds"
+	ResourcePluginGetTopologyHintsDurationKey = "resource_plugin_get_hints_duration_seconds"
 
 	// Metrics keys for RuntimeClass
 	RunPodSandboxDurationKey = "run_podsandbox_duration_seconds"
@@ -289,6 +295,52 @@ var (
 			StabilityLevel: metrics.ALPHA,
 		},
 		[]string{"resource_name"},
+	)
+	// ResourcePluginRegistrationCount is a Counter that tracks the cumulative number of resource plugin registrations.
+	// Broken down by resource name.
+	ResourcePluginRegistrationCount = metrics.NewCounterVec(
+		&metrics.CounterOpts{
+			Subsystem:      KubeletSubsystem,
+			Name:           ResourcePluginRegistrationCountKey,
+			Help:           "Cumulative number of resource plugin registrations. Broken down by resource name.",
+			StabilityLevel: metrics.ALPHA,
+		},
+		[]string{"resource_name"},
+	)
+	// ResourcePluginAllocationDuration is a Histogram that tracks the duration (in seconds) to serve a resource plugin allocation request.
+	// Broken down by resource name.
+	ResourcePluginAllocationDuration = metrics.NewHistogramVec(
+		&metrics.HistogramOpts{
+			Subsystem:      KubeletSubsystem,
+			Name:           ResourcePluginAllocationDurationKey,
+			Help:           "Duration in seconds to serve a resource Allocation request. Broken down by resource name.",
+			Buckets:        metrics.DefBuckets,
+			StabilityLevel: metrics.ALPHA,
+		},
+		[]string{"resource_name"},
+	)
+	// ResourcePluginGetTopologyHintsDuration is a Histogram that tracks the duration (in seconds) to serve a resource plugin GetTopologyHints request.
+	// Broken down by resource name.
+	ResourcePluginGetTopologyHintsDuration = metrics.NewHistogramVec(
+		&metrics.HistogramOpts{
+			Subsystem:      KubeletSubsystem,
+			Name:           ResourcePluginGetTopologyHintsDurationKey,
+			Help:           "Duration in seconds to serve a resource GetTopologyHints request. Broken down by resource name.",
+			Buckets:        metrics.DefBuckets,
+			StabilityLevel: metrics.ALPHA,
+		},
+		[]string{"resource_name"},
+	)
+	// PodResourcesEndpointRequestsTotalCount is a Counter that tracks the cumulative number of requests to the PodResource endpoints.
+	// Broken down by server API version.
+	PodResourcesEndpointRequestsTotalCount = metrics.NewCounterVec(
+		&metrics.CounterOpts{
+			Subsystem:      KubeletSubsystem,
+			Name:           PodResourcesEndpointRequestsTotalKey,
+			Help:           "Cumulative number of requests to the PodResource endpoint. Broken down by server api version.",
+			StabilityLevel: metrics.ALPHA,
+		},
+		[]string{"server_api_version"},
 	)
 
 	// PodResourcesEndpointRequestsTotalCount is a Counter that tracks the cumulative number of requests to the PodResource endpoints.
