@@ -535,6 +535,7 @@ func (kl *Kubelet) GenerateRunContainerOptions(pod *v1.Pod, container *v1.Contai
 						for _, env := range resourceOptions.Envs {
 							if env.Name == nvidiaVisibleDevicesEnv {
 								opts.Envs = append(opts.Envs, env)
+								klog.Infof("inject NVIDIA_VISIBLE_DEVICES env %s to sidecar container %s of pod %s", env.Value, c.Name, pod.Name)
 								break
 							}
 						}

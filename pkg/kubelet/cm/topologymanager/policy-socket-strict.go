@@ -3,12 +3,13 @@ package topologymanager
 import (
 	"errors"
 
+	"k8s.io/apimachinery/pkg/util/sets"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/klog"
+
+	kubefeatures "k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpumanager/topology"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager/bitmask"
-	kubefeatures "k8s.io/kubernetes/pkg/features"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 type socketStrictPolicy struct {
@@ -105,7 +106,7 @@ func (p *socketStrictPolicy) takeForNumaNode(providersHints []map[string][]Topol
 		// filter hints provided by sysprobe numa device plugin
 		for _, providerHints := range providersHints {
 			for resource, hints := range providerHints {
-				if resource == AepCSI{
+				if resource == AepCSI {
 					aepDevicehints = hints
 					break
 				}
@@ -118,7 +119,9 @@ func (p *socketStrictPolicy) takeForNumaNode(providersHints []map[string][]Topol
 			}
 			// it means aep device has already allocated
 			if aepCandidateAffinity.Count() > 0 {
-				return &TopologyHint{NUMANodeAffinity: aepCandidateAffinity, Preferred: true}
+				hint := &TopologyHint{NUMANodeAffinity: aepCandidateAffinity, Preferred: true}
+				klog.Infof("[policy-socket-strict] aep-csi-awared determined hint slice is %v", hint)
+				return hint
 			}
 		}
 	}

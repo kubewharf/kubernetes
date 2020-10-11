@@ -17,7 +17,7 @@ import (
 
 const (
 	AepCsiStorageClass           = "aep-storage-class"
-	AllocateNUMAByTopologyManger = "tce.kubernetes.io/pv-allocate-by-topology"
+	AllocateNUMAByTopologyManger = "tce.kubernetes.io/aep-numa-allocate-by-topology"
 	LVPath                       = "LVPath"
 	LVNUMA                       = "NUMAID"
 	AepCSI                       = "aep-csi"
