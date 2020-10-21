@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	AepCsiStorageClass           = "aep-storage-class"
+	AepCsiStorageClass           = "aep-csi-driver-sc"
 	AllocateNUMAByTopologyManger = "tce.kubernetes.io/aep-numa-allocate-by-topology"
 	LVPath                       = "LVPath"
 	LVNUMA                       = "NUMAID"
@@ -60,7 +60,6 @@ func (aepCSIHintProvider *AepCSIHintProvider) GetTopologyHints(pod *v1.Pod, cont
 	requiredNuma := 0
 	// numa id set of allocated aep device
 	allocatedNumas := sets.NewInt()
-	pvs := sets.NewString()
 	for _, volume := range pod.Spec.Volumes {
 		if volume.PersistentVolumeClaim != nil && len(volume.PersistentVolumeClaim.ClaimName) > 0 {
 			// get pvc from apiserver
@@ -85,13 +84,13 @@ func (aepCSIHintProvider *AepCSIHintProvider) GetTopologyHints(pod *v1.Pod, cont
 				klog.Error("get pv %s for pvc %s failed, err is %s", pvc.Spec.VolumeName, pvc.Name, err.Error())
 				return rejectedHints
 			}
-			// if csi lvpath and num is empty, should allocate numa
+			// if csi lvpath is empty, should allocate numa by topology manager
+			// if num is empty, numa is not allocated yet
 			if len(pv.Spec.CSI.VolumeAttributes[LVPath]) == 0 {
 				requiredNuma += 1
 				klog.Infof("[aep-csi-hint-provider] pod %s container %s pvc name pv %s lv path not set", pod.Name, container.Name, pv.Name)
 				if len(pv.Spec.CSI.VolumeAttributes[LVNUMA]) == 0 {
 					klog.Infof("[aep-csi-hint-provider] pv %s lv numa id not set", pv.Name)
-					pvs.Insert(pv.Name)
 				} else if id, err := strconv.Atoi(pv.Spec.CSI.VolumeAttributes[LVNUMA]); err == nil && id < len(aepCSIHintProvider.numaBits) {
 					klog.Infof("[aep-csi-hint-provider] pv %s lv numa id already set %s", pv.Name, pv.Spec.CSI.VolumeAttributes[LVNUMA])
 					allocatedNumas.Insert(id)
@@ -113,7 +112,7 @@ func (aepCSIHintProvider *AepCSIHintProvider) GetTopologyHints(pod *v1.Pod, cont
 		klog.Error("aep device number %d not equal to numa number %s", requiredNuma, socketLimit.Value())
 		return rejectedHints
 	}
-	// some device allocate while others not
+	// some device allocated while others not
 	if len(allocatedNumas) > 0 && len(allocatedNumas) != requiredNuma {
 		klog.Error()
 		return rejectedHints
