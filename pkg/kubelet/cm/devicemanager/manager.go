@@ -109,7 +109,7 @@ type ManagerImpl struct {
 	allocatedDevices map[string]sets.String
 
 	// podDevices contains pod to allocated device mapping.
-	podDevices        podDevices
+	podDevices        *podDevices
 	checkpointManager checkpointmanager.CheckpointManager
 
 	// List of NUMA Nodes available on the underlying machine
@@ -185,7 +185,7 @@ func newManagerImpl(socketPath string, numaNodeInfo cputopology.NUMANodeInfo, to
 		healthyDevices:        make(map[string]sets.String),
 		unhealthyDevices:      make(map[string]sets.String),
 		allocatedDevices:      make(map[string]sets.String),
-		podDevices:            make(podDevices),
+		podDevices:            newPodDevices(),
 		numaNodes:             numaNodes,
 		topologyAffinityStore: topologyAffinityStore,
 		devicesToReuse:        make(PodReusableDevices),
@@ -459,11 +459,8 @@ func (m *ManagerImpl) Allocate(pod *v1.Pod, container *v1.Container) error {
 func (m *ManagerImpl) UpdatePluginResources(node *schedulernodeinfo.NodeInfo, attrs *lifecycle.PodAdmitAttributes) error {
 	pod := attrs.Pod
 
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-
 	// quick return if no pluginResources requested
-	if _, podRequireDevicePluginResource := m.podDevices[string(pod.UID)]; !podRequireDevicePluginResource {
+	if !m.podDevices.hasPod(string(pod.UID)) {
 		return nil
 	}
 
@@ -1091,9 +1088,7 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 		}
 
 		// Update internal cached podDevices state.
-		m.mutex.Lock()
 		m.podDevices.insert(podUID, contName, resource, allocDevices, resp.ContainerResponses[0])
-		m.mutex.Unlock()
 	}
 
 	// Checkpoints device to container allocation information.
@@ -1156,8 +1151,6 @@ func (m *ManagerImpl) GetDeviceRunContainerOptions(pod *v1.Pod, container *v1.Co
 			return nil, err
 		}
 	}
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
 	return m.podDevices.deviceRunContainerOptions(string(pod.UID), container.Name), nil
 }
 
@@ -1230,6 +1223,9 @@ func (m *ManagerImpl) sanitizeNodeAllocatable(node *schedulernodeinfo.NodeInfo) 
 	if allocatableResource.ScalarResources == nil {
 		allocatableResource.ScalarResources = make(map[v1.ResourceName]int64)
 	}
+
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	for resource, devices := range m.allocatedDevices {
 		needed := devices.Len()
 		quant, ok := allocatableResource.ScalarResources[v1.ResourceName(resource)]
@@ -1249,6 +1245,8 @@ func (m *ManagerImpl) sanitizeNodeAllocatable(node *schedulernodeinfo.NodeInfo) 
 }
 
 func (m *ManagerImpl) isDevicePluginResource(resource string) bool {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	_, registeredResource := m.healthyDevices[resource]
 	_, allocatedResource := m.allocatedDevices[resource]
 	// Return true if this is either an active device plugin resource or
@@ -1261,8 +1259,6 @@ func (m *ManagerImpl) isDevicePluginResource(resource string) bool {
 
 // GetDevices returns the devices used by the specified container
 func (m *ManagerImpl) GetDevices(podUID, containerName string) []*podresourcesapi.ContainerDevices {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
 	return m.podDevices.getContainerDevices(podUID, containerName)
 }
 
