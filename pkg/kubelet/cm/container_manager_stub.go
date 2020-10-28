@@ -139,6 +139,14 @@ func (cm *containerManagerStub) GetCPUs(_, _ string) cpuset.CPUSet {
 	return cpuset.CPUSet{}
 }
 
+func (cm *containerManagerStub) GetAllocatableDevices() devicemanager.ResourceDeviceInstances {
+	return nil
+}
+
+func (cm *containerManagerStub) GetAllocatableCPUs() cpuset.CPUSet {
+	return cpuset.CPUSet{}
+}
+
 func NewStubContainerManager() ContainerManager {
 	return &containerManagerStub{shouldResetExtendedResourceCapacity: false}
 }

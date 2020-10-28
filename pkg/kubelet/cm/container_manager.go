@@ -23,7 +23,7 @@ import (
 	// TODO: Migrate kubelet to either use its own internal objects or client library.
 	v1 "k8s.io/api/core/v1"
 	internalapi "k8s.io/cri-api/pkg/apis"
-	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"
+	"k8s.io/kubernetes/pkg/kubelet/apis/podresources"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/kubernetes/pkg/kubelet/cm/devicemanager"
 	"k8s.io/kubernetes/pkg/kubelet/config"
@@ -106,12 +106,6 @@ type ContainerManager interface {
 	// registration.
 	GetPluginRegistrationHandler() cache.PluginHandler
 
-	// GetDevices returns information about the devices assigned to pods and containers
-	GetDevices(podUID, containerName string) []*podresourcesapi.ContainerDevices
-
-	// GetCPUs returns information about the cpus assigned to pods and containers
-	GetCPUs(podUID, containerName string) cpuset.CPUSet
-
 	// ShouldResetExtendedResourceCapacity returns whether or not the extended resources should be zeroed,
 	// due to node recreation.
 	ShouldResetExtendedResourceCapacity() bool
@@ -121,6 +115,14 @@ type ContainerManager interface {
 
 	// UpdateAllocatedDevices frees any Devices that are bound to terminated pods.
 	UpdateAllocatedDevices()
+
+	// GetResources returns ResourceRunContainerOptions with OCI resources config, annotations and envs fields populated for
+	// resources are managed by qos resource manager and required by container.
+	GetResourceRunContainerOptions(pod *v1.Pod, container *v1.Container) (*kubecontainer.ResourceRunContainerOptions, error)
+
+	// Implements the podresources Provider API for CPUs and Devices
+	podresources.CPUsProvider
+	podresources.DevicesProvider
 }
 
 type NodeConfig struct {
