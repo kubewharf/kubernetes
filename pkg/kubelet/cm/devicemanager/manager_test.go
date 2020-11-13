@@ -657,7 +657,7 @@ func getTestManager(tmpDir string, activePods ActivePodsFunc, testRes []TestReso
 				opts: nil,
 			}
 		}
-		testManager.allDevices[res.resourceName] = makeDevice(res.devs)
+		testManager.allDevices[res.resourceName] = makeDevice(res.devs, res.topology)
 
 	}
 	return testManager, nil
@@ -667,6 +667,7 @@ type TestResource struct {
 	resourceName     string
 	resourceQuantity resource.Quantity
 	devs             checkpoint.DevicesPerNUMA
+	topology         bool
 }
 
 func TestPodContainerDeviceAllocation(t *testing.T) {
@@ -674,11 +675,13 @@ func TestPodContainerDeviceAllocation(t *testing.T) {
 		resourceName:     "domain1.com/resource1",
 		resourceQuantity: *resource.NewQuantity(int64(2), resource.DecimalSI),
 		devs:             checkpoint.DevicesPerNUMA{0: []string{"dev1", "dev2"}},
+		topology:         true,
 	}
 	res2 := TestResource{
 		resourceName:     "domain2.com/resource2",
 		resourceQuantity: *resource.NewQuantity(int64(1), resource.DecimalSI),
 		devs:             checkpoint.DevicesPerNUMA{0: []string{"dev3", "dev4"}},
+		topology:         false,
 	}
 	testResources := make([]TestResource, 2)
 	testResources = append(testResources, res1)
@@ -770,11 +773,13 @@ func TestInitContainerDeviceAllocation(t *testing.T) {
 		resourceName:     "domain1.com/resource1",
 		resourceQuantity: *resource.NewQuantity(int64(2), resource.DecimalSI),
 		devs:             checkpoint.DevicesPerNUMA{0: []string{"dev1", "dev2"}},
+		topology:         false,
 	}
 	res2 := TestResource{
 		resourceName:     "domain2.com/resource2",
 		resourceQuantity: *resource.NewQuantity(int64(1), resource.DecimalSI),
 		devs:             checkpoint.DevicesPerNUMA{0: []string{"dev3", "dev4"}},
+		topology:         true,
 	}
 	testResources := make([]TestResource, 2)
 	testResources = append(testResources, res1)
@@ -922,6 +927,7 @@ func TestDevicePreStartContainer(t *testing.T) {
 		resourceName:     "domain1.com/resource1",
 		resourceQuantity: *resource.NewQuantity(int64(2), resource.DecimalSI),
 		devs:             checkpoint.DevicesPerNUMA{0: []string{"dev1", "dev2"}},
+		topology:         false,
 	}
 	as := require.New(t)
 	podsStub := activePodsStub{
@@ -1058,11 +1064,17 @@ func allocateStubFunc() func(devs []string) (*pluginapi.AllocateResponse, error)
 	}
 }
 
-func makeDevice(devOnNUMA checkpoint.DevicesPerNUMA) map[string]pluginapi.Device {
+func makeDevice(devOnNUMA checkpoint.DevicesPerNUMA, topology bool) map[string]pluginapi.Device {
 	res := make(map[string]pluginapi.Device)
+	var topologyInfo *pluginapi.TopologyInfo
 	for node, devs := range devOnNUMA {
+		if topology {
+			topologyInfo = &pluginapi.TopologyInfo{Nodes: []*pluginapi.NUMANode{{ID: node}}}
+		} else {
+			topologyInfo = nil
+		}
 		for idx := range devs {
-			res[devs[idx]] = pluginapi.Device{ID: devs[idx], Topology: &pluginapi.TopologyInfo{Nodes: []*pluginapi.NUMANode{{ID: node}}}}
+			res[devs[idx]] = pluginapi.Device{ID: devs[idx], Topology: topologyInfo}
 		}
 	}
 	return res
