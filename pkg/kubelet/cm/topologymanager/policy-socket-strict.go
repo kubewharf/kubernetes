@@ -199,6 +199,11 @@ func matchFilteredHints(numaNodes []int, filteredHints [][]TopologyHint, candida
 		// Get the NUMANodeAffinity from each hint in the permutation and see if any
 		// of them encode unpreferred allocations.
 		mergedHint := mergePermutation(numaNodes, permutation)
+		// Only consider mergedHints that result in a NUMANodeAffinity > 0 to
+		// replace the current bestHint.
+		if mergedHint.NUMANodeAffinity.Count() == 0 {
+			return
+		}
 
 		// hint can only be sub set of candidate hint
 		for _, bit := range mergedHint.NUMANodeAffinity.GetBits() {
