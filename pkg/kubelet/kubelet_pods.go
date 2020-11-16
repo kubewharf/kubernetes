@@ -526,19 +526,27 @@ func (kl *Kubelet) GenerateRunContainerOptions(pod *v1.Pod, container *v1.Contai
 		// add NVIDIA_VISIBLE_DEVICES env to mps sidecar
 		const gpuResource = "nvidia.com/gpu"
 		const nvidiaVisibleDevicesEnv = "NVIDIA_VISIBLE_DEVICES"
-		for _, c := range pod.Spec.Containers {
-			if gpuLimit, ok := c.Resources.Limits[gpuResource]; ok {
-				// pod has gpu limit, but this container has no gpu limit
-				if !gpuLimit.IsZero() && c.Name != container.Name {
+		// this container has no gpu resource request
+		if containerGPULimit := container.Resources.Limits[gpuResource]; containerGPULimit.IsZero() {
+			for _, c := range pod.Spec.Containers {
+				// but other container in pod has gpu limit
+				if gpuLimit, ok := c.Resources.Limits[gpuResource]; ok && !gpuLimit.IsZero() && c.Name != container.Name {
 					// get option of gpu container, extract NVIDIA_VISIBLE_DEVICES env
 					if resourceOptions, err := kl.containerManager.GetResources(pod, &c); err == nil {
+						sidecarNvidiaVisibleDevicesEnvInjected := false
 						for _, env := range resourceOptions.Envs {
 							if env.Name == nvidiaVisibleDevicesEnv {
 								opts.Envs = append(opts.Envs, env)
 								klog.Infof("inject NVIDIA_VISIBLE_DEVICES env %s to sidecar container %s of pod %s", env.Value, c.Name, pod.Name)
+								sidecarNvidiaVisibleDevicesEnvInjected = true
 								break
 							}
 						}
+						if !sidecarNvidiaVisibleDevicesEnvInjected {
+							return nil, nil, fmt.Errorf("failed to inject NVIDIA_VISIBLE_DEVICES env to sidecar container %s of pod %s because no env found", c.Name, pod.Name)
+						}
+					} else {
+						return nil, nil, fmt.Errorf("failed to inject NVIDIA_VISIBLE_DEVICES env to sidecar container %s of pod %s, err is %v", c.Name, pod.Name, err)
 					}
 				}
 			}
