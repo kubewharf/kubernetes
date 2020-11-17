@@ -39,7 +39,7 @@ func (m *ManagerImpl) GetTopologyHints(pod *v1.Pod, container *v1.Container) map
 		requested := int(requestedObj.Value())
 
 		// Only consider resources associated with a device plugin.
-		if m.isDevicePluginResource(resource) {
+		if m.isDevicePluginResource(resource) && !requestedObj.IsZero() {
 			// Only consider devices that actually container topology information.
 			if aligned := m.deviceHasTopologyAlignment(resource); !aligned {
 				klog.Infof("[devicemanager] Resource '%v' does not have a topology preference", resource)
