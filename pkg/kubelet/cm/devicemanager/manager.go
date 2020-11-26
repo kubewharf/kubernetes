@@ -206,8 +206,8 @@ func newManagerImpl(socketPath string, numaNodeInfo cputopology.NUMANodeInfo, to
 }
 
 func (m *ManagerImpl) genericDeviceUpdateCallback(resourceName string, devices []pluginapi.Device) {
+	klog.Infof("Get changes from device plugin, resource: %s, devices: %+v", resourceName, devices)
 	if resourceName == refinedResource {
-		klog.Infof("Get changes from device plugin, resource: %s, devices: %+v", resourceName, devices)
 		if err := m.writeRefinedResourceToStateFile(devices, refinedResourceStateFile); err != nil {
 			klog.Errorf("Fail to write RefinedNodeResource state file: %v", err)
 		}
