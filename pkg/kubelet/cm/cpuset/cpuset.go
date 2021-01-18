@@ -199,6 +199,27 @@ func (s CPUSet) ToSliceNoSort() []int {
 	return result
 }
 
+// ToSliceInt64 returns an ordered slice of int64 that contains all elements from
+// this set
+func (s CPUSet) ToSliceInt64() []int64 {
+	var result []int64
+	for cpu := range s.elems {
+		result = append(result, int64(cpu))
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
+	return result
+}
+
+// ToSliceNoSortInt64 returns a slice of int64 that contains all elements from
+// this set.
+func (s CPUSet) ToSliceNoSortInt64() []int64 {
+	var result []int64
+	for cpu := range s.elems {
+		result = append(result, int64(cpu))
+	}
+	return result
+}
+
 // String returns a new string representation of the elements in this CPU set
 // in canonical linux CPU list format.
 //
