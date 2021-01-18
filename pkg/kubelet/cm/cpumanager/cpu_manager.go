@@ -84,7 +84,7 @@ type Manager interface {
 
 	// GetCPUs implements the podresources.CPUsProvider interface to provide allocated
 	// cpus for the container
-	GetCPUs(podUID, containerName string) []int64
+	GetCPUs(podUID, containerName string) cpuset.CPUSet
 
 	// GetPodTopologyHints implements the topologymanager.HintProvider Interface
 	// and is consulted to achieve NUMA aware resource alignment per Pod
@@ -520,11 +520,6 @@ func (m *manager) setPodPendingAdmission(pod *v1.Pod) {
 	m.pendingAdmissionPod = pod
 }
 
-func (m *manager) GetCPUs(podUID, containerName string) []int64 {
-	cpus := m.state.GetCPUSetOrDefault(string(podUID), containerName)
-	result := []int64{}
-	for _, cpu := range cpus.ToSliceNoSort() {
-		result = append(result, int64(cpu))
-	}
-	return result
+func (m *manager) GetCPUs(podUID, containerName string) cpuset.CPUSet {
+	return m.state.GetCPUSetOrDefault(podUID, containerName)
 }
