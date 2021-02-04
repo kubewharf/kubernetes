@@ -661,6 +661,12 @@ const (
 	//
 	// if PodExplicitDeletion enabled, pod deletionTimestamp must be set before kubelet stops containers.
 	PodExplicitDeletion featuregate.Feature = "PodExplicitDeletion"
+
+	// owner: @fromanirh
+	// alpha: v1.21
+	//
+	// Enable POD resources API to return allocatable resources
+	KubeletPodResourcesGetAllocatable featuregate.Feature = "KubeletPodResourcesGetAllocatable"
 )
 
 func init() {
@@ -764,6 +770,8 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 	AepCSITopologyAware:                            {Default: false, PreRelease: featuregate.Alpha},
 	GPUSidecarVisibleDevice:                        {Default: false, PreRelease: featuregate.Alpha},
 	AutoNICNumaAffinity:                            {Default: false, PreRelease: featuregate.Alpha},
+	KubeletPodResourcesGetAllocatable:              {Default: false, PreRelease: featuregate.Alpha},
+
 	// inherited features from generic apiserver, relisted here to get a conflict if it is changed
 	// unintentionally on either side:
 	genericfeatures.StreamingProxyRedirects: {Default: true, PreRelease: featuregate.Deprecated},
