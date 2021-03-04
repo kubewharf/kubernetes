@@ -24,6 +24,7 @@ import (
 	internalapi "k8s.io/cri-api/pkg/apis"
 	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpumanager"
+	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/kubernetes/pkg/kubelet/cm/devicemanager"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	"k8s.io/kubernetes/pkg/kubelet/config"
@@ -134,8 +135,8 @@ func (cm *containerManagerStub) GetResourceRunContainerOptions(pod *v1.Pod, cont
 	return &kubecontainer.ResourceRunContainerOptions{}, nil
 }
 
-func (cm *containerManagerStub) GetCPUs(_, _ string) []int64 {
-	return nil
+func (cm *containerManagerStub) GetCPUs(_, _ string) cpuset.CPUSet {
+	return cpuset.CPUSet{}
 }
 
 func NewStubContainerManager() ContainerManager {
