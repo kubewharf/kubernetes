@@ -579,6 +579,9 @@ func (m *MockEndpoint) isStopped() bool { return false }
 func (m *MockEndpoint) stopGracePeriodExpired() bool { return false }
 
 func (e *MockEndpoint) getPreferredAllocation(available, mustInclude []string, size int) (*pluginapi.PreferredAllocationResponse, error) {
+	if e.getPreferredAllocationFunc != nil {
+		return e.getPreferredAllocationFunc(available, mustInclude, size)
+	}
 	return nil, nil
 }
 
