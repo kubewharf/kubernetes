@@ -38,7 +38,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
-	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	"k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager"
@@ -181,7 +180,7 @@ func newManagerImpl(socketPath string, numaNodeInfo cputopology.NUMANodeInfo, to
 
 		socketname:            file,
 		socketdir:             dir,
-		allDevices:            make(map[string]map[string]pluginapi.Device),
+		allDevices:            NewResourceDeviceInstances(),
 		healthyDevices:        make(map[string]sets.String),
 		unhealthyDevices:      make(map[string]sets.String),
 		allocatedDevices:      make(map[string]sets.String),
@@ -1285,7 +1284,7 @@ func (m *ManagerImpl) GetAllocatableDevices() ResourceDeviceInstances {
 }
 
 // GetDevices returns the devices used by the specified container
-func (m *ManagerImpl) GetDevices(podUID, containerName string) []*podresourcesapi.ContainerDevices {
+func (m *ManagerImpl) GetDevices(podUID, containerName string) ResourceDeviceInstances {
 	return m.podDevices.getContainerDevices(podUID, containerName)
 }
 

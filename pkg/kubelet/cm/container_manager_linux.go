@@ -48,7 +48,6 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	internalapi "k8s.io/cri-api/pkg/apis"
-	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"
 	v1resource "k8s.io/kubernetes/pkg/api/v1/resource"
 	kubefeatures "k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/kubelet/cadvisor"
@@ -1097,7 +1096,7 @@ func (cm *containerManagerImpl) GetDevicePluginRefinedResource() devicemanager.D
 	return cm.deviceManager.GetRefinedResource()
 }
 
-func (cm *containerManagerImpl) GetDevices(podUID, containerName string) []*podresourcesapi.ContainerDevices {
+func (cm *containerManagerImpl) GetDevices(podUID, containerName string) devicemanager.ResourceDeviceInstances {
 	return cm.deviceManager.GetDevices(podUID, containerName)
 }
 
