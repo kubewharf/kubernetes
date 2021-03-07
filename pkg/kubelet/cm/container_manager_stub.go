@@ -22,8 +22,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 	internalapi "k8s.io/cri-api/pkg/apis"
+	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpumanager"
-	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/kubernetes/pkg/kubelet/cm/devicemanager"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	"k8s.io/kubernetes/pkg/kubelet/config"
@@ -114,11 +114,11 @@ func (cm *containerManagerStub) GetPodCgroupRoot() string {
 	return ""
 }
 
-func (cm *containerManagerStub) GetDevices(_, _ string) devicemanager.ResourceDeviceInstances {
+func (cm *containerManagerStub) GetDevices(_, _ string) []*podresourcesapi.ContainerDevices {
 	return nil
 }
 
-func (cm *containerManagerStub) GetAllocatableDevices() devicemanager.ResourceDeviceInstances {
+func (cm *containerManagerStub) GetAllocatableDevices() []*podresourcesapi.ContainerDevices {
 	return nil
 }
 
@@ -138,12 +138,12 @@ func (cm *containerManagerStub) GetResourceRunContainerOptions(pod *v1.Pod, cont
 	return &kubecontainer.ResourceRunContainerOptions{}, nil
 }
 
-func (cm *containerManagerStub) GetCPUs(_, _ string) cpuset.CPUSet {
-	return cpuset.CPUSet{}
+func (cm *containerManagerStub) GetCPUs(_, _ string) []int64 {
+	return nil
 }
 
-func (cm *containerManagerStub) GetAllocatableCPUs() cpuset.CPUSet {
-	return cpuset.CPUSet{}
+func (cm *containerManagerStub) GetAllocatableCPUs() []int64 {
+	return nil
 }
 
 func NewStubContainerManager() ContainerManager {
