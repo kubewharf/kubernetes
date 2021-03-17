@@ -211,6 +211,21 @@ func ResourceConfigForPod(pod *v1.Pod, enforceCPULimits bool, cpuPeriod uint64) 
 		shares := uint64(MinShares)
 		result.CpuShares = &shares
 	}
+
+	if v1helper.IsVMRuntime(pod) {
+		// Re-set outbound resource limit for kata pod, do not care zero-resource containers in pod.
+		result.CpuQuota = &cpuQuota
+		result.CpuPeriod = &cpuPeriod
+		result.Memory = &memoryLimits
+
+		// Offline kata pod, use min shares
+		if v1helper.IsOfflinePod(pod) {
+			shares := uint64(MinShares)
+			result.CpuShares = &shares
+		}
+
+	}
+
 	result.HugePageLimit = hugePageLimits
 	return result
 }
