@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	utilpod "k8s.io/kubernetes/pkg/api/pod"
 	api "k8s.io/kubernetes/pkg/apis/core"
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
 )
@@ -39,7 +40,11 @@ func newSourceApiserverFromLW(lw cache.ListerWatcher, updates chan<- interface{}
 	send := func(objs []interface{}) {
 		var pods []*v1.Pod
 		for _, o := range objs {
-			pods = append(pods, o.(*v1.Pod))
+			pod := o.(*v1.Pod)
+			if pod != nil && utilpod.LauncherIsNodeManager(pod.Annotations) {
+				continue
+			}
+			pods = append(pods, pod)
 		}
 		updates <- kubetypes.PodUpdate{Pods: pods, Op: kubetypes.SET, Source: kubetypes.ApiserverSource}
 	}

@@ -185,6 +185,9 @@ func (gcc *PodGCController) gcOrphaned(pods []*v1.Pod, nodes []*v1.Node) {
 		if !deletedNodesNames.Has(pod.Spec.NodeName) {
 			continue
 		}
+		if pod != nil && utilpod.LauncherIsNodeManager(pod.Annotations) {
+			continue
+		}
 		klog.V(2).Infof("Found orphaned Pod %v/%v assigned to the Node %v. Deleting.", pod.Namespace, pod.Name, pod.Spec.NodeName)
 		if err := gcc.deletePod(pod.Namespace, pod.Name); err != nil {
 			utilruntime.HandleError(err)

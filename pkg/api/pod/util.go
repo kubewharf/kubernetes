@@ -95,6 +95,10 @@ const (
 	PodRootFSVolumeNameAnnotation     = "pod.tce.kubernetes.io/rootfs-volume-name"
 	PodExplicitDeletionAnnotation     = "pod.kubernetes.io/explicit.deletion"
 	PodGCGracefulSecondsAnnotation    = "pod.kubernetes.io/gc-graceful-secs"
+	PodLauncherAnnotationKey          = "godel.bytedance.com/pod-launcher"
+
+	PodLauncherKubelet     = "kubelet"
+	PodLauncherNodeManager = "node-manager"
 )
 
 func GetOverridePorts(pod *v1.Pod) sets.String {
@@ -773,4 +777,14 @@ func EnablePodExplicitDeletion(annotations map[string]string) bool {
 	}
 
 	return false
+}
+
+// LauncherIsKubelet returns whether pod launcher is kubelet
+func LauncherIsKubelet(annotations map[string]string) bool {
+	return annotations[PodLauncherAnnotationKey] == PodLauncherKubelet
+}
+
+//LauncherIsNodeManager returns whether pod launcher is node manager
+func LauncherIsNodeManager(annotations map[string]string) bool {
+	return annotations[PodLauncherAnnotationKey] == PodLauncherNodeManager
 }
