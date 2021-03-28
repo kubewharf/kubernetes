@@ -99,6 +99,7 @@ type Attributes struct {
 	ReadOnly        bool
 	Managed         bool
 	SupportsSELinux bool
+	SkipSubPath     bool
 }
 
 // MounterArgs provides more easily extensible arguments to Mounter

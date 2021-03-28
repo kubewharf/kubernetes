@@ -17,6 +17,7 @@ limitations under the License.
 package noop
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -49,22 +50,77 @@ func TestCanSupport(t *testing.T) {
 	if plug.CanSupport(&volume.Spec{Volume: &v1.Volume{VolumeSource: v1.VolumeSource{}}}) {
 		t.Errorf("Expected false")
 	}
-	if !plug.CanSupport(&volume.Spec{PersistentVolume: &v1.PersistentVolume{
-		ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{volumeutil.VolumePluginNoopAnnotationKey: "true"}},
-		Spec: v1.PersistentVolumeSpec{
-			PersistentVolumeSource: v1.PersistentVolumeSource{
-				CephFS: &v1.CephFSPersistentVolumeSource{}}}}}) {
 
-		t.Errorf("Expected true")
+	testCases := map[string]struct {
+		volumeSpec *volume.Spec
+		exepcted   bool
+	}{
+		"empty volumesource": {
+			volumeSpec: &volume.Spec{Volume: &v1.Volume{VolumeSource: v1.VolumeSource{}}},
+			exepcted:   false,
+		},
+		"cephfs": {
+			volumeSpec: &volume.Spec{PersistentVolume: &v1.PersistentVolume{
+				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{volumeutil.VolumePluginNoopAnnotationKey: "true"}},
+				Spec: v1.PersistentVolumeSpec{
+					PersistentVolumeSource: v1.PersistentVolumeSource{
+						CephFS: &v1.CephFSPersistentVolumeSource{}}}},
+			},
+			exepcted: true,
+		},
+		"nfs": {
+			volumeSpec: &volume.Spec{PersistentVolume: &v1.PersistentVolume{
+				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{volumeutil.VolumePluginNoopAnnotationKey: "true"}},
+				Spec: v1.PersistentVolumeSpec{
+					PersistentVolumeSource: v1.PersistentVolumeSource{
+						NFS: &v1.NFSVolumeSource{}}}},
+			},
+			exepcted: true,
+		},
+		"bytedrive": {
+			volumeSpec: &volume.Spec{PersistentVolume: &v1.PersistentVolume{
+				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{volumeutil.VolumePluginNoopAnnotationKey: "true"}},
+				Spec: v1.PersistentVolumeSpec{
+					PersistentVolumeSource: v1.PersistentVolumeSource{
+						CSI: &v1.CSIPersistentVolumeSource{Driver: volumeutil.ByteDriveCSIDriverName}}}},
+			},
+			exepcted: true,
+		},
+		"zenya": {
+			volumeSpec: &volume.Spec{PersistentVolume: &v1.PersistentVolume{
+				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{volumeutil.VolumePluginNoopAnnotationKey: "true"}},
+				Spec: v1.PersistentVolumeSpec{
+					PersistentVolumeSource: v1.PersistentVolumeSource{
+						CSI: &v1.CSIPersistentVolumeSource{Driver: volumeutil.ZenyaCSIDriverName}}}},
+			},
+			exepcted: true,
+		},
+		"other-csi": {
+			volumeSpec: &volume.Spec{PersistentVolume: &v1.PersistentVolume{
+				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{volumeutil.VolumePluginNoopAnnotationKey: "true"}},
+				Spec: v1.PersistentVolumeSpec{
+					PersistentVolumeSource: v1.PersistentVolumeSource{
+						CSI: &v1.CSIPersistentVolumeSource{Driver: "test-driver"}}}},
+			},
+			exepcted: false,
+		},
+	}
+
+	for name, tc := range testCases {
+		canSupport := plug.CanSupport(tc.volumeSpec)
+		if canSupport != tc.exepcted {
+			t.Errorf("Volume %s: expected %v, but got %v", name, tc.exepcted, canSupport)
+		}
 	}
 }
 
-func TestPlugin(t *testing.T) {
+func doTestPlugin(t *testing.T, spec *volume.Spec) {
 	tmpDir, err := utiltesting.MkTmpdir("noopTest")
 	if err != nil {
 		t.Fatalf("can't make a temp dir: %v", err)
 	}
 	defer os.RemoveAll(tmpDir)
+
 	plugMgr := volume.VolumePluginMgr{}
 	plugMgr.InitPlugins(ProbeVolumePlugins(), nil /* prober */, volumetest.NewFakeVolumeHost(t, tmpDir, nil, nil))
 	plug, err := plugMgr.FindPluginByName("kubernetes.io/noop")
@@ -79,18 +135,13 @@ func TestPlugin(t *testing.T) {
 			UID: types.UID("poduid"),
 		},
 	}
-	spec := &v1.Volume{
-		Name: "vol1",
-		VolumeSource: v1.VolumeSource{
-			CephFS: &v1.CephFSVolumeSource{
-				Monitors:   []string{"a", "b"},
-				User:       "user",
-				SecretRef:  nil,
-				SecretFile: "/etc/ceph/user.secret",
-			},
-		},
+
+	wrappedVol, err := plug.(*noopPlugin).constructVolume(spec, pod)
+	if err != nil {
+		t.Fatalf("Failed to construct wrapped volume: %v", err)
 	}
-	mounter, err := plug.(*noopPlugin).newMounterInternal(volume.NewSpecFromVolume(spec), pod, &physicalMounter, nil)
+
+	mounter, err := plug.(*noopPlugin).newMounterInternal(spec, pod, &physicalMounter, wrappedVol, false)
 	if err != nil {
 		t.Errorf("Failed to make a new Mounter: %v", err)
 	}
@@ -98,9 +149,9 @@ func TestPlugin(t *testing.T) {
 		t.Errorf("Got a nil Mounter")
 	}
 	volumePath := mounter.GetPath()
-	volpath := path.Join(tmpDir, "pods/poduid/volumes/kubernetes.io~noop/vol1")
+	volpath := path.Join(tmpDir, fmt.Sprintf("pods/poduid/volumes/kubernetes.io~noop/%s", spec.Name()))
 	if volumePath != volpath {
-		t.Errorf("Got unexpected path: %s", volumePath)
+		t.Errorf("Got unexpected path: %s, expected: %s", volumePath, volpath)
 	}
 	if err := mounter.SetUp(volume.MounterArgs{}); err != nil {
 		t.Errorf("Expected success, got: %v", err)
@@ -112,7 +163,7 @@ func TestPlugin(t *testing.T) {
 			t.Errorf("SetUp() failed: %v", err)
 		}
 	}
-	unmounter, err := plug.(*noopPlugin).newUnmounterInternal("vol1", types.UID("poduid"), &mount.FakeMounter{})
+	unmounter, err := plug.(*noopPlugin).newUnmounterInternal(spec.Name(), types.UID("poduid"), &mount.FakeMounter{})
 	if err != nil {
 		t.Errorf("Failed to make a new Unmounter: %v", err)
 	}
@@ -126,5 +177,142 @@ func TestPlugin(t *testing.T) {
 		t.Errorf("TearDown() failed, volume path still exists: %s", volumePath)
 	} else if !os.IsNotExist(err) {
 		t.Errorf("TearDown() failed: %v", err)
+	}
+}
+
+func TestPlugin(t *testing.T) {
+	testCases := map[string]struct {
+		volumeSpec *volume.Spec
+	}{
+		"cephfs": {
+			volumeSpec: &volume.Spec{PersistentVolume: &v1.PersistentVolume{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "cephfs",
+					Annotations: map[string]string{volumeutil.VolumePluginNoopAnnotationKey: "true"},
+				},
+				Spec: v1.PersistentVolumeSpec{
+					PersistentVolumeSource: v1.PersistentVolumeSource{
+						CephFS: &v1.CephFSPersistentVolumeSource{}}}},
+			},
+		},
+		"nfs": {
+			volumeSpec: &volume.Spec{PersistentVolume: &v1.PersistentVolume{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "nfs",
+					Annotations: map[string]string{volumeutil.VolumePluginNoopAnnotationKey: "true"},
+				},
+				Spec: v1.PersistentVolumeSpec{
+					PersistentVolumeSource: v1.PersistentVolumeSource{
+						NFS: &v1.NFSVolumeSource{}}}},
+			},
+		},
+		"bytedrive": {
+			volumeSpec: &volume.Spec{PersistentVolume: &v1.PersistentVolume{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "bytedrive",
+					Annotations: map[string]string{volumeutil.VolumePluginNoopAnnotationKey: "true"},
+				},
+				Spec: v1.PersistentVolumeSpec{
+					PersistentVolumeSource: v1.PersistentVolumeSource{
+						CSI: &v1.CSIPersistentVolumeSource{
+							Driver: volumeutil.ByteDriveCSIDriverName,
+							VolumeAttributes: map[string]string{
+								"clusterName":   "cluster1",
+								"regionName":    "region1",
+								"bytedriveUUID": "uuid",
+							},
+						},
+					},
+				}},
+			},
+		},
+		"zenya": {
+			volumeSpec: &volume.Spec{PersistentVolume: &v1.PersistentVolume{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "zenya",
+					Annotations: map[string]string{volumeutil.VolumePluginNoopAnnotationKey: "true"},
+				},
+				Spec: v1.PersistentVolumeSpec{
+					PersistentVolumeSource: v1.PersistentVolumeSource{
+						CSI: &v1.CSIPersistentVolumeSource{
+							Driver: volumeutil.ZenyaCSIDriverName,
+							VolumeAttributes: map[string]string{
+								"portal": "portal1",
+								"token":  "token1",
+							},
+						},
+					},
+				}},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		doTestPlugin(t, tc.volumeSpec)
+	}
+}
+
+func doTestConstructVolumeSpec(t *testing.T, volumeName string, vol *wrappedVolume) {
+	tmpDir, err := utiltesting.MkTmpdir("noopTest")
+	if err != nil {
+		t.Fatalf("can't make a temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if err := writeWrappedVolumeSpec(tmpDir, vol); err != nil {
+		t.Fatalf("write volume json faile failed: %v", err)
+	}
+
+	plugMgr := volume.VolumePluginMgr{}
+	plugMgr.InitPlugins(ProbeVolumePlugins(), nil /* prober */, volumetest.NewFakeVolumeHost(t, tmpDir, nil, nil))
+	plug, err := plugMgr.FindPluginByName("kubernetes.io/noop")
+	if err != nil {
+		t.Fatalf("Can't find the plugin by name")
+	}
+
+	spec, err := plug.ConstructVolumeSpec(volumeName, tmpDir)
+	if err != nil {
+		t.Fatalf("construct volume spec failed: %v", err)
+	}
+
+	if spec == nil || spec.PersistentVolume == nil {
+		t.Fatalf("construct spec pv failed")
+	}
+
+	if vol.CephFS != nil && spec.PersistentVolume.Spec.CephFS == nil {
+		t.Fatalf("construct %s volume spec pv failed", volumeName)
+	}
+
+	if vol.NFS != nil && spec.PersistentVolume.Spec.NFS == nil {
+		t.Fatalf("construct %s volume spec pv failed", volumeName)
+	}
+
+	if vol.Bytedrive != nil && (spec.PersistentVolume.Spec.CSI == nil || spec.PersistentVolume.Spec.CSI.Driver != volumeutil.ByteDriveCSIDriverName) {
+		t.Fatalf("construct %s volume spec pv failed", volumeName)
+	}
+
+	if vol.Zenya != nil && (spec.PersistentVolume.Spec.CSI == nil || spec.PersistentVolume.Spec.CSI.Driver != volumeutil.ZenyaCSIDriverName) {
+		t.Fatalf("construct %s volume spec pv failed", volumeName)
+	}
+}
+
+func TestConstructVolumeSpec(t *testing.T) {
+	testCases := map[string]*wrappedVolume{
+		"cephfs": {
+			CephFS: &cephfs{},
+		},
+		"nfs": {
+			NFS: &nfs{},
+		},
+		"bytedrive": {
+			Bytedrive: &bytedriveBlk{},
+		},
+		"zenya": {
+			Zenya: &zenyaBlk{},
+		},
+	}
+
+	for key, tc := range testCases {
+		doTestConstructVolumeSpec(t, key, tc)
 	}
 }

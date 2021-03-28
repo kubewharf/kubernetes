@@ -228,18 +228,24 @@ func makeMounts(pod *v1.Pod, podDir string, container *v1.Container, hostName, h
 					return nil, cleanupAction, fmt.Errorf("failed to create subPath directory for volumeMount %q of container %q", mount.Name, container.Name)
 				}
 			}
-			hostPath, cleanupAction, err = subpather.PrepareSafeSubpath(subpath.Subpath{
-				VolumeMountIndex: i,
-				Path:             hostPath,
-				VolumeName:       vol.InnerVolumeSpecName,
-				VolumePath:       volumePath,
-				PodDir:           podDir,
-				ContainerName:    container.Name,
-			})
-			if err != nil {
-				// Don't pass detailed error back to the user because it could give information about host filesystem
-				klog.Errorf("failed to prepare subPath for volumeMount %q of container %q: %v", mount.Name, container.Name, err)
-				return nil, cleanupAction, fmt.Errorf("failed to prepare subPath for volumeMount %q of container %q", mount.Name, container.Name)
+
+			mntAttrs := vol.Mounter.GetAttributes()
+			if !mntAttrs.SkipSubPath {
+				hostPath, cleanupAction, err = subpather.PrepareSafeSubpath(subpath.Subpath{
+					VolumeMountIndex: i,
+					Path:             hostPath,
+					VolumeName:       vol.InnerVolumeSpecName,
+					VolumePath:       volumePath,
+					PodDir:           podDir,
+					ContainerName:    container.Name,
+				})
+				if err != nil {
+					// Don't pass detailed error back to the user because it could give information about host filesystem
+					klog.Errorf("failed to prepare subPath for volumeMount %q of container %q: %v", mount.Name, container.Name, err)
+					return nil, cleanupAction, fmt.Errorf("failed to prepare subPath for volumeMount %q of container %q", mount.Name, container.Name)
+				}
+			} else {
+				klog.Infof("Pod %q container %q mount %s skip subpath %s", format.Pod(pod), container.Name, mount.Name, subPath)
 			}
 		}
 

@@ -330,8 +330,9 @@ func (dswp *desiredStateOfWorldPopulator) processPodVolumes(
 		}
 
 		if volumeSpec.PersistentVolume != nil {
-			if volumeSpec.PersistentVolume.Spec.CephFS != nil {
-				if helper.IsVMRuntime(pod) {
+			if helper.IsVMRuntime(pod) {
+				if volumeSpec.PersistentVolume.Spec.CephFS != nil || volumeSpec.PersistentVolume.Spec.NFS != nil ||
+					(volumeSpec.PersistentVolume.Spec.CSI != nil && util.ShouldCSIPVSkip(volumeSpec.PersistentVolume)) {
 					util.SetPVManagedByNoopPlugin(volumeSpec.PersistentVolume)
 				}
 			}
