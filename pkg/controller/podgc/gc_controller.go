@@ -102,12 +102,24 @@ func (gcc *PodGCController) Run(stop <-chan struct{}) {
 	<-stop
 }
 
+func filterPodsLaunchedByNodeManger(pods []*v1.Pod) []*v1.Pod {
+	filtered := make([]*v1.Pod, 0)
+	for _, pod := range pods {
+		if pod == nil || utilpod.LauncherIsNodeManager(pod.Annotations) {
+			continue
+		}
+		filtered = append(filtered, pod)
+	}
+	return filtered
+}
+
 func (gcc *PodGCController) gc() {
 	pods, err := gcc.podLister.List(labels.Everything())
 	if err != nil {
 		klog.Errorf("Error while listing all pods: %v", err)
 		return
 	}
+	pods = filterPodsLaunchedByNodeManger(pods)
 	nodes, err := gcc.nodeLister.List(labels.Everything())
 	if err != nil {
 		klog.Errorf("Error while listing all nodes: %v", err)
@@ -183,9 +195,6 @@ func (gcc *PodGCController) gcOrphaned(pods []*v1.Pod, nodes []*v1.Node) {
 	// Delete orphaned pods
 	for _, pod := range pods {
 		if !deletedNodesNames.Has(pod.Spec.NodeName) {
-			continue
-		}
-		if pod != nil && utilpod.LauncherIsNodeManager(pod.Annotations) {
 			continue
 		}
 		klog.V(2).Infof("Found orphaned Pod %v/%v assigned to the Node %v. Deleting.", pod.Namespace, pod.Name, pod.Spec.NodeName)
