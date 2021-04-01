@@ -41,7 +41,7 @@ func newSourceApiserverFromLW(lw cache.ListerWatcher, updates chan<- interface{}
 		var pods []*v1.Pod
 		for _, o := range objs {
 			pod := o.(*v1.Pod)
-			if pod != nil && utilpod.LauncherIsNodeManager(pod.Annotations) {
+			if skipForKubelet(pod) {
 				continue
 			}
 			pods = append(pods, pod)
@@ -50,4 +50,17 @@ func newSourceApiserverFromLW(lw cache.ListerWatcher, updates chan<- interface{}
 	}
 	r := cache.NewReflector(lw, &v1.Pod{}, cache.NewUndeltaStore(send, cache.MetaNamespaceKeyFunc), 0)
 	go r.Run(wait.NeverStop)
+}
+
+func skipForKubelet(pod *v1.Pod) bool {
+	if !utilpod.LauncherIsSet(pod.Annotations) {
+		return false
+	}
+	if utilpod.LauncherIsNodeManager(pod.Annotations) {
+		return true
+	}
+	if pod.Status.Phase == v1.PodPending && !utilpod.LauncherIsKubelet(pod.Annotations) {
+		return true
+	}
+	return false
 }

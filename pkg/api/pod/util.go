@@ -788,3 +788,8 @@ func LauncherIsKubelet(annotations map[string]string) bool {
 func LauncherIsNodeManager(annotations map[string]string) bool {
 	return annotations[PodLauncherAnnotationKey] == PodLauncherNodeManager
 }
+
+//LauncherIsSet returns whether pod launcher is set
+func LauncherIsSet(annotations map[string]string) bool {
+	return len(annotations[PodLauncherAnnotationKey]) != 0
+}

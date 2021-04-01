@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog"
+	utilpod "k8s.io/kubernetes/pkg/api/pod"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
 	"k8s.io/kubernetes/pkg/kubelet/util/format"
@@ -169,6 +170,40 @@ func (a *appArmorAdmitHandler) Admit(attrs *PodAdmitAttributes) PodAdmitResult {
 		Reason:  "AppArmor",
 		Message: fmt.Sprintf("Cannot enforce AppArmor: %v", err),
 	}
+}
+
+func NewPodLauncherAdmitHandler() PodAdmitHandler {
+	return &podLauncherAdmitHandler{}
+}
+
+type podLauncherAdmitHandler struct{}
+
+func isLauncherAdmitting(pod *v1.Pod) bool {
+	if !utilpod.LauncherIsSet(pod.Annotations) {
+		return true
+	}
+	if utilpod.LauncherIsNodeManager(pod.Annotations) {
+		return false
+	}
+	if pod.Status.Phase == v1.PodPending {
+		if utilpod.LauncherIsKubelet(pod.Annotations) {
+			return true
+		} else {
+			return false
+		}
+	}
+	return true
+}
+
+func (a *podLauncherAdmitHandler) Admit(attrs *PodAdmitAttributes) PodAdmitResult {
+	if !isLauncherAdmitting(attrs.Pod) {
+		return PodAdmitResult{
+			Admit:   false,
+			Reason:  "IllegalPodLauncher",
+			Message: fmt.Sprintf("pod launcher is illegal for the pending pod %v", format.Pod(attrs.Pod)),
+		}
+	}
+	return PodAdmitResult{Admit: true}
 }
 
 func NewNoNewPrivsAdmitHandler(runtime kubecontainer.Runtime) PodAdmitHandler {
