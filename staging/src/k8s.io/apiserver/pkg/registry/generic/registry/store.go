@@ -19,6 +19,7 @@ package registry
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"reflect"
 	"strings"
 	"sync"
@@ -299,7 +300,21 @@ func (e *Store) List(ctx context.Context, options *metainternalversion.ListOptio
 	if options != nil && options.FieldSelector != nil {
 		field = options.FieldSelector
 	}
-	out, err := e.ListPredicate(ctx, e.PredicateFunc(label, field), options)
+	predicate := e.PredicateFunc(label, field)
+	if options != nil && enableSharding(options) {
+		predicate.Sharding = func(value string) bool {
+			var hashFunc func(s string) int64
+			switch options.HashFunc {
+			case "FNV32":
+				hashFunc = hashFNV32
+			default:
+				hashFunc = hashFNV32
+			}
+			return hashFunc(value)%options.ShardingCount == options.ShardingIndex
+		}
+		predicate.ShardingKey = options.ShardingLabelKey
+	}
+	out, err := e.ListPredicate(ctx, predicate, options)
 	if err != nil {
 		return nil, err
 	}
@@ -1113,6 +1128,19 @@ func (e *Store) Watch(ctx context.Context, options *metainternalversion.ListOpti
 	if options != nil {
 		resourceVersion = options.ResourceVersion
 		predicate.AllowWatchBookmarks = options.AllowWatchBookmarks
+		if enableSharding(options) {
+			predicate.Sharding = func(value string) bool {
+				var hashFunc func(s string) int64
+				switch options.HashFunc {
+				case "FNV32":
+					hashFunc = hashFNV32
+				default:
+					hashFunc = hashFNV32
+				}
+				return hashFunc(value)%options.ShardingCount == options.ShardingIndex
+			}
+			predicate.ShardingKey = options.ShardingLabelKey
+		}
 	}
 	return e.WatchPredicate(ctx, predicate, resourceVersion)
 }
@@ -1395,4 +1423,17 @@ func validateIndexers(indexers *cache.Indexers) error {
 		}
 	}
 	return nil
+}
+
+func enableSharding(options *metainternalversion.ListOptions) bool {
+	return options.ShardingCount > 0 &&
+		options.ShardingIndex < options.ShardingCount &&
+		options.ShardingIndex >= 0 &&
+		len(options.ShardingLabelKey) > 0
+}
+
+func hashFNV32(s string) int64 {
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return int64(h.Sum32())
 }

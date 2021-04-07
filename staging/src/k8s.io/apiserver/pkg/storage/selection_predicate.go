@@ -69,6 +69,8 @@ func (f AttrFunc) WithFieldMutation(fieldMutator FieldMutationFunc) AttrFunc {
 	}
 }
 
+type ShardingFunc func(value string) bool
+
 // SelectionPredicate is used to represent the way to select objects from api storage.
 type SelectionPredicate struct {
 	Label               labels.Selector
@@ -79,6 +81,12 @@ type SelectionPredicate struct {
 	Limit               int64
 	Continue            string
 	AllowWatchBookmarks bool
+	Sharding            ShardingFunc
+	ShardingKey         string
+}
+
+func (s *SelectionPredicate) MatchesSharding(l labels.Set) bool {
+	return s.Sharding(l.Get(s.ShardingKey))
 }
 
 // Matches returns true if the given object's labels and fields (as

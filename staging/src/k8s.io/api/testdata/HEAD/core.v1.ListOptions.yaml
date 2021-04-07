@@ -1,9 +1,13 @@
 apiVersion: v1
 continue: "5"
 fieldSelector: "3"
+hashFunc: "7"
 kind: ListOptions
 labelSelector: "2"
 limit: 5339971464584210463
 resourceVersion: "4"
+shardingCount: 3087144570012614608
+shardingIndex: -6357999603795826160
+shardingLabelKey: "6"
 timeoutSeconds: 1002466899136229878
 watch: true

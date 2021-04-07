@@ -2141,3 +2141,49 @@ func TestValidateIndexers(t *testing.T) {
 		}
 	}
 }
+
+func TestEnableSharding(t *testing.T) {
+	tests := []struct {
+		options *metainternalversion.ListOptions
+		desired bool
+	}{
+		{
+			&metainternalversion.ListOptions{
+				ShardingIndex:    0,
+				ShardingCount:    10,
+				ShardingLabelKey: "name",
+			},
+			true,
+		},
+		{
+			&metainternalversion.ListOptions{
+				ShardingIndex:    0,
+				ShardingCount:    10,
+				ShardingLabelKey: "",
+			},
+			false,
+		},
+		{
+			&metainternalversion.ListOptions{
+				ShardingIndex:    10,
+				ShardingCount:    10,
+				ShardingLabelKey: "name",
+			},
+			false,
+		},
+		{
+			&metainternalversion.ListOptions{
+				ShardingIndex:    -1,
+				ShardingCount:    10,
+				ShardingLabelKey: "name",
+			},
+			false,
+		},
+	}
+	for _, test := range tests {
+		result := enableSharding(test.options)
+		if result != test.desired {
+			t.Errorf("options: %+v, want %v, got %v", *(test.options), test.desired, result)
+		}
+	}
+}

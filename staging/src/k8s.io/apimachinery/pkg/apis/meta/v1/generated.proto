@@ -467,6 +467,19 @@ message ListOptions {
   // This field is not supported when watch is true. Clients may start a watch from the last
   // resourceVersion value returned by the server and not miss any modifications.
   optional string continue = 8;
+
+  // The shardingIndex is an int range from 0 to ShardingCount-1.
+  optional int64 shardingIndex = 101;
+
+  // The shardingCount is the number of total sharding.
+  optional int64 shardingCount = 102;
+
+  // The key of label whose value will be hashed.
+  optional string shardingLabelKey = 103;
+
+  // HashFunc indicates the algorithm we map a string to a int64, for now we only support FNV32, it will be
+  // extended in the future.
+  optional string hashFunc = 104;
 }
 
 // ManagedFieldsEntry is a workflow-id, a FieldSet and the group version of the resource
