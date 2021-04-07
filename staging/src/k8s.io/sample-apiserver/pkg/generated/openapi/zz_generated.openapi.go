@@ -1091,6 +1091,34 @@ func schema_pkg_apis_meta_v1_ListOptions(ref common.ReferenceCallback) common.Op
 							Format:      "",
 						},
 					},
+					"shardingIndex": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The shardingIndex is an int range from 0 to ShardingCount-1.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"shardingCount": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The shardingCount is the number of total sharding.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"shardingLabelKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The key of label whose value will be hashed.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"hashFunc": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HashFunc indicates the algorithm we map a string to a int64, for now we only support FNV32, it will be extended in the future.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

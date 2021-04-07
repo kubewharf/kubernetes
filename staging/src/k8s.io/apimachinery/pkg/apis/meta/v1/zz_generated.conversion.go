@@ -436,6 +436,34 @@ func autoConvert_url_Values_To_v1_ListOptions(in *url.Values, out *ListOptions, 
 	} else {
 		out.Continue = ""
 	}
+	if values, ok := map[string][]string(*in)["shardingIndex"]; ok && len(values) > 0 {
+		if err := runtime.Convert_Slice_string_To_int64(&values, &out.ShardingIndex, s); err != nil {
+			return err
+		}
+	} else {
+		out.ShardingIndex = 0
+	}
+	if values, ok := map[string][]string(*in)["shardingCount"]; ok && len(values) > 0 {
+		if err := runtime.Convert_Slice_string_To_int64(&values, &out.ShardingCount, s); err != nil {
+			return err
+		}
+	} else {
+		out.ShardingCount = 0
+	}
+	if values, ok := map[string][]string(*in)["shardingLabelKey"]; ok && len(values) > 0 {
+		if err := runtime.Convert_Slice_string_To_string(&values, &out.ShardingLabelKey, s); err != nil {
+			return err
+		}
+	} else {
+		out.ShardingLabelKey = ""
+	}
+	if values, ok := map[string][]string(*in)["hashFunc"]; ok && len(values) > 0 {
+		if err := runtime.Convert_Slice_string_To_string(&values, &out.HashFunc, s); err != nil {
+			return err
+		}
+	} else {
+		out.HashFunc = ""
+	}
 	return nil
 }
 

@@ -7,5 +7,9 @@
   "resourceVersion": "4",
   "timeoutSeconds": 1002466899136229878,
   "limit": 5339971464584210463,
-  "continue": "5"
+  "continue": "5",
+  "shardingIndex": -6357999603795826160,
+  "shardingCount": 3087144570012614608,
+  "shardingLabelKey": "6",
+  "hashFunc": "7"
 }

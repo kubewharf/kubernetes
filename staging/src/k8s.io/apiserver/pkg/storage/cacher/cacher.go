@@ -1072,9 +1072,13 @@ func forgetWatcher(c *Cacher, index int, triggerValue string, triggerSupported b
 }
 
 func filterWithAttrsFunction(key string, p storage.SelectionPredicate) filterWithAttrsFunc {
-	filterFunc := func(objKey string, label labels.Set, field fields.Set) bool {
+	var filterFunc filterWithAttrsFunc
+	filterFunc = func(objKey string, label labels.Set, field fields.Set) bool {
 		if !hasPathPrefix(objKey, key) {
 			return false
+		}
+		if p.Sharding != nil {
+			return p.MatchesSharding(label)
 		}
 		return p.MatchesObjectAttributes(label, field)
 	}
