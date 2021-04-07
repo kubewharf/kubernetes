@@ -1181,6 +1181,9 @@ func filterWithAttrsAndPrefixFunction(key string, p storage.SelectionPredicate) 
 		if !hasPathPrefix(objKey, key) {
 			return false
 		}
+		if p.Sharding != nil {
+			return p.MatchesSharding(label)
+		}
 		return p.MatchesObjectAttributes(label, field)
 	}
 	return filterFunc

@@ -116,6 +116,10 @@ func autoConvert_internalversion_ListOptions_To_v1_ListOptions(in *ListOptions, 
 	out.Limit = in.Limit
 	out.Continue = in.Continue
 	out.SendInitialEvents = (*bool)(unsafe.Pointer(in.SendInitialEvents))
+	out.ShardingIndex = in.ShardingIndex
+	out.ShardingCount = in.ShardingCount
+	out.ShardingLabelKey = in.ShardingLabelKey
+	out.HashFunc = in.HashFunc
 	return nil
 }
 
@@ -139,6 +143,10 @@ func autoConvert_v1_ListOptions_To_internalversion_ListOptions(in *v1.ListOption
 	out.Limit = in.Limit
 	out.Continue = in.Continue
 	out.SendInitialEvents = (*bool)(unsafe.Pointer(in.SendInitialEvents))
+	out.ShardingIndex = in.ShardingIndex
+	out.ShardingCount = in.ShardingCount
+	out.ShardingLabelKey = in.ShardingLabelKey
+	out.HashFunc = in.HashFunc
 	return nil
 }
 
