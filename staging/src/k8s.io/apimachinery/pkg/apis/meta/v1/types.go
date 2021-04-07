@@ -430,6 +430,16 @@ type ListOptions struct {
 	// compatibility reasons) and to false otherwise.
 	// +optional
 	SendInitialEvents *bool `json:"sendInitialEvents,omitempty" protobuf:"varint,11,opt,name=sendInitialEvents"`
+
+	// The shardingIndex is an int range from 0 to ShardingCount-1.
+	ShardingIndex int64 `json:"shardingIndex,omitempty" protobuf:"bytes,101,opt,name=shardingIndex"`
+	// The shardingCount is the number of total sharding.
+	ShardingCount int64 `json:"shardingCount,omitempty" protobuf:"bytes,102,opt,name=shardingCount"`
+	// The key of label whose value will be hashed.
+	ShardingLabelKey string `json:"shardingLabelKey,omitempty" protobuf:"bytes,103,opt,name=shardingLabelKey"`
+	// HashFunc indicates the algorithm we map a string to a int64, for now we only support FNV32, it will be
+	// extended in the future.
+	HashFunc string `json:"hashFunc,omitempty" protobuf:"bytes,104,opt,name=hashFunc"`
 }
 
 const (

@@ -91,6 +91,12 @@ type ListOptions struct {
 	// Defaults to true if `resourceVersion=""` or `resourceVersion="0"` (for backward
 	// compatibility reasons) and to false otherwise.
 	SendInitialEvents *bool
+
+	// Sharding
+	ShardingIndex    int64
+	ShardingCount    int64
+	ShardingLabelKey string
+	HashFunc         string
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
