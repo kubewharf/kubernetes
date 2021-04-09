@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 
-	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apiserver/pkg/admission"
 	api "k8s.io/kubernetes/pkg/apis/core"
@@ -50,7 +49,7 @@ func (p *godelPodAnnotationsPlugin) Admit(ctx context.Context, a admission.Attri
 	if operation := a.GetOperation(); operation != admission.Create && operation != admission.Update {
 		return nil
 	}
-	pod, ok := a.GetObject().(*apiv1.Pod)
+	pod, ok := a.GetObject().(*api.Pod)
 	if !ok {
 		return errors.NewBadRequest("Resource was marked with kind Pod but was unable to be converted")
 	}
@@ -67,7 +66,7 @@ func (p *godelPodAnnotationsPlugin) Admit(ctx context.Context, a admission.Attri
 	return nil
 }
 
-func (p *godelPodAnnotationsPlugin) admitPodLauncher(pod *apiv1.Pod) error {
+func (p *godelPodAnnotationsPlugin) admitPodLauncher(pod *api.Pod) error {
 	switch godel.GetPodLauncher(pod) {
 	case godel.PodLauncherKubelet, godel.PodLauncherNodeManager:
 		return nil
@@ -80,7 +79,7 @@ func (p *godelPodAnnotationsPlugin) admitPodLauncher(pod *apiv1.Pod) error {
 	}
 }
 
-func (p *godelPodAnnotationsPlugin) admitPodResourceType(pod *apiv1.Pod) error {
+func (p *godelPodAnnotationsPlugin) admitPodResourceType(pod *api.Pod) error {
 	switch godel.GetPodResourceType(pod) {
 	case godel.GuaranteedPod, godel.BestEffortPod:
 		return nil
@@ -93,7 +92,7 @@ func (p *godelPodAnnotationsPlugin) admitPodResourceType(pod *apiv1.Pod) error {
 	}
 }
 
-func (p *godelPodAnnotationsPlugin) admitPodState(pod *apiv1.Pod) error {
+func (p *godelPodAnnotationsPlugin) admitPodState(pod *api.Pod) error {
 	if godel.AbnormalPodState(pod) {
 		return errors.NewBadRequest("godel pod state is abnormal")
 	}

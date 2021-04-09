@@ -1,7 +1,7 @@
 package godel
 
 import (
-	apiv1 "k8s.io/api/core/v1"
+	api "k8s.io/kubernetes/pkg/apis/core"
 )
 
 const (
@@ -41,31 +41,31 @@ const (
 	PodAssumed    = "Assumed"
 )
 
-func GetPodLauncher(pod *apiv1.Pod) string {
+func GetPodLauncher(pod *api.Pod) string {
 	return pod.Annotations[PodLauncherAnnotationKey]
 }
 
-func SetPodLauncher(pod *apiv1.Pod, launcher string) {
+func SetPodLauncher(pod *api.Pod, launcher string) {
 	setPodAnnotation(pod, PodLauncherAnnotationKey, launcher)
 }
 
-func GetPodResourceType(pod *apiv1.Pod) string {
+func GetPodResourceType(pod *api.Pod) string {
 	return pod.Annotations[PodResourceTypeAnnotationKey]
 }
 
-func SetPodResourceType(pod *apiv1.Pod, resourceType string) {
+func SetPodResourceType(pod *api.Pod, resourceType string) {
 	setPodAnnotation(pod, PodResourceTypeAnnotationKey, resourceType)
 }
 
-func GetPodState(pod *apiv1.Pod) string {
+func GetPodState(pod *api.Pod) string {
 	return pod.Annotations[PodStateAnnotationKey]
 }
 
-func SetPodState(pod *apiv1.Pod, state string) {
+func SetPodState(pod *api.Pod, state string) {
 	setPodAnnotation(pod, PodStateAnnotationKey, state)
 }
 
-func setPodAnnotation(pod *apiv1.Pod, key, value string) {
+func setPodAnnotation(pod *api.Pod, key, value string) {
 	if pod.Annotations == nil {
 		pod.Annotations = make(map[string]string)
 	}
@@ -73,7 +73,7 @@ func setPodAnnotation(pod *apiv1.Pod, key, value string) {
 }
 
 // PendingPod checks if the given pod is in pending state
-func PendingPod(pod *apiv1.Pod) bool {
+func PendingPod(pod *api.Pod) bool {
 	if pod.Annotations != nil &&
 		(pod.Annotations[PodStateAnnotationKey] == PodPending || len(pod.Annotations[PodStateAnnotationKey]) == 0) &&
 		len(pod.Annotations[SchedulerAnnotationKey]) == 0 &&
@@ -86,7 +86,7 @@ func PendingPod(pod *apiv1.Pod) bool {
 }
 
 // DispatchedPod checks if the given pod is in dispatched state
-func DispatchedPod(pod *apiv1.Pod) bool {
+func DispatchedPod(pod *api.Pod) bool {
 	if pod.Annotations != nil &&
 		pod.Annotations[PodStateAnnotationKey] == PodDispatched &&
 		len(pod.Annotations[SchedulerAnnotationKey]) != 0 &&
@@ -99,7 +99,7 @@ func DispatchedPod(pod *apiv1.Pod) bool {
 }
 
 // assumedOrNominatedNodeIsSet checks if the AssumedNodeAnnotationKey or NominatedNodeAnnotationKey is set
-func assumedOrNominatedNodeIsSet(pod *apiv1.Pod) bool {
+func assumedOrNominatedNodeIsSet(pod *api.Pod) bool {
 	if pod.Annotations != nil {
 		if len(pod.Annotations[AssumedNodeAnnotationKey]) == 0 && len(pod.Annotations[NominatedNodeAnnotationKey]) != 0 {
 			return true
@@ -112,7 +112,7 @@ func assumedOrNominatedNodeIsSet(pod *apiv1.Pod) bool {
 }
 
 // AssumedPod checks if the given pod is in assumed state
-func AssumedPod(pod *apiv1.Pod) bool {
+func AssumedPod(pod *api.Pod) bool {
 	if pod.Annotations != nil &&
 		pod.Annotations[PodStateAnnotationKey] == PodAssumed &&
 		len(pod.Annotations[SchedulerAnnotationKey]) != 0 &&
@@ -124,12 +124,12 @@ func AssumedPod(pod *apiv1.Pod) bool {
 }
 
 // BoundPod checks if the given pod is bound
-func BoundPod(pod *apiv1.Pod) bool {
+func BoundPod(pod *api.Pod) bool {
 	return len(pod.Spec.NodeName) != 0
 }
 
 // AbnormalPodState checks if the given pod is in abnormal state
-func AbnormalPodState(pod *apiv1.Pod) bool {
+func AbnormalPodState(pod *api.Pod) bool {
 	if BoundPod(pod) {
 		return false
 	}
