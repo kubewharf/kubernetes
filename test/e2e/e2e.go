@@ -95,6 +95,7 @@ func RunE2ETests(t *testing.T) {
 	defer logs.FlushLogs()
 
 	gomega.RegisterFailHandler(framework.Fail)
+	klog.Infof("E2E FocusString: %v, SkipString: %v", config.GinkgoConfig.FocusString, config.GinkgoConfig.SkipString)
 	// Disable skipped tests unless they are explicitly requested.
 	if config.GinkgoConfig.FocusString == "" && config.GinkgoConfig.SkipString == "" {
 		config.GinkgoConfig.SkipString = `\[Flaky\]|\[Feature:.+\]`

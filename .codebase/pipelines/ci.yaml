@@ -1,0 +1,15 @@
+name: E2E
+trigger: [change]
+jobs:
+  e2e_job:
+    name: K8S E2E
+    image: hub.byted.org/data-ci-debian
+    steps:
+      - name: Clone
+        uses: actions/checkout
+        inputs:
+          depth: 1
+      - name: Run E2E Test
+        commands:
+          - env
+          - bash hack/e2e-internal/tce-e2e-run.sh
