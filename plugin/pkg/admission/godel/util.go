@@ -27,6 +27,22 @@ const (
 	// the scheduler will reserve the allocated resource for the pod.
 	NominatedNodeAnnotationKey = "nominatedNode"
 
+	// DefaultPriorityTypeAnnotationKey is a priority class annotation key,
+	// value is the priority type which this priority class is default for
+	DefaultPriorityTypeAnnotationKey = "defaultPriorityType"
+
+	// determined by resource types and launchers, there are four priority types
+	PriorityGuaranteedKublet      = "guaranteed-kubelet"
+	PriorityGuaranteedNodeManager = "guaranteed-node-manager"
+	PriorityBestEffortKublet      = "best-effort-kubelet"
+	PriorityBestEffortNodeManager = "best-effort-node-manager"
+
+	// default priority value for each priority type when no default priority class exists
+	DefaultPriorityForGuaranteedKublet      int32 = 31
+	DefaultPriorityForGuaranteedNodeManager int32 = 21
+	DefaultPriorityForBestEffortKublet      int32 = 11
+	DefaultPriorityForBestEffortNodeManager int32 = 1
+
 	// pod launchers
 	PodLauncherKubelet     = "kubelet"
 	PodLauncherNodeManager = "node-manager"
@@ -70,6 +86,30 @@ func setPodAnnotation(pod *api.Pod, key, value string) {
 		pod.Annotations = make(map[string]string)
 	}
 	pod.Annotations[key] = value
+}
+
+func GetPodPriorityType(pod *api.Pod) string {
+	resourceType := GetPodResourceType(pod)
+	if resourceType == "" {
+		resourceType = GuaranteedPod
+	}
+	launcher := GetPodLauncher(pod)
+	if launcher == "" {
+		launcher = PodLauncherKubelet
+	}
+
+	priorityType := ""
+	switch {
+	case resourceType == GuaranteedPod && launcher == PodLauncherKubelet:
+		priorityType = PriorityGuaranteedKublet
+	case resourceType == GuaranteedPod && launcher == PodLauncherNodeManager:
+		priorityType = PriorityGuaranteedNodeManager
+	case resourceType == BestEffortPod && launcher == PodLauncherKubelet:
+		priorityType = PriorityBestEffortKublet
+	case resourceType == BestEffortPod && launcher == PodLauncherNodeManager:
+		priorityType = PriorityBestEffortNodeManager
+	}
+	return priorityType
 }
 
 // PendingPod checks if the given pod is in pending state

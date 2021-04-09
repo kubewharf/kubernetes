@@ -35,6 +35,7 @@ import (
 	"k8s.io/kubernetes/plugin/pkg/admission/extendedresourcetoleration"
 	"k8s.io/kubernetes/plugin/pkg/admission/gc"
 	godelpodannotations "k8s.io/kubernetes/plugin/pkg/admission/godel/podannotations"
+	godelpodpriority "k8s.io/kubernetes/plugin/pkg/admission/godel/podpriority"
 	"k8s.io/kubernetes/plugin/pkg/admission/imagepolicy"
 	"k8s.io/kubernetes/plugin/pkg/admission/limitranger"
 	"k8s.io/kubernetes/plugin/pkg/admission/namespace/autoprovision"
@@ -79,6 +80,7 @@ var AllOrderedPlugins = []string{
 	nodetaint.PluginName,                    // TaintNodesByCondition
 	alwayspullimages.PluginName,             // AlwaysPullImages
 	godelpodannotations.PluginName,          // GodelPodAnnotations
+	godelpodpriority.PluginName,             // GodelPodPriority
 	imagepolicy.PluginName,                  // ImagePolicyWebhook
 	podsecuritypolicy.PluginName,            // PodSecurityPolicy
 	podnodeselector.PluginName,              // PodNodeSelector
@@ -123,6 +125,7 @@ func RegisterAllAdmissionPlugins(plugins *admission.Plugins) {
 	extendedresourcetoleration.Register(plugins)
 	gc.Register(plugins)
 	godelpodannotations.Register(plugins)
+	godelpodpriority.Register(plugins)
 	imagepolicy.Register(plugins)
 	limitranger.Register(plugins)
 	autoprovision.Register(plugins)
@@ -163,6 +166,7 @@ func DefaultOffAdmissionPlugins() sets.String {
 		storageobjectinuseprotection.PluginName, //StorageObjectInUseProtection
 		podpriority.PluginName,                  //PodPriority
 		godelpodannotations.PluginName,          //GodelPodAnnotations
+		godelpodpriority.PluginName,             //GodelPodPriority
 		nodetaint.PluginName,                    //TaintNodesByCondition
 		runtimeclass.PluginName,                 //RuntimeClass, gates internally on the feature
 		certapproval.PluginName,                 // CertificateApproval
