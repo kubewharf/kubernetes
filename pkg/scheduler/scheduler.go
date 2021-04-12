@@ -675,7 +675,7 @@ func (sched *Scheduler) finishBinding(prof *profile.Profile, assumed *v1.Pod, ta
 	prof.Recorder.Eventf(assumed, nil, v1.EventTypeNormal, "Scheduled", "Binding", "Successfully assigned %v/%v to %v", assumed.Namespace, assumed.Name, targetNode)
 	if len(assumed.Status.NominatedNodeName) > 0 {
 		preemptionMessage := "pod is scheduled successfully because of preemption"
-		prof.Recorder.Eventf(assumed, nil, v1.EventTypeNormal, "ScheduledDueToPreemption", "", preemptionMessage)
+		prof.Recorder.Eventf(assumed, nil, v1.EventTypeNormal, "ScheduledDueToPreemption", "%v", preemptionMessage)
 	}
 }
 
