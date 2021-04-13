@@ -829,6 +829,17 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 	if utilfeature.DefaultFeatureGate.Enabled(features.ShareGPU) && util.IsGPUSharingPod(podToUpdate) {
 		shouldUpdate = true
 		nodeInfo := sched.Cache().GetNodeInfo(scheduleResult.SuggestedHost)
+		if nodeInfo == nil {
+			klog.Errorf("Failed to schedule: %v, node:%s isn't in cache any more.", podToUpdate, scheduleResult.SuggestedHost)
+			sched.Error(podInfo.DeepCopy(), fmt.Errorf("node:%s isn't in cache any more", scheduleResult.SuggestedHost))
+			prof.Recorder.Eventf(podToUpdate, nil, v1.EventTypeWarning, "FailedScheduling", "%v", " suggest host isn't in cache any more")
+			sched.podConditionUpdater.update(podToUpdate, &v1.PodCondition{
+				Type:   v1.PodScheduled,
+				Status: v1.ConditionFalse,
+				Reason: "Unschedulable",
+			})
+			return
+		}
 		allocateShareGPUErr := nodeInfo.NodeShareGPUDeviceInfo.AllocateShareGPU(podToUpdate)
 		if allocateShareGPUErr != nil {
 			klog.Errorf("Failed to schedule: %v, fail to allocate physical gpu.", podToUpdate)

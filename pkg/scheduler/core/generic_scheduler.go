@@ -196,7 +196,7 @@ func readyToBind(preemptor *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo, nodeRe
 
 // tryToSchedulerPreemptor tries to scheduler preemptor
 func (g *genericScheduler) tryToSchedulePreemptor(ctx context.Context, prof *profile.Profile, state *framework.CycleState, preemptor *v1.Pod) (result ScheduleResult, err error) {
-	if nodeInfo, err := g.nodeInfoSnapshot.Get(preemptor.Status.NominatedNodeName); err == nil {
+	if nodeInfo := g.cache.GetNodeInfo(preemptor.Status.NominatedNodeName); nodeInfo != nil {
 		// predicate for preemptor
 		refinedNode := g.cache.GetRefinedResourceNode(preemptor.Status.NominatedNodeName)
 		if g.cache.PreemptorStillHaveChance(preemptor) {
@@ -265,15 +265,6 @@ func (g *genericScheduler) Schedule(ctx context.Context, prof *profile.Profile, 
 	}
 	trace.Step("Basic checks done")
 
-	if err := g.snapshot(); err != nil {
-		return result, err
-	}
-	trace.Step("Snapshotting scheduler cache and node infos done")
-
-	if g.nodeInfoSnapshot.NumNodes() == 0 {
-		return result, ErrNoNodesAvailable
-	}
-
 	// if the pod is preemptor, try several times to check if the nominated node is ready to place the preemptor
 	// because we need to give some time to victims eviction operation
 	if len(pod.Status.NominatedNodeName) > 0 {
@@ -286,11 +277,9 @@ func (g *genericScheduler) Schedule(ctx context.Context, prof *profile.Profile, 
 	if len(dpName) > 0 {
 		nodesSet := g.cache.GetNodesForDP(dpName)
 		if nodesSet != nil && len(nodesSet) > 0 {
-			// We can use the same metadata producer for all nodes.
-			// meta := g.predicateMetaProducer(pod, g.nodeInfoSnapshot.NodeInfoMap)
 			for nodeName := range nodesSet {
 				fits := false
-				if nodeInfo, err := g.nodeInfoSnapshot.Get(nodeName); err == nil {
+				if nodeInfo := g.cache.GetNodeInfo(nodeName); nodeInfo != nil {
 					fits, _, _ = g.podPassesFiltersOnNode(
 						ctx,
 						prof,
@@ -313,6 +302,18 @@ func (g *genericScheduler) Schedule(ctx context.Context, prof *profile.Profile, 
 				}
 			}
 		}
+	}
+
+	trace.Step("fail to find node from cache")
+
+	// if we can not find a suitable node from cache, return back to the normal workflow
+	if err := g.snapshot(); err != nil {
+		return result, err
+	}
+	trace.Step("Snapshotting scheduler cache and node infos done")
+
+	if g.nodeInfoSnapshot.NumNodes() == 0 {
+		return result, ErrNoNodesAvailable
 	}
 
 	// Run "prefilter" plugins.
@@ -1192,11 +1193,12 @@ func (g *genericScheduler) selectVictimsOnNode(
 	cache internalcache.Cache,
 ) ([]*v1.Pod, int, bool) {
 	var potentialVictims []*v1.Pod
-	nodeRefinedResourceInfo := cache.GetRefinedResourceNode(nodeInfo.Node().GetName())
-	nodeRefinedResourceInfoCopy := nodeRefinedResourceInfo.Clone()
+	nodeRefinedResourceInfoCopy := cache.GetRefinedResourceNode(nodeInfo.Node().GetName())
 
 	removePod := func(rp *v1.Pod) error {
-		nodeRefinedResourceInfoCopy.RemovePod(pod)
+		if nodeRefinedResourceInfoCopy != nil {
+			nodeRefinedResourceInfoCopy.RemovePod(pod)
+		}
 		if err := nodeInfo.RemovePod(rp); err != nil {
 			return err
 		}
@@ -1207,7 +1209,9 @@ func (g *genericScheduler) selectVictimsOnNode(
 		return nil
 	}
 	addPod := func(ap *v1.Pod) error {
-		nodeRefinedResourceInfoCopy.AddPod(pod)
+		if nodeRefinedResourceInfoCopy != nil {
+			nodeRefinedResourceInfoCopy.AddPod(pod)
+		}
 		nodeInfo.AddPod(ap)
 		status := prof.RunPreFilterExtensionAddPod(ctx, state, pod, ap, nodeInfo)
 		if !status.IsSuccess() {

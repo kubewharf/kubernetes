@@ -704,5 +704,8 @@ func satisfyNumaBalance(refinedResourceInfo *schedulernodeinfo.NodeRefinedResour
 func (cache *schedulerCache) GetRefinedResourceNode(nodeName string) *schedulernodeinfo.NodeRefinedResourceInfo {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
+	if _, ok := cache.refinedResourceNodes[nodeName]; !ok {
+		return nil
+	}
 	return cache.refinedResourceNodes[nodeName].Clone()
 }
