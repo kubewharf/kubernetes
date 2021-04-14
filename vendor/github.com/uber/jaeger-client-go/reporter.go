@@ -344,6 +344,7 @@ func (p *traversalReportPolicy) traverse() {
 	for now := range time.Tick(p.traversePeriod) {
 		toReport := []*Span{}
 		toDelete := []*Span{}
+		p.lock.Lock()
 		for span, lastReport := range p.lastReportTime {
 			if !span.isPeriodicReportEnabled() {
 				toDelete = append(toDelete, span)
@@ -354,6 +355,7 @@ func (p *traversalReportPolicy) traverse() {
 				p.lastReportTime[span] = now
 			}
 		}
+		p.lock.Unlock()
 		for _, span := range toDelete {
 			p.remove(span)
 		}
