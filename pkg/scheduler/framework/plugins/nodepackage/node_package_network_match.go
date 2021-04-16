@@ -46,7 +46,7 @@ func NewNodePackageNBWMatcher(_ *runtime.Unknown, h framework.FrameworkHandle) (
 }
 
 func (m *MatchNodePackageNBW) Name() string {
-	return NodePackageMemMatch
+	return NodePackageNBWMatch
 }
 
 // Score invoked at the score extension point.
