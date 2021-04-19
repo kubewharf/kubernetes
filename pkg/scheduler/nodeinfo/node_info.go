@@ -94,7 +94,7 @@ type NodeInfo struct {
 	// hostUniquePodsNumber is the number of host unique pods
 	hostUniquePodsNumber int64
 
-	NodeShareGPUDeviceInfo
+	NodeShareGPUDeviceInfo *NodeShareGPUDeviceInfo
 }
 
 //initializeNodeTransientInfo initializes transient information pertaining to node.
@@ -285,6 +285,9 @@ func NewNodeInfo(pods ...*v1.Pod) *NodeInfo {
 		generation:          nextGeneration(),
 		usedPorts:           make(HostPortInfo),
 		imageStates:         make(map[string]*ImageStateSummary),
+		NodeShareGPUDeviceInfo: &NodeShareGPUDeviceInfo{
+			devs: make(map[int]*DeviceInfo),
+		},
 	}
 	for _, pod := range pods {
 		ni.AddPod(pod)
@@ -484,6 +487,7 @@ func (n *NodeInfo) Clone() *NodeInfo {
 		usedPorts:               make(HostPortInfo),
 		imageStates:             n.imageStates,
 		hostUniquePodsNumber:    n.hostUniquePodsNumber,
+		generation:              n.generation,
 	}
 	if len(n.pods) > 0 {
 		clone.pods = append([]*v1.Pod(nil), n.pods...)
@@ -506,6 +510,9 @@ func (n *NodeInfo) Clone() *NodeInfo {
 	}
 	if len(n.taints) > 0 {
 		clone.taints = append([]v1.Taint(nil), n.taints...)
+	}
+	if n.NodeShareGPUDeviceInfo != nil {
+		clone.NodeShareGPUDeviceInfo = n.NodeShareGPUDeviceInfo.Clone()
 	}
 	return clone
 }
@@ -675,7 +682,7 @@ func (n *NodeInfo) RemovePod(pod *v1.Pod) error {
 		}
 	}
 	if utilfeature.DefaultFeatureGate.Enabled(features.ShareGPU) {
-		n.removePodDevices(pod)
+		n.NodeShareGPUDeviceInfo.removePodDevices(pod)
 	}
 	return fmt.Errorf("no corresponding pod %s in pods of node %s", pod.Name, n.node.Name)
 }
@@ -772,7 +779,7 @@ func (n *NodeInfo) SetNode(node *v1.Node) error {
 	n.generation = nextGeneration()
 	// if share gpu feature gate is enabled, add share gpu device info in node info
 	if utilfeature.DefaultFeatureGate.Enabled(features.ShareGPU) {
-		n.SetShareGPUDevices(node)
+		n.NodeShareGPUDeviceInfo.SetShareGPUDevices(node)
 	}
 	return nil
 }

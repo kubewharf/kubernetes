@@ -829,7 +829,7 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 	if utilfeature.DefaultFeatureGate.Enabled(features.ShareGPU) && util.IsGPUSharingPod(podToUpdate) {
 		shouldUpdate = true
 		nodeInfo := sched.Cache().GetNodeInfo(scheduleResult.SuggestedHost)
-		allocateShareGPUErr := nodeInfo.AllocateShareGPU(podToUpdate)
+		allocateShareGPUErr := nodeInfo.NodeShareGPUDeviceInfo.AllocateShareGPU(podToUpdate)
 		if allocateShareGPUErr != nil {
 			klog.Errorf("Failed to schedule: %v, fail to allocate physical gpu.", podToUpdate)
 			sched.Error(podInfo.DeepCopy(), allocateShareGPUErr)

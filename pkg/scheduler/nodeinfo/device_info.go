@@ -213,6 +213,23 @@ func (n *NodeShareGPUDeviceInfo) getAllGPU() map[int]*GPUResource {
 	return allGPUResource
 }
 
+func (n *NodeShareGPUDeviceInfo) Clone() *NodeShareGPUDeviceInfo {
+	n.RLock()
+	defer n.RUnlock()
+
+	cloneDevs := make(map[int]*DeviceInfo)
+	for idx, deviceInfo := range n.devs {
+		cloneDevs[idx] = deviceInfo.Clone()
+	}
+	clone := &NodeShareGPUDeviceInfo{
+		devs:           cloneDevs,
+		gpuCount:       n.gpuCount,
+		gpuTotalMemory: n.gpuTotalMemory,
+		name:           n.name,
+	}
+	return clone
+}
+
 type DeviceInfo struct {
 	idx          int
 	podMap       map[types.UID]*v1.Pod
@@ -285,6 +302,24 @@ func (d *DeviceInfo) removePod(pod *v1.Pod) {
 	defer d.rwmu.Unlock()
 	delete(d.podMap, pod.UID)
 	klog.Infof("[gpu device info] dev.removePod() after updated is %v, device id is %d", d.podMap, d.idx)
+}
+
+func (d *DeviceInfo) Clone() *DeviceInfo {
+	d.rwmu.RLock()
+	defer d.rwmu.RUnlock()
+
+	podMapClone := make(map[types.UID]*v1.Pod)
+	for uid, pod := range d.podMap {
+		podMapClone[uid] = pod.DeepCopy()
+	}
+	clone := &DeviceInfo{
+		idx:          d.idx,
+		podMap:       podMapClone,
+		deviceGPUMem: d.deviceGPUMem,
+		deviceGPUSM:  d.deviceGPUSM,
+		rwmu:         new(sync.RWMutex),
+	}
+	return clone
 }
 
 type GPUResource struct {
