@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 
 	"k8s.io/api/core/v1"
@@ -365,6 +366,9 @@ func TestNewNodeInfo(t *testing.T) {
 				},
 			},
 		},
+		NodeShareGPUDeviceInfo: &NodeShareGPUDeviceInfo{
+			devs: make(map[int]*DeviceInfo),
+		},
 	}
 
 	gen := generation
@@ -454,6 +458,47 @@ func TestNodeInfoClone(t *testing.T) {
 						},
 					},
 				},
+				NodeShareGPUDeviceInfo: &NodeShareGPUDeviceInfo{
+					devs: map[int]*DeviceInfo{0: {
+						idx: 0,
+						podMap: map[types.UID]*v1.Pod{
+							types.UID("test-1"): {
+								ObjectMeta: metav1.ObjectMeta{
+									Namespace: "node_info_cache_test",
+									Name:      "test-1",
+									UID:       types.UID("test-1"),
+								},
+								Spec: v1.PodSpec{
+									Containers: []v1.Container{
+										{
+											Resources: v1.ResourceRequirements{
+												Requests: v1.ResourceList{
+													v1.ResourceCPU:    resource.MustParse("100m"),
+													v1.ResourceMemory: resource.MustParse("500"),
+												},
+											},
+											Ports: []v1.ContainerPort{
+												{
+													HostIP:   "127.0.0.1",
+													HostPort: 80,
+													Protocol: "TCP",
+												},
+											},
+										},
+									},
+									NodeName: nodeName,
+								},
+							},
+						},
+						deviceGPUMem: 40,
+						deviceGPUSM:  30,
+						rwmu:         new(sync.RWMutex),
+					},
+					},
+					gpuCount:       80,
+					gpuTotalMemory: 120,
+					name:           nodeName,
+				},
 			},
 			expected: &NodeInfo{
 				requestedResource:   &Resource{},
@@ -524,6 +569,47 @@ func TestNodeInfoClone(t *testing.T) {
 						},
 					},
 				},
+				NodeShareGPUDeviceInfo: &NodeShareGPUDeviceInfo{
+					devs: map[int]*DeviceInfo{0: {
+						idx: 0,
+						podMap: map[types.UID]*v1.Pod{
+							types.UID("test-1"): {
+								ObjectMeta: metav1.ObjectMeta{
+									Namespace: "node_info_cache_test",
+									Name:      "test-1",
+									UID:       types.UID("test-1"),
+								},
+								Spec: v1.PodSpec{
+									Containers: []v1.Container{
+										{
+											Resources: v1.ResourceRequirements{
+												Requests: v1.ResourceList{
+													v1.ResourceCPU:    resource.MustParse("100m"),
+													v1.ResourceMemory: resource.MustParse("500"),
+												},
+											},
+											Ports: []v1.ContainerPort{
+												{
+													HostIP:   "127.0.0.1",
+													HostPort: 80,
+													Protocol: "TCP",
+												},
+											},
+										},
+									},
+									NodeName: nodeName,
+								},
+							},
+						},
+						deviceGPUMem: 40,
+						deviceGPUSM:  30,
+						rwmu:         new(sync.RWMutex),
+					},
+					},
+					gpuCount:       80,
+					gpuTotalMemory: 120,
+					name:           nodeName,
+				},
 			},
 		},
 	}
@@ -533,6 +619,7 @@ func TestNodeInfoClone(t *testing.T) {
 		// Modify the field to check if the result is a clone of the origin one.
 		test.nodeInfo.generation += 10
 		test.nodeInfo.usedPorts.Remove("127.0.0.1", "TCP", 80)
+		delete(test.nodeInfo.NodeShareGPUDeviceInfo.devs, 0)
 		if !reflect.DeepEqual(test.expected, ni) {
 			t.Errorf("expected: %#v, got: %#v", test.expected, ni)
 		}
@@ -775,6 +862,9 @@ func TestNodeInfoAddPod(t *testing.T) {
 				},
 			},
 		},
+		NodeShareGPUDeviceInfo: &NodeShareGPUDeviceInfo{
+			devs: make(map[int]*DeviceInfo),
+		},
 	}
 
 	ni := fakeNodeInfo()
@@ -910,6 +1000,9 @@ func TestNodeInfoRemovePod(t *testing.T) {
 						},
 					},
 				},
+				NodeShareGPUDeviceInfo: &NodeShareGPUDeviceInfo{
+					devs: make(map[int]*DeviceInfo),
+				},
 			},
 		},
 		{
@@ -1006,6 +1099,9 @@ func TestNodeInfoRemovePod(t *testing.T) {
 							},
 						},
 					},
+				},
+				NodeShareGPUDeviceInfo: &NodeShareGPUDeviceInfo{
+					devs: make(map[int]*DeviceInfo),
 				},
 			},
 		},

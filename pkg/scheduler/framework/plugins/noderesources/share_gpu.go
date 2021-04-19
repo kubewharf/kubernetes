@@ -48,7 +48,7 @@ func (sg *ShareGPU) Filter(ctx context.Context, cycleState *framework.CycleState
 		return nil
 	}
 
-	gpuSatisfied := nodeInfo.SatisfyShareGPU(pod)
+	gpuSatisfied := nodeInfo.NodeShareGPUDeviceInfo.SatisfyShareGPU(pod)
 	if gpuSatisfied {
 		return nil
 	} else {
