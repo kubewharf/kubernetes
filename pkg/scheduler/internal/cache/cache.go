@@ -874,5 +874,5 @@ func (cache *schedulerCache) GetNodeInfo(nodeName string) *schedulernodeinfo.Nod
 	if nodeInfoItem, ok = cache.nodes[nodeName]; !ok {
 		return nil
 	}
-	return nodeInfoItem.info
+	return nodeInfoItem.info.Clone()
 }
