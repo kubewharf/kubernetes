@@ -651,10 +651,12 @@ func satisfyResourcesPerNuma(nodeInfo *schedulernodeinfo.NodeInfo, pod *v1.Pod) 
 	requestCPU := v1resource.GetResourceRequest(pod, v1.ResourceCPU)
 	requestMem := v1resource.GetResourceRequest(pod, v1.ResourceMemory)
 	requestNuma := v1resource.GetResourceRequest(pod, v1.ResourceBytedanceSocket)
+	requestGPU := v1resource.GetResourceRequest(pod, util.ResourceGPU)
 	allocatableResource := nodeInfo.AllocatableResource()
 	allocCPU := allocatableResource.MilliCPU
 	allocMem := allocatableResource.Memory
 	allocNuma := allocatableResource.ScalarResources[v1.ResourceBytedanceSocket]
+	allocGPU := allocatableResource.ScalarResources[util.ResourceGPU]
 	if requestNuma == 0 {
 		return true
 	}
@@ -662,6 +664,11 @@ func satisfyResourcesPerNuma(nodeInfo *schedulernodeinfo.NodeInfo, pod *v1.Pod) 
 		return false
 	}
 	if ((requestMem-1)/requestNuma+1)*allocNuma > allocMem {
+		return false
+	}
+	// in order to satisfy numa-gpu affinity
+	// requestNuma/allocNuma should be equal to requestGPU/allocGPU
+	if requestGPU > 0 && requestNuma > 0 && requestGPU*allocNuma != requestNuma*allocGPU {
 		return false
 	}
 	return true
