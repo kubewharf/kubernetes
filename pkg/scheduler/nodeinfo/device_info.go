@@ -292,7 +292,7 @@ func (d *DeviceInfo) addPod(pod *v1.Pod) {
 	d.rwmu.Lock()
 	defer d.rwmu.Unlock()
 	d.podMap[pod.UID] = pod
-	klog.Infof("[gpu device info] dev.addPod() after updated is %v, and device id is %d", d.podMap, d.idx)
+	klog.V(8).Infof("[gpu device info] dev.addPod() after updated is %v, and device id is %d", d.podMap, d.idx)
 }
 
 func (d *DeviceInfo) removePod(pod *v1.Pod) {
@@ -301,7 +301,7 @@ func (d *DeviceInfo) removePod(pod *v1.Pod) {
 	d.rwmu.Lock()
 	defer d.rwmu.Unlock()
 	delete(d.podMap, pod.UID)
-	klog.Infof("[gpu device info] dev.removePod() after updated is %v, device id is %d", d.podMap, d.idx)
+	klog.V(8).Infof("[gpu device info] dev.removePod() after updated is %v, device id is %d", d.podMap, d.idx)
 }
 
 func (d *DeviceInfo) Clone() *DeviceInfo {
