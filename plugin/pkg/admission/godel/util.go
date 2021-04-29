@@ -52,9 +52,9 @@ const (
 	BestEffortPod = "best-effort"
 
 	// pod states
-	PodPending    = "Pending"
-	PodDispatched = "Dispatched"
-	PodAssumed    = "Assumed"
+	PodPending    = "pending"
+	PodDispatched = "dispatched"
+	PodAssumed    = "assumed"
 )
 
 func GetPodLauncher(pod *api.Pod) string {
