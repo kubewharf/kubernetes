@@ -15,21 +15,23 @@ const (
 	PodLauncherAnnotationKey = "godel.bytedance.com/pod-launcher"
 
 	// SchedulerAnnotationKey is a pod annotation key, value is the scheduler id who is responsible for scheduling this pod
-	SchedulerAnnotationKey = "selectedScheduler"
+	SchedulerAnnotationKey = "godel.bytedance.com/selected-scheduler"
 
 	// AssumedNodeAnnotationKey is a pod annotation key, value is the assumed node name chosen by one scheduler
-	// the scheduler will reserve the allocated resource for the pod.
-	AssumedNodeAnnotationKey = "assumedNode"
+	// the scheduler will reserve the allocated resource for the pod. TODO: should all schedulers be aware of this ?
+	// TODO: figure out if we can return multiple nodes ? if so how to deal with scheduler cache ?
+	AssumedNodeAnnotationKey = "godel.bytedance.com/assumed-node"
 
 	// NominatedNodeAnnotationKey is a pod annotation key,
 	// value is the node name chosen by scheduler for placing the pending pod by evicting others
 	// value can be like: {node: node1, victims: pod1, pod2...}
-	// the scheduler will reserve the allocated resource for the pod.
-	NominatedNodeAnnotationKey = "nominatedNode"
+	// the scheduler will reserve the allocated resource for the pod. TODO: should all schedulers be aware of this ?
+	// TODO: figure out if we can return multiple nodes ? if so how to deal with scheduler cache ?
+	NominatedNodeAnnotationKey = "godel.bytedance.com/nominated-node"
 
 	// DefaultPriorityTypeAnnotationKey is a priority class annotation key,
 	// value is the priority type which this priority class is default for
-	DefaultPriorityTypeAnnotationKey = "defaultPriorityType"
+	DefaultPriorityTypeAnnotationKey = "godel.bytedance.com/default-priority-type"
 
 	// determined by resource types and launchers, there are four priority types
 	PriorityGuaranteedKublet      = "guaranteed-kubelet"
