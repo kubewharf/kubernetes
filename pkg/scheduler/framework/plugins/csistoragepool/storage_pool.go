@@ -130,20 +130,12 @@ func (spc *StoragePoolChecker) Filter(ctx context.Context, cycleState *framework
 					continue
 				}
 
-				vgName := ""
-				if class.Parameters != nil {
-					if n, ok := class.Parameters[VGNameKey]; ok {
-						vgName = n
-					}
-				}
-
 				// if the pvc is new, add pvc request to pod total request
 				// TODO: duplicated calculating may occur here, which may cause wrong predicate result
 				// find a way to cache local PVCs/Nodes mapping info.
 				requests = append(requests, pvcLocalStorageRequest{
 					scName:  class.Name,
 					request: pvc.Spec.Resources.Requests[v1.ResourceStorage],
-					vgName:  vgName,
 				})
 			}
 		}
@@ -182,11 +174,10 @@ func (spc *StoragePoolChecker) Filter(ctx context.Context, cycleState *framework
 type pvcLocalStorageRequest struct {
 	scName  string
 	request resource.Quantity
-	vgName  string
 }
 
 func (r pvcLocalStorageRequest) String() string {
-	return fmt.Sprintf("%s/%s: %s", r.scName, r.vgName, r.request.String())
+	return fmt.Sprintf("%s: %s", r.scName, r.request.String())
 }
 
 type localStoragePoolInfo struct {
@@ -196,14 +187,8 @@ type localStoragePoolInfo struct {
 }
 
 func (lsp localStoragePoolInfo) canSatisfy(request pvcLocalStorageRequest) bool {
-	if len(request.vgName) > 0 {
-		return lsp.scName == request.scName &&
-			string(lsp.vgName) == request.vgName &&
-			lsp.capacity.Cmp(request.request) > 0
-	} else {
-		return lsp.scName == request.scName &&
-			lsp.capacity.Cmp(request.request) > 0
-	}
+	return lsp.scName == request.scName &&
+		lsp.capacity.Cmp(request.request) > 0
 }
 
 type localStoragePoolInfoList []*localStoragePoolInfo
