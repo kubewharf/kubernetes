@@ -28,6 +28,7 @@ import (
 	"k8s.io/klog"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	kubefeatures "k8s.io/kubernetes/pkg/features"
+	"k8s.io/kubernetes/pkg/kubelet/config"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/qos"
 	"k8s.io/kubernetes/pkg/kubelet/types"
@@ -100,6 +101,16 @@ func (m *kubeGenericRuntimeManager) generateLinuxContainerConfig(container *v1.C
 	}
 
 	lc.Resources.HugepageLimits = GetHugepageLimitsFromResources(container.Resources)
+
+	if pod.Annotations[config.CPUSetAnnotation] != "" {
+		klog.V(2).Infof("cpuset has been set for pod: %s, container: %s, cpuset: %s", pod.Name, container.Name, pod.Annotations[config.CPUSetAnnotation])
+		lc.Resources.CpusetCpus = pod.Annotations[config.CPUSetAnnotation]
+	}
+
+	if pod.Annotations[config.NumaSetAnnotation] != "" {
+		klog.V(2).Infof("numaset has been set for pod: %s, container: %s, numaset: %s", pod.Name, container.Name, pod.Annotations[config.NumaSetAnnotation])
+		lc.Resources.CpusetMems = pod.Annotations[config.NumaSetAnnotation]
+	}
 
 	return lc
 }

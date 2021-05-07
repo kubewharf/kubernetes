@@ -1034,11 +1034,13 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 		}
 
 		devs := allocDevices.UnsortedList()
+		cpuRequirement := getCPURequirementFromContainer(container)
 		// TODO: refactor this part of code to just append a ContainerAllocationRequest
 		// in a passed in AllocateRequest pointer, and issues a single Allocate call per pod.
-		klog.V(3).Infof("Making allocation request for devices %v for device plugin %s", devs, resource)
+		klog.V(3).Infof("Making allocation request for devices %v for device plugin %s; pod: %s; container: %s; cpuRequirement: %d",
+			devs, resource, pod.Name, container.Name, cpuRequirement)
 		// new metadata with pod name and container name
-		md := metadata.Pairs("pod", pod.Name, "container", container.Name, "podUid", string(pod.UID))
+		md := metadata.Pairs("pod", pod.Name, "container", container.Name, "cpu_requirement", fmt.Sprintf("%d", cpuRequirement))
 		ctx := metadata.NewOutgoingContext(context.Background(), md)
 		resp, err := eI.e.allocate(ctx, devs)
 		metrics.DevicePluginAllocationDuration.WithLabelValues(resource).Observe(metrics.SinceInSeconds(startRPCTime))
@@ -1055,6 +1057,8 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 			return fmt.Errorf("no containers return in allocation response %v", resp)
 		}
 
+		injectCPUResourcesAnnotationToPod(pod, resp)
+
 		// Update internal cached podDevices state.
 		m.mutex.Lock()
 		m.podDevices.insert(podUID, contName, resource, allocDevices, resp.ContainerResponses[0])
@@ -1063,6 +1067,34 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 
 	// Checkpoints device to container allocation information.
 	return m.writeCheckpoint()
+}
+
+func getCPURequirementFromContainer(container *v1.Container) int64 {
+	if container == nil {
+		return 0
+	}
+
+	return container.Resources.Requests.Cpu().Value()
+}
+
+func injectCPUResourcesAnnotationToPod(pod *v1.Pod, resp *pluginapi.AllocateResponse) {
+	if pod == nil || resp == nil {
+		return
+	}
+
+	for _, containerResponse := range resp.ContainerResponses {
+		if containerResponse != nil {
+
+			for annoKey, annoValue := range containerResponse.Annotations {
+				switch annoKey {
+				case config.CPUSetAnnotation, config.NumaSetAnnotation:
+					if annoValue != "" {
+						pod.Annotations[annoKey] = annoValue
+					}
+				}
+			}
+		}
+	}
 }
 
 // GetDeviceRunContainerOptions checks whether we have cached containerDevices
