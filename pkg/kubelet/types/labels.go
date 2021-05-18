@@ -21,6 +21,9 @@ const (
 	KubernetesPodNamespaceLabel  = "io.kubernetes.pod.namespace"
 	KubernetesPodUIDLabel        = "io.kubernetes.pod.uid"
 	KubernetesContainerNameLabel = "io.kubernetes.container.name"
+
+	// SriovNICDeviceAnnotation determines the PCIe devices info of Allocated VFs
+	SriovNICDeviceAnnotation = "bytedance.cni.v1/pci-devices"
 )
 
 func GetContainerName(labels map[string]string) string {
