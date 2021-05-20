@@ -28,6 +28,7 @@ import (
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"k8s.io/klog"
+	"k8s.io/kubernetes/pkg/api/v1/resource"
 	"k8s.io/kubernetes/pkg/features"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/types"
@@ -154,6 +155,15 @@ func (m *kubeGenericRuntimeManager) generatePodSandboxConfig(pod *v1.Pod, attemp
 				}
 			}
 		}
+	}
+
+	// Sum container resource limits and pass it to cri runtime
+	_, limits := resource.PodRequestsAndLimits(pod)
+	if limit, found := limits[v1.ResourceCPU]; found {
+		podSandboxConfig.Annotations[types.LimitCpuUserDemandAnnotationKey] = fmt.Sprintf("%d", limit.MilliValue())
+	}
+	if limit, found := limits[v1.ResourceMemory]; found {
+		podSandboxConfig.Annotations[types.LimitMemUserDemandAnnotationKey] = fmt.Sprintf("%d", limit.MilliValue())
 	}
 
 	return podSandboxConfig, nil

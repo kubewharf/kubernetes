@@ -140,6 +140,12 @@ func ResourceConfigForPod(pod *v1.Pod, enforceCPULimits bool, cpuPeriod uint64) 
 	}
 	if limit, found := limits[v1.ResourceCPU]; found {
 		cpuLimits = limit.MilliValue()
+		if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.LocalVMPodOverhead) && v1helper.IsVMRuntime(pod) {
+			// TODO: use podOverhead
+			// Add 1 cpu overhead
+			cpuLimits += 1000
+			klog.V(2).Infof("Add cpu overhead (1c) for kata pod %s(%s): after: %d", pod.Name, pod.UID, cpuLimits)
+		}
 	}
 	if limit, found := limits[v1.ResourceMemory]; found {
 		memoryLimits = limit.Value()
@@ -205,6 +211,21 @@ func ResourceConfigForPod(pod *v1.Pod, enforceCPULimits bool, cpuPeriod uint64) 
 		shares := uint64(MinShares)
 		result.CpuShares = &shares
 	}
+
+	if v1helper.IsVMRuntime(pod) {
+		// Re-set outbound resource limit for kata pod, do not care zero-resource containers in pod.
+		result.CpuQuota = &cpuQuota
+		result.CpuPeriod = &cpuPeriod
+		result.Memory = &memoryLimits
+
+		// Offline kata pod, use min shares
+		if v1helper.IsOfflinePod(pod) {
+			shares := uint64(MinShares)
+			result.CpuShares = &shares
+		}
+
+	}
+
 	result.HugePageLimit = hugePageLimits
 	return result
 }

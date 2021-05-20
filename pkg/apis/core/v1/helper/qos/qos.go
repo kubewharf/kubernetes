@@ -21,7 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/kubernetes/pkg/apis/core"
-	"k8s.io/kubernetes/pkg/apis/core/v1/helper"
 )
 
 var supportedQoSComputeResources = sets.NewString(string(core.ResourceCPU), string(core.ResourceMemory))
@@ -38,10 +37,6 @@ func isSupportedQoSComputeResource(name v1.ResourceName) bool {
 // A pod is guaranteed only when requests and limits are specified for all the containers and they are equal.
 // A pod is burstable if limits and requests do not match across all containers.
 func GetPodQOS(pod *v1.Pod) v1.PodQOSClass {
-	if helper.IsVMRuntime(pod) && helper.IsOfflinePod(pod) {
-		return v1.PodQOSBestEffort
-	}
-
 	requests := v1.ResourceList{}
 	limits := v1.ResourceList{}
 	zeroQuantity := resource.MustParse("0")
