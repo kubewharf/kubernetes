@@ -138,19 +138,20 @@ func (m *kubeGenericRuntimeManager) generatePodSandboxConfig(pod *v1.Pod, attemp
 	}
 	podSandboxConfig.Linux = lc
 
-	// get sriov device annotation from container[0] in pod creation
+	// get sriov device annotation from containers in pod creation
 	// TODO: need a more uniform and clean to way pass these parameters.
 	if len(pod.Spec.Containers) > 0 {
-		rsContainer := &pod.Spec.Containers[0]
+		for _, container := range pod.Spec.Containers {
+			opts, err := m.runtimeHelper.GenerateCreatePodResourceOptions(pod, &container)
+			if err != nil {
+				return nil, err
+			}
 
-		opts, err := m.runtimeHelper.GenerateCreatePodResourceOptions(pod, rsContainer)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, annotation := range opts.Annotations {
-			if annotation.Name == types.SriovDeviceAnnotation {
-				podSandboxConfig.Annotations[types.SriovDeviceAnnotation] = annotation.Value
+			for _, annotation := range opts.Annotations {
+				if annotation.Name == types.SriovNICDeviceAnnotation {
+					podSandboxConfig.Annotations[types.SriovNICDeviceAnnotation] = annotation.Value
+					break
+				}
 			}
 		}
 	}
