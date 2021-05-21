@@ -351,7 +351,7 @@ func (cache *schedulerCache) FilterNodesByPodRefinedResourceRequest(pod *v1.Pod,
 	var filteredNodes []string
 
 	// if the pod does not require refined resource, return all nodes directly
-	if !podRequestRefinedResources(pod) {
+	if !utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) || !podRequestRefinedResources(pod) {
 		filteredNodes = make([]string, len(nodes))
 		i := 0
 		for _, node := range nodes {
