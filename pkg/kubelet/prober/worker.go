@@ -151,10 +151,22 @@ func (w *worker) run() {
 	} else {
 		klog.V(3).Infof("Wait4 readiness probe pod: %v, %s", format.Pod(w.pod), w.pod.Status.Phase)
 		for {
-			time.Sleep(time.Second)
-			if w.pod.Status.Phase == v1.PodRunning {
-				klog.V(3).Infof("Start readiness probe pod: %v", format.Pod(w.pod))
+			select {
+			case <-w.stopCh:
+				return
+			case <-time.After(time.Second):
+				// continue check pod status
+			}
+			status, ok := w.probeManager.statusManager.GetPodStatus(w.pod.UID)
+			if !ok {
+				klog.V(3).Infof("No status for pod: %v, will try to start probe loop immediately", format.Pod(w.pod))
 				break
+			}
+			if status.Phase == v1.PodRunning {
+				klog.V(3).Infof("Start readiness probe for pod: %v", format.Pod(w.pod))
+				break
+			} else {
+				klog.V(4).Infof("Wait readiness probe for pod: %v, current phase %s", format.Pod(w.pod), status.Phase)
 			}
 		}
 	}
@@ -178,12 +190,6 @@ func (w *worker) stop() {
 	case w.stopCh <- struct{}{}:
 	default: // Non-blocking.
 	}
-}
-
-// start starts the probe worker. The worker handles update itself from its manager.
-func (w *worker) start() {
-	klog.V(3).Infof("Activate readiness probe pod: %v, %s", format.Pod(w.pod), w.pod.Status.Phase)
-	w.pod.Status.Phase = v1.PodRunning
 }
 
 // doProbe probes the container once and records the result.

@@ -74,9 +74,6 @@ type Manager interface {
 
 	// Start starts the Manager sync loops.
 	Start()
-
-	// UpdatePod handles update pod phase to Running and readiness probe will start.
-	UpdatePod(pod *v1.Pod)
 }
 
 type manager struct {
@@ -233,25 +230,6 @@ func (m *manager) CleanupPods(desiredPods map[types.UID]sets.Empty) {
 	for key, worker := range m.workers {
 		if _, ok := desiredPods[key.podUID]; !ok {
 			worker.stop()
-		}
-	}
-}
-
-func (m *manager) UpdatePod(pod *v1.Pod) {
-	m.workerLock.RLock()
-	defer m.workerLock.RUnlock()
-	key := probeKey{podUID: pod.UID}
-	klog.V(3).Infof("Update pod: %v, %s", format.Pod(pod), pod.Status.Phase)
-	if pod.Status.Phase != v1.PodRunning {
-		return
-	}
-	for _, c := range pod.Spec.Containers {
-		key.containerName = c.Name
-		for _, probeType := range [...]probeType{readiness, liveness} {
-			key.probeType = probeType
-			if worker, ok := m.workers[key]; ok {
-				worker.start()
-			}
 		}
 	}
 }
