@@ -116,6 +116,11 @@ func (in *KubeletConfiguration) DeepCopyInto(out *KubeletConfiguration) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.RegistryMaxConcurrency != nil {
+		in, out := &in.RegistryMaxConcurrency, &out.RegistryMaxConcurrency
+		*out = new(int32)
+		**out = **in
+	}
 	if in.EventRecordQPS != nil {
 		in, out := &in.EventRecordQPS, &out.EventRecordQPS
 		*out = new(int32)

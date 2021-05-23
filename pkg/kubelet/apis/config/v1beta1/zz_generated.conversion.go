@@ -232,6 +232,9 @@ func autoConvert_v1beta1_KubeletConfiguration_To_config_KubeletConfiguration(in 
 		return err
 	}
 	out.RegistryBurst = in.RegistryBurst
+	if err := v1.Convert_Pointer_int32_To_int32(&in.RegistryMaxConcurrency, &out.RegistryMaxConcurrency, s); err != nil {
+		return err
+	}
 	if err := v1.Convert_Pointer_int32_To_int32(&in.EventRecordQPS, &out.EventRecordQPS, s); err != nil {
 		return err
 	}
@@ -369,6 +372,9 @@ func autoConvert_config_KubeletConfiguration_To_v1beta1_KubeletConfiguration(in 
 		return err
 	}
 	out.RegistryBurst = in.RegistryBurst
+	if err := v1.Convert_int32_To_Pointer_int32(&in.RegistryMaxConcurrency, &out.RegistryMaxConcurrency, s); err != nil {
+		return err
+	}
 	if err := v1.Convert_int32_To_Pointer_int32(&in.EventRecordQPS, &out.EventRecordQPS, s); err != nil {
 		return err
 	}

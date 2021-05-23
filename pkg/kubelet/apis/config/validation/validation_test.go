@@ -49,6 +49,7 @@ func TestValidateKubeletConfiguration(t *testing.T) {
 		Port:                        65535,
 		ReadOnlyPort:                0,
 		RegistryBurst:               10,
+		RegistryMaxConcurrency:      10,
 		RegistryPullQPS:             5,
 		HairpinMode:                 kubeletconfig.PromiscuousBridge,
 		NodeLeaseDurationSeconds:    1,

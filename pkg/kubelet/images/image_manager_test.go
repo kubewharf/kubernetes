@@ -129,7 +129,7 @@ func pullerTestEnv(c pullerTestCase, serialized bool) (puller ImageManager, fake
 	fakeRuntime.Err = c.pullerErr
 	fakeRuntime.InspectErr = c.inspectErr
 
-	puller = NewImageManager(fakeRecorder, fakeRuntime, backOff, serialized, 0, 0)
+	puller = NewImageManager(fakeRecorder, fakeRuntime, backOff, serialized, 0, 0, 10)
 	return
 }
 

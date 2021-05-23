@@ -134,6 +134,9 @@ type KubeletConfiguration struct {
 	// pulls to burst to this number, while still not exceeding registryPullQPS.
 	// Only used if registryPullQPS > 0.
 	RegistryBurst int32
+	// RegistryMaxConcurrency is maximum concurrency of image pulls. if 0,
+	// there is no limit
+	RegistryMaxConcurrency int32
 	// eventRecordQPS is the maximum event creations per second. If 0, there
 	// is no limit enforced.
 	EventRecordQPS int32

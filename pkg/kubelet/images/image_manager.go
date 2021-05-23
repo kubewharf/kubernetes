@@ -44,8 +44,8 @@ type imageManager struct {
 var _ ImageManager = &imageManager{}
 
 // NewImageManager instantiates a new ImageManager object.
-func NewImageManager(recorder record.EventRecorder, imageService kubecontainer.ImageService, imageBackOff *flowcontrol.Backoff, serialized bool, qps float32, burst int) ImageManager {
-	imageService = throttleImagePulling(imageService, qps, burst)
+func NewImageManager(recorder record.EventRecorder, imageService kubecontainer.ImageService, imageBackOff *flowcontrol.Backoff, serialized bool, qps float32, burst, maxConcurrency int) ImageManager {
+	imageService = throttleImagePulling(imageService, qps, burst, maxConcurrency)
 
 	var puller imagePuller
 	if serialized {

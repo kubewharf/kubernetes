@@ -171,6 +171,7 @@ func NewKubeGenericRuntimeManager(
 	serializeImagePulls bool,
 	imagePullQPS float32,
 	imagePullBurst int,
+	maxConcurrency int,
 	cpuCFSQuota bool,
 	cpuCFSQuotaPeriod metav1.Duration,
 	runtimeService internalapi.RuntimeService,
@@ -237,7 +238,8 @@ func NewKubeGenericRuntimeManager(
 		imageBackOff,
 		serializeImagePulls,
 		imagePullQPS,
-		imagePullBurst)
+		imagePullBurst,
+		maxConcurrency)
 	kubeRuntimeManager.runner = lifecycle.NewHandlerRunner(httpClient, kubeRuntimeManager, kubeRuntimeManager)
 	kubeRuntimeManager.containerGC = newContainerGC(runtimeService, podStateProvider, kubeRuntimeManager)
 
