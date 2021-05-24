@@ -84,6 +84,7 @@ type watchChan struct {
 	incomingEventChan chan *event
 	resultChan        chan watch.Event
 	errChan           chan error
+	ignoreModPrev     bool
 }
 
 func newWatcher(client *clientv3.Client, codec runtime.Codec, versioner storage.Versioner, transformer value.Transformer) *watcher {
@@ -121,6 +122,7 @@ func (w *watcher) createWatchChan(ctx context.Context, key string, rev int64, re
 		incomingEventChan: make(chan *event, incomingBufSize),
 		resultChan:        make(chan watch.Event, outgoingBufSize),
 		errChan:           make(chan error, 1),
+		ignoreModPrev:     w.client.KubeBrainFeatureEnabled(),
 	}
 	if pred.Empty() {
 		// The filter doesn't filter out any object.
@@ -225,7 +227,7 @@ func (wc *watchChan) startWatching(watchClosedCh chan struct{}) {
 			return
 		}
 		for _, e := range wres.Events {
-			parsedEvent, err := parseEvent(e)
+			parsedEvent, err := parseEvent(e, wc.ignoreModPrev)
 			if err != nil {
 				logWatchChannelErr(err)
 				wc.sendError(err)

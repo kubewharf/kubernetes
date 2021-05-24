@@ -27,22 +27,30 @@ import (
 	"path"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
+	"google.golang.org/grpc/metadata"
+	"k8s.io/klog"
+
+	"go.etcd.io/etcd/clientv3/balancer/picker"
+
 	"go.etcd.io/etcd/clientv3"
+	"go.etcd.io/etcd/etcdserver/etcdserverpb"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
+	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/features"
 	"k8s.io/apiserver/pkg/storage"
 	"k8s.io/apiserver/pkg/storage/etcd3/metrics"
 	"k8s.io/apiserver/pkg/storage/value"
+
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
-	"k8s.io/klog"
 	utiltrace "k8s.io/utils/trace"
 )
 
@@ -75,6 +83,9 @@ type store struct {
 	pagingEnabled bool
 	leaseManager  *leaseManager
 	maxLimit      int64
+
+	// KubeBrain feature switch
+	rangeStreamEnabled bool
 }
 
 type objState struct {
@@ -101,10 +112,11 @@ func newStore(c *clientv3.Client, pagingEnabled bool, codec runtime.Codec, prefi
 		// for compatibility with etcd2 impl.
 		// no-op for default prefix of '/registry'.
 		// keeps compatibility with etcd2 impl for custom prefixes that don't start with '/'
-		pathPrefix:   path.Join("/", prefix),
-		watcher:      newWatcher(c, codec, versioner, transformer),
-		leaseManager: newDefaultLeaseManager(c),
-		maxLimit:     int64(maxLimit),
+		pathPrefix:         path.Join("/", prefix),
+		watcher:            newWatcher(c, codec, versioner, transformer),
+		leaseManager:       newDefaultLeaseManager(c),
+		maxLimit:           int64(maxLimit),
+		rangeStreamEnabled: c.KubeBrainFeatureEnabled(),
 	}
 	return result
 }
@@ -553,6 +565,9 @@ func (s *store) List(ctx context.Context, key, resourceVersion string, pred stor
 	options := make([]clientv3.OpOption, 0, 4)
 	if s.pagingEnabled && pred.Limit > 0 {
 		paging = true
+		if s.rangeStreamEnabled {
+			pred.Limit = math.MaxInt64
+		}
 	} else if s.pagingEnabled && pred.Limit == 0 && s.maxLimit > 0 {
 		// 当尝试获取全部数据的时候,如果存储支持分页,会通过分页的方式加载数据,防止数据过大加载失败
 		paging = true
@@ -619,7 +634,12 @@ func (s *store) List(ctx context.Context, key, resourceVersion string, pred stor
 	var getResp *clientv3.GetResponse
 	for {
 		startTime := time.Now()
-		getResp, err = s.client.KV.Get(ctx, key, options...)
+		if s.rangeStreamEnabled {
+			getResp, err = s.RangeStream(ctx, key, clientv3.GetPrefixRangeEnd(keyPrefix), returnedRV)
+		} else {
+			getResp, err = s.client.KV.Get(ctx, key, options...)
+		}
+
 		metrics.RecordEtcdRequestLatency("list", getTypeName(listPtr), startTime)
 		if err != nil {
 			return interpretListError(err, len(pred.Continue) > 0, continueKey, keyPrefix)
@@ -702,6 +722,86 @@ func (s *store) List(ctx context.Context, key, resourceVersion string, pred stor
 
 	// no continuation
 	return s.versioner.UpdateList(listObj, uint64(returnedRV), "", nil)
+}
+
+func (s *store) RangeStream(ctx context.Context, key, end string, resourceVersion int64) (*clientv3.GetResponse, error) {
+	var err error
+	const rangeStreamMagic = 1888
+	start := time.Now()
+	getResp, err := s.client.KV.Get(ctx, key, clientv3.WithRange(end), clientv3.WithRev(rangeStreamMagic))
+	if err != nil {
+		return nil, err
+	}
+	revision := getResp.Header.Revision
+	if resourceVersion > 0 && resourceVersion < revision {
+		revision = resourceVersion
+	}
+	response := &clientv3.GetResponse{
+		Header: &etcdserverpb.ResponseHeader{
+			Revision: revision,
+		},
+	}
+	mutex := sync.Mutex{}
+	wg := sync.WaitGroup{}
+	//wg.Add(len(getResp.Kvs) - 1)
+	wg.Add(1)
+
+	klog.Infof("[range stream] range stream key %s end %s partition number is %d", key, end, len(getResp.Kvs)-1)
+	// key is partition id, value is error
+	errs := make([]error, len(getResp.Kvs)-1, len(getResp.Kvs)-1)
+	//for i := 0; i < len(getResp.Kvs)-1; i += 1 {
+	for i := 0; i < 1; i += 1 {
+		startKey := getResp.Kvs[i].Key
+		//endKey := getResp.Kvs[i+1].Key
+		endKey := getResp.Kvs[len(getResp.Kvs)-1].Key
+		go func(i int, startKey, endKey string) {
+			rangeStreamCtx := metadata.NewOutgoingContext(context.Background(), metadata.New(map[string]string{
+				"partition": fmt.Sprintf("%d", i),
+				"key":       key,
+				"time":      time.Now().Format("20060102150405.000"),
+			}))
+			rangeStreamCtx = context.WithValue(rangeStreamCtx, picker.RangeStream, true)
+			rangeStreamCtx, cancel := context.WithCancel(rangeStreamCtx)
+			var partitionErr error
+			defer func() {
+				cancel()
+				klog.Infof("[range stream] wg done: range stream key %s end %s partition %d start %s end %s wg done", key, end, i, startKey, endKey)
+				errs[i] = partitionErr
+				wg.Done()
+			}()
+			klog.Infof("[range stream] starts: range stream key %s end %s partition %d start %s end %s", key, end, i, startKey, endKey)
+			wch := s.client.Watcher.Watch(rangeStreamCtx, startKey, clientv3.WithRange(endKey), clientv3.WithRev(-1*revision))
+			for wres := range wch {
+				klog.Infof("[range stream] receive message: range stream key %s end %s partition %d from %s to %s", key, end, i, startKey, endKey)
+				if wres.Err() != nil {
+					partitionErr = wres.Err()
+					klog.Errorf("[range stream] ends err: range stream key %s end %s partition %d from %s to %s ends err %v, compact version %d, revision %d", key, end, i, startKey, endKey, err, wres.CompactRevision, -1*revision)
+					// If there is an error on server (e.g. compaction), the channel will return it before closed.
+					klog.Errorf("range stream watch chan error: %v", err)
+					return
+				}
+				if wres.Header.Revision == -1 {
+					klog.Infof("[range stream] ends: range stream key %s end %s partition %d from %s to %s ends", key, end, i, startKey, endKey)
+					if len(wres.Events) == 1 && wres.Events[0].Kv != nil && len(wres.Events[0].Kv.Value) > 0 {
+						partitionErr = errors.New(string(wres.Events[0].Kv.Value))
+					}
+					return
+				}
+				for _, e := range wres.Events {
+					mutex.Lock()
+					response.Kvs = append(response.Kvs, e.Kv)
+					response.Count += 1
+					mutex.Unlock()
+				}
+			}
+			klog.Errorf("[range stream] channel close: range stream key %s end %s partition %d from %s to %s", key, end, i, startKey, endKey)
+			partitionErr = fmt.Errorf("range stream key %s end %s partition %d from %s to %s channel close", key, end, i, startKey, endKey)
+		}(i, string(startKey), string(endKey))
+	}
+	wg.Wait()
+	rangeStreamErr := errorsutil.NewAggregate(errs)
+	klog.Infof("[range stream] summary range stream key %s end %s summary err %v, cost %f second", key, end, rangeStreamErr, time.Now().Sub(start).Seconds())
+	return response, rangeStreamErr
 }
 
 // growSlice takes a slice value and grows its capacity up

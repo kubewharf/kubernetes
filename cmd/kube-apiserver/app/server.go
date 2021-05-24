@@ -47,6 +47,7 @@ import (
 	serveroptions "k8s.io/apiserver/pkg/server/options"
 	serverstorage "k8s.io/apiserver/pkg/server/storage"
 	"k8s.io/apiserver/pkg/storage/etcd3/preflight"
+	"k8s.io/apiserver/pkg/storage/storagebackend"
 	"k8s.io/apiserver/pkg/util/feature"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	utilflowcontrol "k8s.io/apiserver/pkg/util/flowcontrol"
@@ -293,9 +294,13 @@ func CreateKubeAPIServerConfig(
 			return nil, nil, nil, nil, fmt.Errorf("error waiting for etcd connection: %v", err)
 		}
 
-		if err := utilwait.PollImmediate(etcdRetryInterval, etcdRetryLimit*etcdRetryInterval, etcdConnection.CheckSplitBrain); err != nil {
-			return nil, nil, nil, nil, fmt.Errorf("error waiting for etcd connection: %v", err)
+		storageType := s.Etcd.StorageConfig.Type
+		if storageType == storagebackend.StorageTypeUnset || storageType == storagebackend.StorageTypeETCD3 {
+			if err := utilwait.PollImmediate(etcdRetryInterval, etcdRetryLimit*etcdRetryInterval, etcdConnection.CheckSplitBrain); err != nil {
+				return nil, nil, nil, nil, fmt.Errorf("error waiting for etcd connection: %v", err)
+			}
 		}
+
 	}
 
 	capabilities.Initialize(capabilities.Capabilities{

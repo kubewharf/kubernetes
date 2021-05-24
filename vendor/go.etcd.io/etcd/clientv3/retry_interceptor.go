@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"go.etcd.io/etcd/clientv3/balancer/picker"
 	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -87,9 +88,21 @@ func (c *Client) unaryClientInterceptor(logger *zap.Logger, optFuncs ...retryOpt
 			if !isSafeRetry(c.lg, lastErr, callOpts) {
 				return lastErr
 			}
+
+			if method != "/etcdserver.KV/Range" && isNotRangeStream(method, ctx) {
+				c.healthCheck()
+			}
 		}
 		return lastErr
 	}
+}
+
+func isNotRangeStream(method string, ctx context.Context) bool {
+	if method != "/etcdserver.KV/Watch" {
+		return false
+	}
+	val, ok := ctx.Value(picker.RangeStream).(bool)
+	return !(val && ok)
 }
 
 // streamClientInterceptor returns a new retrying stream client interceptor for server side streaming calls.

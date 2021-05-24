@@ -278,6 +278,12 @@ func (w *watcher) newWatcherGrpcStream(inctx context.Context) *watchGrpcStream {
 	return wgs
 }
 
+const limitMask uint32 = 1 << 31
+
+func maskLimit(limit int64) pb.WatchCreateRequest_FilterType {
+	return pb.WatchCreateRequest_FilterType(uint32(limit) | limitMask)
+}
+
 // Watch posts a watch request to run() and waits for a new watcher channel
 func (w *watcher) Watch(ctx context.Context, key string, opts ...OpOption) WatchChan {
 	ow := opWatch(key, opts...)
@@ -286,8 +292,13 @@ func (w *watcher) Watch(ctx context.Context, key string, opts ...OpOption) Watch
 	if ow.filterPut {
 		filters = append(filters, pb.WatchCreateRequest_NOPUT)
 	}
+
 	if ow.filterDelete {
 		filters = append(filters, pb.WatchCreateRequest_NODELETE)
+	}
+
+	if ow.limit != 0 {
+		filters = append(filters, maskLimit(ow.limit))
 	}
 
 	wr := &watchRequest{
@@ -625,7 +636,7 @@ func (w *watchGrpcStream) run() {
 				closeErr = err
 				return
 			}
-			if wc, closeErr = w.newWatchClient(); closeErr != nil {
+			if wc, closeErr = w.newWatchClient(); closeErr != nil { // retry here
 				return
 			}
 			if ws := w.nextResume(); ws != nil {

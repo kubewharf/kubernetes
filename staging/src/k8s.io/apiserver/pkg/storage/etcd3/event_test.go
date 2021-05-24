@@ -97,7 +97,7 @@ func TestParseEvent(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			actualEvent, err := parseEvent(tc.etcdEvent)
+			actualEvent, err := parseEvent(tc.etcdEvent, false)
 			if tc.expectedErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.expectedErr)

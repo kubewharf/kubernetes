@@ -19,6 +19,7 @@ require (
 	github.com/go-openapi/jsonreference v0.19.3 // indirect
 	github.com/go-openapi/spec v0.19.3
 	github.com/gogo/protobuf v1.3.1
+	github.com/golang/mock v1.3.1 // indirect
 	github.com/google/go-cmp v0.5.2
 	github.com/google/gofuzz v1.1.0
 	github.com/google/uuid v1.1.1
@@ -35,7 +36,7 @@ require (
 	github.com/sirupsen/logrus v1.6.0 // indirect
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
-	go.etcd.io/etcd v0.0.0-20191023171146-3cf2f69b5738
+	go.etcd.io/etcd v0.5.0-alpha.5.0.20210803123658-fa1e66085bad
 	go.uber.org/zap v1.10.0
 	golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
 	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553
@@ -67,6 +68,7 @@ replace (
 	github.com/prometheus/common => github.com/prometheus/common v0.4.1
 	github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify => github.com/stretchr/testify v1.4.0
+	go.etcd.io/etcd => code.byted.org/tce/etcd v0.5.0-alpha.5.0.20210803123658-fa1e66085bad //  fa1e66085bad is the SHA of commit after git tag v3.4.3
 	golang.org/x/net => golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
 	golang.org/x/sys => golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a // pinned to release-branch.go1.13
 	golang.org/x/time => golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
