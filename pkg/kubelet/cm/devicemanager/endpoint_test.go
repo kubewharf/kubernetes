@@ -95,7 +95,9 @@ func TestRun(t *testing.T) {
 	p, e := esetup(t, devs, socket, "mock", callback)
 	defer ecleanup(t, p, e)
 
-	go e.run()
+	success := make(chan bool)
+	go e.run(success)
+	<-success
 	// Wait for the first callback to be issued.
 	<-callbackChan
 
@@ -146,7 +148,9 @@ func TestAllocate(t *testing.T) {
 		return resp, nil
 	})
 
-	go e.run()
+	success := make(chan bool)
+	go e.run(success)
+	<-success
 	// Wait for the callback to be issued.
 	select {
 	case <-callbackChan:

@@ -375,9 +375,15 @@ func (m *ManagerImpl) RegisterPlugin(pluginName string, endpoint string, version
 	}
 
 	m.registerEndpoint(pluginName, options, e)
-	go m.runEndpoint(pluginName, e)
-
-	return nil
+	success := make(chan bool)
+	go m.runEndpoint(pluginName, e, success)
+	select {
+	case pass := <-success:
+		if pass {
+			return nil
+		}
+		return fmt.Errorf("failed to register resource %s", pluginName)
+	}
 }
 
 // DeRegisterPlugin deregisters the plugin
@@ -484,9 +490,20 @@ func (m *ManagerImpl) Register(ctx context.Context, r *pluginapi.RegisterRequest
 	// add some policies here, e.g., verify whether an old device plugin with the
 	// same resource name is still alive to determine whether we want to accept
 	// the new registration.
-	go m.addEndpoint(r)
-
-	return &pluginapi.Empty{}, nil
+	success := make(chan bool)
+	go m.addEndpoint(r, success)
+	select {
+	case pass := <-success:
+		if pass {
+			klog.Infof("Register device plugin for %s success", r.ResourceName)
+			return &pluginapi.Empty{}, nil
+		}
+		klog.Errorf("Register device plugin for %s fail", r.ResourceName)
+		return &pluginapi.Empty{}, fmt.Errorf("failed to register resource %s", r.ResourceName)
+	case <-ctx.Done():
+		klog.Errorf("Register device plugin for %s timeout", r.ResourceName)
+		return &pluginapi.Empty{}, fmt.Errorf("timeout to register resource %s", r.ResourceName)
+	}
 }
 
 // Stop is the function that can stop the gRPC server.
@@ -516,8 +533,8 @@ func (m *ManagerImpl) registerEndpoint(resourceName string, options *pluginapi.D
 	klog.V(2).Infof("Registered endpoint %v", e)
 }
 
-func (m *ManagerImpl) runEndpoint(resourceName string, e endpoint) {
-	e.run()
+func (m *ManagerImpl) runEndpoint(resourceName string, e endpoint, success chan<- bool) {
+	e.run(success)
 	e.stop()
 
 	m.mutex.Lock()
@@ -530,15 +547,16 @@ func (m *ManagerImpl) runEndpoint(resourceName string, e endpoint) {
 	klog.V(2).Infof("Endpoint (%s, %v) became unhealthy", resourceName, e)
 }
 
-func (m *ManagerImpl) addEndpoint(r *pluginapi.RegisterRequest) {
+func (m *ManagerImpl) addEndpoint(r *pluginapi.RegisterRequest, success chan<- bool) {
 	new, err := newEndpointImpl(filepath.Join(m.socketdir, r.Endpoint), r.ResourceName, m.callback)
 	if err != nil {
 		klog.Errorf("Failed to dial device plugin with request %v: %v", r, err)
+		success <- false
 		return
 	}
 	m.registerEndpoint(r.ResourceName, r.Options, new)
 	go func() {
-		m.runEndpoint(r.ResourceName, new)
+		m.runEndpoint(r.ResourceName, new, success)
 	}()
 }
 
