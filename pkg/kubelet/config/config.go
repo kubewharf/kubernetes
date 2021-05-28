@@ -31,6 +31,7 @@ import (
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/events"
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
+	"k8s.io/kubernetes/pkg/kubelet/util"
 	"k8s.io/kubernetes/pkg/kubelet/util/format"
 	"k8s.io/kubernetes/pkg/util/config"
 )
@@ -305,7 +306,15 @@ func (s *podStorage) merge(source string, change interface{}) (adds, updates, de
 		// Clear the old map entries by just creating a new map
 		oldPods := pods
 		pods = make(map[types.UID]*v1.Pod)
-		updatePodsFunc(update.Pods, oldPods, pods)
+		newPods := make([]*v1.Pod, 0)
+		for _, pod := range update.Pods {
+			if !util.AdmitForKubelet(pod) {
+				klog.V(3).Infof("Pod %s from %s failed validation due to admission failure", format.Pod(pod), source)
+				continue
+			}
+			newPods = append(newPods, pod)
+		}
+		updatePodsFunc(newPods, oldPods, pods)
 		for uid, existing := range oldPods {
 			if _, found := pods[uid]; !found {
 				// this is a delete

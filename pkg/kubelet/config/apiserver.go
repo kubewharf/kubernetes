@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	utilpod "k8s.io/kubernetes/pkg/api/pod"
 	api "k8s.io/kubernetes/pkg/apis/core"
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
 )
@@ -40,27 +39,10 @@ func newSourceApiserverFromLW(lw cache.ListerWatcher, updates chan<- interface{}
 	send := func(objs []interface{}) {
 		var pods []*v1.Pod
 		for _, o := range objs {
-			pod := o.(*v1.Pod)
-			if skipForKubelet(pod) {
-				continue
-			}
-			pods = append(pods, pod)
+			pods = append(pods, o.(*v1.Pod))
 		}
 		updates <- kubetypes.PodUpdate{Pods: pods, Op: kubetypes.SET, Source: kubetypes.ApiserverSource}
 	}
 	r := cache.NewReflector(lw, &v1.Pod{}, cache.NewUndeltaStore(send, cache.MetaNamespaceKeyFunc), 0)
 	go r.Run(wait.NeverStop)
-}
-
-func skipForKubelet(pod *v1.Pod) bool {
-	if !utilpod.LauncherIsSet(pod.Annotations) {
-		return false
-	}
-	if utilpod.LauncherIsNodeManager(pod.Annotations) {
-		return true
-	}
-	if !utilpod.LauncherIsKubelet(pod.Annotations) {
-		return true
-	}
-	return false
 }

@@ -26,9 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog"
-	utilpod "k8s.io/kubernetes/pkg/api/pod"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
+	"k8s.io/kubernetes/pkg/kubelet/util"
 	"k8s.io/kubernetes/pkg/kubelet/util/format"
 	"k8s.io/kubernetes/pkg/security/apparmor"
 	utilio "k8s.io/utils/io"
@@ -178,25 +178,8 @@ func NewPodLauncherAdmitHandler() PodAdmitHandler {
 
 type podLauncherAdmitHandler struct{}
 
-func isLauncherAdmitting(pod *v1.Pod) bool {
-	if !utilpod.LauncherIsSet(pod.Annotations) {
-		return true
-	}
-	if utilpod.LauncherIsNodeManager(pod.Annotations) {
-		return false
-	}
-	if pod.Status.Phase == v1.PodPending {
-		if utilpod.LauncherIsKubelet(pod.Annotations) {
-			return true
-		} else {
-			return false
-		}
-	}
-	return true
-}
-
 func (a *podLauncherAdmitHandler) Admit(attrs *PodAdmitAttributes) PodAdmitResult {
-	if !isLauncherAdmitting(attrs.Pod) {
+	if !util.AdmitForKubelet(attrs.Pod) {
 		return PodAdmitResult{
 			Admit:   false,
 			Reason:  "IllegalPodLauncher",
