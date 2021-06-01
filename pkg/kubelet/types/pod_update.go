@@ -213,9 +213,9 @@ func IsTCECriticalPod(pod *v1.Pod) bool {
 	return false
 }
 
-// IsIncludeNotReadyNodeDaemonPod returns true if the pod is daemon pod and
+// CanPodTolerateNotReadyNode returns true if the pod is daemon pod and
 // tolerates not ready node.
-func IsIncludeNotReadyNodeDaemonPod(pod *v1.Pod) bool {
+func CanPodTolerateNotReadyNode(pod *v1.Pod) bool {
 	annotation := pod.GetAnnotations()
 	if annotation != nil {
 		value, ok := annotation[DaemonIncludeNotReadyNodeAnnotationKey]

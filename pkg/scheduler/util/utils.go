@@ -532,3 +532,18 @@ func SmallSizeDeployment(pod *v1.Pod, deployLister appv1listers.DeploymentLister
 
 	return deploy != nil && *deploy.Spec.Replicas <= 3
 }
+
+const (
+	TCEDaemonPodAnnotation = "pod.tce.kubernetes.io/tce-daemon"
+)
+
+func IsTCEDaemonPod(pod *v1.Pod) bool {
+	if pod == nil || pod.Annotations == nil {
+		return false
+	}
+	if _, ok := pod.Annotations[TCEDaemonPodAnnotation]; ok {
+		return true
+	}
+
+	return false
+}
