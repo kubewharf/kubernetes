@@ -889,11 +889,12 @@ func (rsc *ReplicaSetController) getIndirectlyRelatedPods(rs *apps.ReplicaSet) (
 	var relatedPods []*v1.Pod
 	seen := make(map[types.UID]*apps.ReplicaSet)
 	for _, relatedRS := range rsc.getReplicaSetsWithSameController(rs) {
-		selector, err := metav1.LabelSelectorAsSelector(relatedRS.Spec.Selector)
+		/*selector, err := metav1.LabelSelectorAsSelector(relatedRS.Spec.Selector)
 		if err != nil {
 			return nil, err
-		}
-		pods, err := rsc.podLister.Pods(relatedRS.Namespace).List(selector)
+		}*/
+		pods, err := rsc.podLister.PodsForTCELabel(relatedRS.Namespace, rsc.indexName).List(relatedRS.Spec.Selector)
+		//pods, err := rsc.podLister.Pods(relatedRS.Namespace).List(selector)
 		if err != nil {
 			return nil, err
 		}
