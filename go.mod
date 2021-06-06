@@ -10,7 +10,7 @@ require (
 	bitbucket.org/bertimus9/systemstat v0.0.0-20180207000608-0eeff89b0690
 	code.byted.org/kubernetes/apis v0.1.3
 	code.byted.org/kubernetes/clientsets v0.1.3
-	code.byted.org/tce/kube-tracing v0.2.2
+	code.byted.org/tce/kube-tracing v0.2.3
 	github.com/Azure/azure-sdk-for-go v35.0.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.9.0
 	github.com/Azure/go-autorest/autorest/adal v0.5.0
@@ -97,9 +97,8 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.3.2
 	github.com/storageos/go-api v0.0.0-20180912212459-343b3eff91fc
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.6.1
 	github.com/thecodeteam/goscaleio v0.1.0
-	github.com/uber/jaeger-client-go v2.16.2+incompatible // indirect
 	github.com/urfave/negroni v1.0.0 // indirect
 	github.com/vishvananda/netlink v1.1.0
 	github.com/vishvananda/netns v0.0.0-20200520041808-52d707b772fe
@@ -160,7 +159,7 @@ replace (
 	cloud.google.com/go => cloud.google.com/go v0.38.0
 	code.byted.org/kubernetes/apis => code.byted.org/kubernetes/apis v0.1.3
 	code.byted.org/kubernetes/clientsets => code.byted.org/kubernetes/clientsets v0.1.3
-	code.byted.org/tce/kube-tracing => code.byted.org/tce/kube-tracing v0.2.2
+	code.byted.org/tce/kube-tracing => code.byted.org/tce/kube-tracing v0.2.3
 	github.com/Azure/azure-sdk-for-go => github.com/Azure/azure-sdk-for-go v35.0.0+incompatible
 	github.com/Azure/go-ansiterm => github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78
 	github.com/Azure/go-autorest/autorest => github.com/Azure/go-autorest/autorest v0.9.0

@@ -20,7 +20,7 @@ require (
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/rubiojr/go-vhd v0.0.0-20160810183302-0bfd3b39853c
 	github.com/satori/go.uuid v1.2.0 // indirect
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.6.1
 	github.com/vmware/govmomi v0.20.3
 	golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
@@ -48,7 +48,6 @@ replace (
 	github.com/prometheus/common => github.com/prometheus/common v0.4.1
 	github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify => github.com/stretchr/testify v1.4.0
-	go.uber.org/atomic => go.uber.org/atomic v1.3.2
 	golang.org/x/net => golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
 	golang.org/x/sys => golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a // pinned to release-branch.go1.13
 	golang.org/x/time => golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
