@@ -27,6 +27,7 @@ import (
 	pluginhelper "k8s.io/kubernetes/pkg/scheduler/framework/plugins/helper"
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 	"k8s.io/kubernetes/pkg/scheduler/nodeinfo"
+	schedutil "k8s.io/kubernetes/pkg/scheduler/util"
 )
 
 // TaintToleration is a plugin that checks if a pod tolerates a node's taints.
@@ -69,7 +70,7 @@ func (pl *TaintToleration) Filter(ctx context.Context, state *framework.CycleSta
 	}
 
 	var tolerations []v1.Toleration
-	if kubelettypes.IsTCECriticalPod(pod) {
+	if schedutil.IsTCEDaemonPod(pod) {
 		// critical pod can tolerate more taints.
 		tolerations = addOrUpdateTCECriticalPodTolerations(pod)
 	} else {
@@ -118,7 +119,7 @@ func addOrUpdateTCECriticalPodTolerations(pod *v1.Pod) []v1.Toleration {
 		},
 	}
 
-	if kubelettypes.IsIncludeNotReadyNodeDaemonPod(pod) {
+	if kubelettypes.CanPodTolerateNotReadyNode(pod) {
 		pressureTolerations = append(pressureTolerations, v1.Toleration{
 			Key:      v1.TaintNodeNotReady,
 			Operator: v1.TolerationOpExists,

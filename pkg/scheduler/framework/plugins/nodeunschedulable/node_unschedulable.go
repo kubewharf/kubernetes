@@ -22,9 +22,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
-	kubelettypes "k8s.io/kubernetes/pkg/kubelet/types"
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 	"k8s.io/kubernetes/pkg/scheduler/nodeinfo"
+	schedutil "k8s.io/kubernetes/pkg/scheduler/util"
 )
 
 // NodeUnschedulable is a plugin that priorities nodes according to the node annotation
@@ -54,7 +54,7 @@ func (pl *NodeUnschedulable) Filter(ctx context.Context, _ *framework.CycleState
 	if nodeInfo == nil || nodeInfo.Node() == nil {
 		return framework.NewStatus(framework.UnschedulableAndUnresolvable, ErrReasonUnknownCondition)
 	}
-	if kubelettypes.IsTCECriticalPod(pod) {
+	if schedutil.IsTCEDaemonPod(pod) {
 		return nil
 	}
 
