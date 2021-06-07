@@ -218,9 +218,9 @@ func ResourceConfigForPod(pod *v1.Pod, enforceCPULimits bool, cpuPeriod uint64) 
 		result.CpuPeriod = &cpuPeriod
 		result.Memory = &memoryLimits
 
-		// Offline kata pod, use min shares
+		// Offline kata pod, use default shares(1024)
 		if v1helper.IsOfflinePod(pod) {
-			shares := uint64(MinShares)
+			shares := uint64(SharesPerCPU)
 			result.CpuShares = &shares
 		}
 
