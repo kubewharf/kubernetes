@@ -2446,14 +2446,27 @@ func getStreamingConfig(kubeCfg *kubeletconfiginternal.KubeletConfiguration, kub
 func patchDualStackIPAddressInPodAnnotations(kl *Kubelet, pod *v1.Pod) error {
 	ipv4, ipv6 := pod.ObjectMeta.Annotations[hostdualstackip.HostIPv4AnnotationKey], pod.ObjectMeta.Annotations[hostdualstackip.HostIPv6AnnotationKey]
 
+	if ipv4 != "" && ipv6 != "" {
+		return nil
+	}
+
 	// add empty value check here.
 	// in case that the caller is from syncLoopIteration's kubetypes.RESTORE caused HandlePodAdditions or any others.
-	if ipv4 == "" && ipv6 == "" {
-		v4, v6, err := netutil.GetDualStackIPFromHostInterfaces()
-		if err != nil {
-			return err
-		}
-		ipv4, ipv6 = v4.String(), v6.String()
+	var hostV4, hostV6 string
+	v4, v6, err := netutil.GetDualStackIPFromHostInterfaces()
+	if err != nil {
+		return err
+	}
+	if v4 != nil {
+		hostV4 = v4.String()
+	}
+	if v6 != nil {
+		hostV6 = v6.String()
+	}
+
+	if ipv4 == hostV4 && ipv6 == hostV6 {
+		// nothing changed
+		return nil
 	}
 
 	newMap := map[string]interface{}{
@@ -2465,6 +2478,6 @@ func patchDualStackIPAddressInPodAnnotations(kl *Kubelet, pod *v1.Pod) error {
 		},
 	}
 	patchContents, _ := json.Marshal(newMap)
-	_, err := kl.kubeClient.CoreV1().Pods(pod.Namespace).Patch(context.Background(), pod.Name, types.StrategicMergePatchType, patchContents, metav1.PatchOptions{})
+	_, err = kl.kubeClient.CoreV1().Pods(pod.Namespace).Patch(context.Background(), pod.Name, types.StrategicMergePatchType, patchContents, metav1.PatchOptions{})
 	return err
 }
