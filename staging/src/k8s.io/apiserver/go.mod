@@ -34,9 +34,8 @@ require (
 	github.com/prometheus/client_model v0.2.0
 	github.com/sirupsen/logrus v1.6.0 // indirect
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.6.1
 	go.etcd.io/etcd v0.0.0-20191023171146-3cf2f69b5738
-	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/zap v1.10.0
 	golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
 	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553
@@ -68,7 +67,6 @@ replace (
 	github.com/prometheus/common => github.com/prometheus/common v0.4.1
 	github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify => github.com/stretchr/testify v1.4.0
-	go.uber.org/atomic => go.uber.org/atomic v1.3.2
 	golang.org/x/net => golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
 	golang.org/x/sys => golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a // pinned to release-branch.go1.13
 	golang.org/x/time => golang.org/x/time v0.0.0-20190308202827-9d24e82272b4

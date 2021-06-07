@@ -1,6 +1,6 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
-code.byted.org/tce/jaeger-client-go v2.16.1+incompatible h1:GUTL51vhAzFMCLFCy9cVpXiQ3D6f7d3L7mc+pdSDPOU=
-code.byted.org/tce/jaeger-client-go v2.16.1+incompatible/go.mod h1:B+UUxYQz1AtjR7UXyTfxJU+tmnPOjKd2Hy/Pf1Adg6w=
+code.byted.org/tce/jaeger-client-go v2.16.2+incompatible h1:TxgdBcO1bo/xAbuHGTrp6sCxlGgM/a1tq/fGQJMMPnk=
+code.byted.org/tce/jaeger-client-go v2.16.2+incompatible/go.mod h1:B+UUxYQz1AtjR7UXyTfxJU+tmnPOjKd2Hy/Pf1Adg6w=
 code.byted.org/tce/opentracing-go v1.1.1 h1:3svglc2/6jOZempJ6vLaN9uefMI0El43H09BSmV95wg=
 code.byted.org/tce/opentracing-go v1.1.1/go.mod h1:taHceXEnY8EopBiGbaRBaLCO0YHJ83X/iQDEZdFrvhg=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
