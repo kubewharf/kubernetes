@@ -807,7 +807,7 @@ func (g *genericScheduler) podPassesFiltersOnNode(
 	statusMap := prof.RunFilterPlugins(ctx, stateToUse, pod, nodeInfoToUse)
 
 	if !matchNumaTopology {
-		statusMap["MatchNumaTopology"] = framework.NewStatus(framework.UnschedulableAndUnresolvable, "node(s) not match numa topology")
+		statusMap["MatchNumaTopology"] = framework.NewStatus(framework.Unschedulable, "node(s) not match numa topology")
 	}
 
 	status = statusMap.Merge()
