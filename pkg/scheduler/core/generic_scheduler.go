@@ -1197,7 +1197,7 @@ func (g *genericScheduler) selectVictimsOnNode(
 
 	removePod := func(rp *v1.Pod) error {
 		if nodeRefinedResourceInfoCopy != nil {
-			nodeRefinedResourceInfoCopy.RemovePod(pod)
+			nodeRefinedResourceInfoCopy.RemovePod(rp)
 		}
 		if err := nodeInfo.RemovePod(rp); err != nil {
 			return err
@@ -1210,7 +1210,7 @@ func (g *genericScheduler) selectVictimsOnNode(
 	}
 	addPod := func(ap *v1.Pod) error {
 		if nodeRefinedResourceInfoCopy != nil {
-			nodeRefinedResourceInfoCopy.AddPod(pod)
+			nodeRefinedResourceInfoCopy.AddPod(ap)
 		}
 		nodeInfo.AddPod(ap)
 		status := prof.RunPreFilterExtensionAddPod(ctx, state, pod, ap, nodeInfo)
