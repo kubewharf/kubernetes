@@ -722,10 +722,11 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 		// will fit due to the preemption. It is also possible that a different pod will schedule
 		// into the resources that were preempted, but this is harmless.
 		if fitError, ok := err.(*core.FitError); ok {
-			// add this for online debug
 			if pod.Annotations != nil && len(pod.Annotations[util.PodDebugModeAnnotationKey]) > 0 {
 				klog.Infof("pod is in debug mode, print detailed predicate result")
-				klog.Error(fitError)
+				for nodeName, nodeStatuses := range fitError.FilteredNodesStatuses {
+					klog.Infof("%s : %v;", nodeName, nodeStatuses.Message())
+				}
 			}
 
 			if sched.DisablePreemption {
