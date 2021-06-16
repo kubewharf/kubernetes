@@ -122,7 +122,7 @@ func (mounter *Mounter) doMount(mounterPath string, mountCmd string, source stri
 		mountCmd = mounterPath
 	}
 
-	if mounter.withSystemd && mounterPath == "" {
+	if mounter.withSystemdMount && mounterPath == "" {
 		// Kubelet use non-default mounter path in case of cfs/glusterfs/ceph
 		// .etc volumes needed; in case of corner cases, we only systemd-mount
 		// to handle default mount, e.g. secret volumes

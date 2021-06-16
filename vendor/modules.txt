@@ -1997,7 +1997,7 @@ k8s.io/sample-apiserver/pkg/registry/wardle/fischer
 k8s.io/sample-apiserver/pkg/registry/wardle/flunder
 # k8s.io/system-validators v1.0.4 => k8s.io/system-validators v1.0.4
 k8s.io/system-validators/validators
-# k8s.io/utils v0.0.0-20210126070639-a7af8a8f5dca => code.byted.org/tce/k8s-utils v0.0.0-20210126070639-a7af8a8f5dca
+# k8s.io/utils v0.0.0-20210616064148-7505c2c40546 => code.byted.org/tce/k8s-utils v0.0.0-20210616064148-7505c2c40546
 k8s.io/utils/buffer
 k8s.io/utils/clock
 k8s.io/utils/exec

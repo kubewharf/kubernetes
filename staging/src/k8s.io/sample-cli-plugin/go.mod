@@ -27,5 +27,5 @@ replace (
 	k8s.io/cli-runtime => ../cli-runtime
 	k8s.io/client-go => ../client-go
 	k8s.io/sample-cli-plugin => ../sample-cli-plugin
-	k8s.io/utils => code.byted.org/tce/k8s-utils v0.0.0-20210126070639-a7af8a8f5dca
+	k8s.io/utils => code.byted.org/tce/k8s-utils v0.0.0-20210616064148-7505c2c40546
 )

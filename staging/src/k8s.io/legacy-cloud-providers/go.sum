@@ -1,8 +1,8 @@
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.38.0 h1:ROfEUZz+Gh5pa62DJWXSaonyu3StP6EA6lPEXPI6mCo=
 cloud.google.com/go v0.38.0/go.mod h1:990N+gfupTy94rShfmMCWGDn0LpTmnzTp2qbd1dvSRU=
-code.byted.org/tce/k8s-utils v0.0.0-20210126070639-a7af8a8f5dca h1:q+FrMyX9iT1zU/CC4E1ZzSrUuaQFPVmJwI4uqgK1p9I=
-code.byted.org/tce/k8s-utils v0.0.0-20210126070639-a7af8a8f5dca/go.mod h1:sZAwmy6armz5eXlNoLmJcl4F1QuKu7sr+mFQ0byX7Ew=
+code.byted.org/tce/k8s-utils v0.0.0-20210616064148-7505c2c40546 h1:xuRynNwtnA59jGh3Mqre7Ul3HxOEgm654A7h8buk4Hc=
+code.byted.org/tce/k8s-utils v0.0.0-20210616064148-7505c2c40546/go.mod h1:sZAwmy6armz5eXlNoLmJcl4F1QuKu7sr+mFQ0byX7Ew=
 github.com/Azure/azure-sdk-for-go v35.0.0+incompatible h1:PkmdmQUmeSdQQ5258f4SyCf2Zcz0w67qztEg37cOR7U=
 github.com/Azure/azure-sdk-for-go v35.0.0+incompatible/go.mod h1:9XXNKU+eRnpl9moKnB4QOLf1HestfXbmab5FXxiDBjc=
 github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78/go.mod h1:LmzpDX56iTiv29bbRTIsUNlaFfuhWRQBWjQdVyAevI8=
