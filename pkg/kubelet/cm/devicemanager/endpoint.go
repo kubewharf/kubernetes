@@ -33,7 +33,7 @@ import (
 // for managing gRPC communications with the device plugin and caching
 // device states reported by the device plugin.
 type endpoint interface {
-	run()
+	run(success chan<- bool)
 	stop()
 	allocate(c context.Context, devs []string) (*pluginapi.AllocateResponse, error)
 	preStartContainer(devs []string) (*pluginapi.PreStartContainerResponse, error)
@@ -92,13 +92,14 @@ func (e *endpointImpl) callback(resourceName string, devices []pluginapi.Device)
 // stream update contains a new list of device states.
 // It then issues a callback to pass this information to the device manager which
 // will adjust the resource available information accordingly.
-func (e *endpointImpl) run() {
+func (e *endpointImpl) run(success chan<- bool) {
 	stream, err := e.client.ListAndWatch(context.Background(), &pluginapi.Empty{})
 	if err != nil {
 		klog.Errorf(errListAndWatch, e.resourceName, err)
-
+		success <- false
 		return
 	}
+	success <- true
 
 	for {
 		response, err := stream.Recv()

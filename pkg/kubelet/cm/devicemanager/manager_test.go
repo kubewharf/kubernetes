@@ -554,8 +554,8 @@ type MockEndpoint struct {
 	initChan     chan []string
 }
 
-func (m *MockEndpoint) stop() {}
-func (m *MockEndpoint) run()  {}
+func (m *MockEndpoint) stop()                   {}
+func (m *MockEndpoint) run(success chan<- bool) {}
 
 func (m *MockEndpoint) callback(resourceName string, devices []pluginapi.Device) {}
 
