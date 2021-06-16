@@ -9,7 +9,7 @@ require (
 	k8s.io/apimachinery v0.0.0
 	k8s.io/client-go v0.0.0
 	k8s.io/klog v1.0.0
-	k8s.io/utils v0.0.0-20210126070639-a7af8a8f5dca
+	k8s.io/utils v0.0.0-20210616064148-7505c2c40546
 )
 
 replace (
@@ -27,5 +27,5 @@ replace (
 	k8s.io/apimachinery => ../apimachinery
 	k8s.io/client-go => ../client-go
 	k8s.io/cloud-provider => ../cloud-provider
-	k8s.io/utils => code.byted.org/tce/k8s-utils v0.0.0-20210126070639-a7af8a8f5dca
+	k8s.io/utils => code.byted.org/tce/k8s-utils v0.0.0-20210616064148-7505c2c40546
 )
