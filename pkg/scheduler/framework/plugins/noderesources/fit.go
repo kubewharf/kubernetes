@@ -248,6 +248,12 @@ func fitsRequest(podRequest *preFilterState, nodeInfo *schedulernodeinfo.NodeInf
 				continue
 			}
 		}
+		// Note: kubelet also call this function during admission, and kubelet will construct a new node info every time
+		// when admitting a Pod, so allocatable resource might be 0 if Pod use "0" scalar resource (e.g. nvidia.com/gpu = 0),
+		// leading to admission failure if kubelet is restarted.
+		if rQuant <= 0 {
+			continue
+		}
 		if allocatable.ScalarResources[rName] < rQuant+nodeInfo.RequestedResource().ScalarResources[rName] {
 			insufficientResources = append(insufficientResources, InsufficientResource{
 				rName,
