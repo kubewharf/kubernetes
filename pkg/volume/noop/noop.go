@@ -20,6 +20,7 @@ package noop
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -29,7 +30,6 @@ import (
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/volume"
@@ -57,6 +57,8 @@ const (
 	noopPluginName = "kubernetes.io/noop"
 
 	wrappedVolumeFileName = "volume.json"
+
+	defaultFsType = "ext4"
 )
 
 func getPath(uid types.UID, volName string, host volume.VolumeHost) string {
@@ -79,9 +81,13 @@ func (plugin *noopPlugin) GetVolumeName(spec *volume.Spec) (string, error) {
 }
 
 func (plugin *noopPlugin) CanSupport(spec *volume.Spec) bool {
-	if spec.PersistentVolume != nil && spec.PersistentVolume.Spec.CephFS != nil {
-		if volumeutil.IsPVManagedByNoopPlugin(spec.PersistentVolume) {
-			return true
+	if spec.PersistentVolume != nil {
+		if spec.PersistentVolume.Spec.CephFS != nil ||
+			spec.PersistentVolume.Spec.NFS != nil ||
+			volumeutil.ShouldCSIPVSkip(spec.PersistentVolume) {
+			if volumeutil.IsPVManagedByNoopPlugin(spec.PersistentVolume) {
+				return true
+			}
 		}
 	}
 
@@ -97,7 +103,7 @@ func (plugin *noopPlugin) RequiresRemount() bool {
 }
 
 func (plugin *noopPlugin) SupportsMountOption() bool {
-	return false
+	return true
 }
 
 func (plugin *noopPlugin) SupportsBulkVolumeVerification() bool {
@@ -105,20 +111,51 @@ func (plugin *noopPlugin) SupportsBulkVolumeVerification() bool {
 }
 
 func (plugin *noopPlugin) NewMounter(spec *volume.Spec, pod *v1.Pod, opts volume.VolumeOptions) (volume.Mounter, error) {
-	volumeWrappped := wrappedVolume{}
+	klog.V(2).Infof("New mounter for pod: %s, volumeSpec: %+v", pod.Name, *spec.PersistentVolume)
 
-	if spec.PersistentVolume.Spec.CephFS != nil {
+	volumeWrappped, err := plugin.constructVolume(spec, pod)
+	if err != nil {
+		return nil, err
+	}
+
+	return plugin.newMounterInternal(spec, pod, plugin.host.GetMounter(plugin.GetPluginName()), volumeWrappped, spec.ReadOnly)
+}
+
+func (plugin *noopPlugin) constructVolume(spec *volume.Spec, pod *v1.Pod) (*wrappedVolume, error) {
+	volumeWrappped := &wrappedVolume{}
+	switch {
+	case spec.PersistentVolume.Spec.CephFS != nil:
 		cephData, err := plugin.constructCephFS(spec, pod)
 		if err != nil {
 			return nil, err
 		}
 
 		volumeWrappped.CephFS = cephData
-	} else {
+	case spec.PersistentVolume.Spec.NFS != nil:
+		nfsData, err := plugin.constructNFS(spec, pod)
+		if err != nil {
+			return nil, err
+		}
+		volumeWrappped.NFS = nfsData
+	case spec.PersistentVolume.Spec.CSI != nil && spec.PersistentVolume.Spec.CSI.Driver == volumeutil.ZenyaCSIDriverName:
+		zenyaData, err := plugin.constructZenya(spec)
+		if err != nil {
+			return nil, err
+		}
+		klog.V(2).Infof("Construct zenyaBlk volume for pod: %s, zenyaBlk: %+v", pod.Name, zenyaData)
+		volumeWrappped.Zenya = zenyaData
+	case spec.PersistentVolume.Spec.CSI != nil && spec.PersistentVolume.Spec.CSI.Driver == volumeutil.ByteDriveCSIDriverName:
+		bytedriveData, err := plugin.constructBytedrive(spec)
+		if err != nil {
+			return nil, err
+		}
+		klog.V(2).Infof("Construct bytedriveBlk volume for pod: %s, bytedriveBlk: %+v", pod.Name, bytedriveData)
+		volumeWrappped.Bytedrive = bytedriveData
+	default:
 		return nil, fmt.Errorf("spec does not reference an CephFS persistentvolume volume type")
 	}
 
-	return plugin.newMounterInternal(spec, pod, plugin.host.GetMounter(plugin.GetPluginName()), &volumeWrappped)
+	return volumeWrappped, nil
 }
 
 func (plugin *noopPlugin) constructCephFS(spec *volume.Spec, pod *v1.Pod) (*cephfs, error) {
@@ -153,13 +190,95 @@ func (plugin *noopPlugin) constructCephFS(spec *volume.Spec, pod *v1.Pod) (*ceph
 	return cephData, nil
 }
 
-func (plugin *noopPlugin) newMounterInternal(spec *volume.Spec, pod *v1.Pod, mounter mount.Interface, volume *wrappedVolume) (volume.Mounter, error) {
+func (plugin *noopPlugin) constructNFS(spec *volume.Spec, pod *v1.Pod) (*nfs, error) {
+	nfsPv := spec.PersistentVolume.Spec.NFS
+	nfsData := &nfs{
+		Server:       nfsPv.Server,
+		Path:         nfsPv.Path,
+		ReadOnly:     spec.ReadOnly,
+		MountOptions: volumeutil.MountOptionFromSpec(spec),
+	}
+
+	return nfsData, nil
+}
+
+func (plugin *noopPlugin) constructZenya(spec *volume.Spec) (*zenyaBlk, error) {
+	csiInfo := spec.PersistentVolume.Spec.CSI
+	zenyaData := &zenyaBlk{}
+
+	if spec.PersistentVolume.Spec.ClaimRef != nil {
+		zenyaData.PVCName = spec.PersistentVolume.Spec.ClaimRef.Name
+	}
+
+	portal, ok := csiInfo.VolumeAttributes["portal"]
+	if !ok {
+		return nil, fmt.Errorf("cannot find zenyaBlk portal")
+	}
+	zenyaData.Portal = portal
+
+	token, ok := csiInfo.VolumeAttributes["token"]
+	if ok {
+		zenyaData.Token = token
+	}
+
+	zenyaData.FsType = defaultFsType
+	if csiInfo.FSType != "" {
+		zenyaData.FsType = csiInfo.FSType
+	}
+
+	zenyaData.CSIHandle = csiInfo.VolumeHandle
+
+	return zenyaData, nil
+}
+
+func (plugin *noopPlugin) constructBytedrive(spec *volume.Spec) (*bytedriveBlk, error) {
+	csiInfo := spec.PersistentVolume.Spec.CSI
+	bytedriveData := &bytedriveBlk{}
+
+	klog.Infof("constructBytedrive: volumeSpec: %+v", spec.PersistentVolume)
+	if spec.PersistentVolume.Spec.ClaimRef != nil {
+		bytedriveData.PVCName = spec.PersistentVolume.Spec.ClaimRef.Name
+	}
+
+	clusterName, ok := csiInfo.VolumeAttributes["clusterName"]
+	if !ok {
+		return nil, fmt.Errorf("cannot find bytedrive clusterName")
+	}
+	bytedriveData.ClusterName = clusterName
+
+	regionName, ok := csiInfo.VolumeAttributes["regionName"]
+	if !ok {
+		return nil, fmt.Errorf("cannot find bytedrive regionName")
+	}
+	bytedriveData.RegionName = regionName
+
+	uuid, ok := csiInfo.VolumeAttributes["bytedriveUUID"]
+	if !ok {
+		return nil, fmt.Errorf("cannot find bytedrive uuid")
+	}
+	bytedriveData.UUID = uuid
+
+	volumeID := fmt.Sprintf("csi-%s", spec.PersistentVolume.Name)
+	bytedriveData.VolumeID = volumeID
+
+	bytedriveData.FsType = defaultFsType
+	if csiInfo.FSType != "" {
+		bytedriveData.FsType = csiInfo.FSType
+	}
+
+	bytedriveData.CSIHandle = csiInfo.VolumeHandle
+
+	return bytedriveData, nil
+}
+
+func (plugin *noopPlugin) newMounterInternal(spec *volume.Spec, pod *v1.Pod, mounter mount.Interface, volume *wrappedVolume, readOnly bool) (volume.Mounter, error) {
 	return &noopDir{
-		pod:     pod,
-		volName: spec.Name(),
-		volume:  volume,
-		mounter: mounter,
-		plugin:  plugin,
+		pod:      pod,
+		volName:  spec.Name(),
+		volume:   volume,
+		mounter:  mounter,
+		plugin:   plugin,
+		readOnly: readOnly,
 	}, nil
 }
 
@@ -179,22 +298,75 @@ func (plugin *noopPlugin) newUnmounterInternal(volName string, podUID types.UID,
 }
 
 func (plugin *noopPlugin) ConstructVolumeSpec(volName, mountPath string) (*volume.Spec, error) {
-	fsMode := v1.PersistentVolumeFilesystem
-
-	// TODO: load volume spec from volume.json
-	pv := &v1.PersistentVolume{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: volName,
-		},
-		Spec: v1.PersistentVolumeSpec{
-			PersistentVolumeSource: v1.PersistentVolumeSource{
-				CephFS: &v1.CephFSPersistentVolumeSource{
-					Path: mountPath,
-				},
-			},
-			VolumeMode: &fsMode,
-		},
+	volumeData, err := loadWrappedVolumeDataFromFile(mountPath)
+	if err != nil {
+		return nil, err
 	}
+	fsMode := v1.PersistentVolumeFilesystem
+	var pv *v1.PersistentVolume
+
+	switch {
+	case volumeData.CephFS != nil:
+		pv = &v1.PersistentVolume{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: volName,
+			},
+			Spec: v1.PersistentVolumeSpec{
+				PersistentVolumeSource: v1.PersistentVolumeSource{
+					CephFS: &v1.CephFSPersistentVolumeSource{
+						Monitors: []string{},
+						Path:     mountPath,
+					},
+				},
+				VolumeMode: &fsMode,
+			},
+		}
+	case volumeData.NFS != nil:
+		pv = &v1.PersistentVolume{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: volName,
+			},
+			Spec: v1.PersistentVolumeSpec{
+				PersistentVolumeSource: v1.PersistentVolumeSource{
+					NFS: &v1.NFSVolumeSource{
+						Path: mountPath,
+					},
+				},
+				VolumeMode: &fsMode,
+			},
+		}
+	case volumeData.Zenya != nil:
+		pv = &v1.PersistentVolume{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: volName,
+			},
+			Spec: v1.PersistentVolumeSpec{
+				PersistentVolumeSource: v1.PersistentVolumeSource{
+					CSI: &v1.CSIPersistentVolumeSource{
+						Driver:       volumeutil.ZenyaCSIDriverName,
+						VolumeHandle: volumeData.Zenya.CSIHandle,
+					},
+				},
+				VolumeMode: &fsMode,
+			},
+		}
+	case volumeData.Bytedrive != nil:
+		pv = &v1.PersistentVolume{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: volName,
+			},
+			Spec: v1.PersistentVolumeSpec{
+				PersistentVolumeSource: v1.PersistentVolumeSource{
+					CSI: &v1.CSIPersistentVolumeSource{
+						Driver:       volumeutil.ByteDriveCSIDriverName,
+						VolumeHandle: volumeData.Bytedrive.CSIHandle,
+					},
+				},
+				VolumeMode: &fsMode,
+			},
+		}
+	}
+
 	return volume.NewSpecFromPersistentVolume(pv, false), nil
 }
 
@@ -240,16 +412,20 @@ func (plugin *noopPlugin) getCephSecret(spec *volume.Spec, defaultNamespace stri
 // EmptyDir volumes are temporary directories exposed to the pod.
 // These do not persist beyond the lifetime of a pod.
 type noopDir struct {
-	pod     *v1.Pod
-	volName string
-	volume  *wrappedVolume
-	mounter mount.Interface
-	plugin  *noopPlugin
+	pod      *v1.Pod
+	volName  string
+	volume   *wrappedVolume
+	readOnly bool
+	mounter  mount.Interface
+	plugin   *noopPlugin
 	volume.MetricsNil
 }
 
 type wrappedVolume struct {
-	CephFS *cephfs `json:"cephfs,omitempty"`
+	CephFS    *cephfs       `json:"cephfs,omitempty"`
+	NFS       *nfs          `json:"nfs,omitempty"`
+	Zenya     *zenyaBlk     `json:"zenyaBlk,omitempty"`
+	Bytedrive *bytedriveBlk `json:"bytedriveBlk,omitempty"`
 }
 
 type cephfs struct {
@@ -261,16 +437,40 @@ type cephfs struct {
 	MountOptions []string `json:"mountOptions"`
 }
 
-func (ed *noopDir) GetAttributes() volume.Attributes {
-	var readOnly bool
-	if ed.volume.CephFS != nil {
-		readOnly = ed.volume.CephFS.ReadOnly
-	}
+type nfs struct {
+	Server string `json:"server"`
 
+	Path string `json:"path"`
+
+	ReadOnly bool `json:"readOnly,omitempty"`
+
+	MountOptions []string `json:"mountOptions"`
+}
+
+type zenyaBlk struct {
+	PVCName   string `json:"pvcName"`
+	Portal    string `json:"portal"`
+	Token     string `json:"token"`
+	FsType    string `json:"fsType"`
+	CSIHandle string `json:"csiHandle"`
+}
+
+type bytedriveBlk struct {
+	PVCName     string `json:"pvcName"`
+	RegionName  string `json:"regionName"`
+	ClusterName string `json:"clusterName"`
+	UUID        string `json:"uuid"`
+	VolumeID    string `json:"volumeId"`
+	FsType      string `json:"fsType"`
+	CSIHandle   string `json:"csiHandle"`
+}
+
+func (ed *noopDir) GetAttributes() volume.Attributes {
 	return volume.Attributes{
-		ReadOnly:        readOnly,
+		ReadOnly:        ed.readOnly,
 		Managed:         false,
 		SupportsSELinux: false,
+		SkipSubPath:     true,
 	}
 }
 
@@ -353,4 +553,21 @@ func writeWrappedVolumeSpec(dir string, volume *wrappedVolume) error {
 	volumeFile := path.Join(dir, wrappedVolumeFileName)
 	klog.Infof("Write wrapped volume spec: %s to file: %s", string(bytes), volumeFile)
 	return ioutil.WriteFile(volumeFile, bytes, perm)
+}
+
+func loadWrappedVolumeDataFromFile(dir string) (*wrappedVolume, error) {
+	dataFileName := path.Join(dir, wrappedVolumeFileName)
+	klog.V(4).Infof("loading volume data file [%s]", dataFileName)
+	file, err := os.Open(dataFileName)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	volume := wrappedVolume{}
+	if err := json.NewDecoder(file).Decode(&volume); err != nil {
+		return nil, err
+	}
+
+	return &volume, nil
+
 }

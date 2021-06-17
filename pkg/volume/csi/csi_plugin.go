@@ -42,6 +42,7 @@ import (
 	"k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/pkg/volume/csi/nodeinfomanager"
+	"k8s.io/kubernetes/pkg/volume/util"
 )
 
 const (
@@ -323,6 +324,11 @@ func (p *csiPlugin) CanSupport(spec *volume.Spec) bool {
 	if spec == nil {
 		return false
 	}
+
+	if spec.PersistentVolume != nil && util.IsPVManagedByNoopPlugin(spec.PersistentVolume) {
+		return false
+	}
+
 	if utilfeature.DefaultFeatureGate.Enabled(features.CSIInlineVolume) {
 		return (spec.PersistentVolume != nil && spec.PersistentVolume.Spec.CSI != nil) ||
 			(spec.Volume != nil && spec.Volume.CSI != nil)

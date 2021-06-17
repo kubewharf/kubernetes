@@ -75,6 +75,12 @@ const (
 	// VolumePluginNoopAnnotationKey is the key of the annotation on PersistentVolume object
 	// handled by noop volume plugin.
 	VolumePluginNoopAnnotationKey = "volume.tce.kubernetes.io/noop"
+
+	// ZenyaCSIDriverName is the name of zenya csidriver.
+	ZenyaCSIDriverName = "iscsi-csi-storage-driver"
+
+	// ByteDriveCSIDriverName is the name of bytedrive csidriver.
+	ByteDriveCSIDriverName = "bytedrive.csi.bytedance.com"
 )
 
 // IsReady checks for the existence of a regular file
@@ -709,4 +715,19 @@ func SetPVManagedByNoopPlugin(pv *v1.PersistentVolume) {
 
 	pv.Annotations[VolumePluginNoopAnnotationKey] = "true"
 	return
+}
+
+// ShouldCSIPVSkip check whether csi pv is handled by noop volume plugin.
+func ShouldCSIPVSkip(pv *v1.PersistentVolume) bool {
+	if pv == nil {
+		return false
+	}
+
+	needSkipCSIDrivers := sets.NewString(ZenyaCSIDriverName, ByteDriveCSIDriverName)
+
+	if pv.Spec.CSI != nil && needSkipCSIDrivers.Has(pv.Spec.CSI.Driver) {
+		return true
+	}
+
+	return false
 }
