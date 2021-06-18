@@ -5,10 +5,12 @@ go_library(
     srcs = [
         "get_address_by_netlink.go",
         "pod_ip_annotations.go",
+        "validate_tce_ip_envs.go",
     ],
     importpath = "k8s.io/kubernetes/pkg/kubelet/externals/hostdualstackip",
     visibility = ["//visibility:public"],
     deps = [
+        "//pkg/kubelet/container:go_default_library",
         "//pkg/kubelet/lifecycle:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/util/net:go_default_library",
         "//vendor/github.com/vishvananda/netlink:go_default_library",

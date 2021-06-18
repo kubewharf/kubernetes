@@ -782,9 +782,7 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 	if len(podIPs) != 0 {
 		podIP = podIPs[0]
 	}
-	if len(podIPs) > 1 {
-		podIPv6 = podIPs[1]
-	}
+	_, podIPv6 = hostdualstackip.ExtractPodDualStackIPsFromPodIPs(podIPs)
 
 	// set pod ipv6 to annotations for the next generateContainerConfig process
 	if prePodIPv6, ok := pod.Annotations[hostdualstackip.PodIPv6AnnotationKey]; !ok || prePodIPv6 != podIPv6 {
