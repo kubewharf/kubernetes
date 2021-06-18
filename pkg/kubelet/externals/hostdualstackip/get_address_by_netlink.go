@@ -31,6 +31,10 @@ func (r sortableRoutes) Swap(i, j int) {
 }
 
 func validateDefaultIPAddress(family int, ip net.IP) net.IP {
+	// if host ipv4/ipv6 is local loopback like address, then just filtered them
+	if ipValidateGlobal := validateGlobalIPAddress(family, ip); ipValidateGlobal == nil {
+		return nil
+	}
 	addrByNetLink, err := getDefaultIPAddressByNetLink(family)
 	if err != nil {
 		klog.Errorf("GetDefaultIPAddressByNetLink error family %v : %v", family, err)
@@ -43,6 +47,24 @@ func validateDefaultIPAddress(family int, ip net.IP) net.IP {
 		return addrByNetLink
 	}
 	return ip
+}
+
+func validateGlobalIPAddress(family int, ip net.IP) net.IP {
+	switch family {
+	case netlink.FAMILY_V4:
+		// If ip is not an IPv4 address, To4 returns nil.
+		if ip == nil || ip.To4() == nil || !ip.IsGlobalUnicast() {
+			return nil
+		}
+		return ip
+	case netlink.FAMILY_V6:
+		if ip == nil || ip.To4() != nil || !ip.IsGlobalUnicast() {
+			return nil
+		}
+		return ip
+	default:
+		return nil
+	}
 }
 
 func getDefaultIPAddressByNetLink(family int) (net.IP, error) {

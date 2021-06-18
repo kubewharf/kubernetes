@@ -84,3 +84,34 @@ func (p *PodAnnotationsAdmitHandler) Admit(attrs *lifecycle.PodAdmitAttributes) 
 		Admit: true,
 	}
 }
+
+func determinateIPFamily(ip string) (int, error) {
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil {
+		return 0, fmt.Errorf("determinateIPFamily Parse IP error : %v ", ip)
+	}
+	if parsedIP.To4() != nil {
+		return familyIPv4, nil
+	}
+	if parsedIP.To16() != nil {
+		return familyIPv6, nil
+	}
+	return 0, fmt.Errorf("determinateIPFamily Parse IP %v : unknown family ", ip)
+}
+
+func ExtractPodDualStackIPsFromPodIPs(podIPs []string) (podIPv4, podIPv6 string) {
+	for _, podIP := range podIPs {
+		ipFamily, err := determinateIPFamily(podIP)
+		if err != nil {
+			klog.Errorf("determinateIPFamily %v error : %v \n\n", podIP, err)
+			continue
+		}
+		if ipFamily == familyIPv4 {
+			podIPv4 = podIP
+		}
+		if ipFamily == familyIPv6 {
+			podIPv6 = podIP
+		}
+	}
+	return
+}
