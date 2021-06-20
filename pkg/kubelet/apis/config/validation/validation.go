@@ -104,6 +104,9 @@ func ValidateKubeletConfiguration(kc *kubeletconfig.KubeletConfiguration) error 
 	if kc.RegistryBurst < 0 {
 		allErrors = append(allErrors, fmt.Errorf("invalid configuration: RegistryBurst (--registry-burst) %v must not be a negative number", kc.RegistryBurst))
 	}
+	if kc.RegistryMaxConcurrency < 0 {
+		allErrors = append(allErrors, fmt.Errorf("invalid configuration: RegistryMaxConcurrency (--registry-max-concurrency) %v must not be a negative number", kc.RegistryMaxConcurrency))
+	}
 	if kc.RegistryPullQPS < 0 {
 		allErrors = append(allErrors, fmt.Errorf("invalid configuration: RegistryPullQPS (--registry-qps) %v must not be a negative number", kc.RegistryPullQPS))
 	}

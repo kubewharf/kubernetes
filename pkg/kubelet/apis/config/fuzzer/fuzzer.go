@@ -75,6 +75,7 @@ func Funcs(codecs runtimeserializer.CodecFactory) []interface{} {
 			obj.ReadOnlyPort = ports.KubeletReadOnlyPort
 			obj.RegistryBurst = 10
 			obj.RegistryPullQPS = 5
+			obj.RegistryMaxConcurrency = 3
 			obj.ResolverConfig = kubetypes.ResolvConfDefault
 			obj.SerializeImagePulls = true
 			obj.StreamingConnectionIdleTimeout = metav1.Duration{Duration: 4 * time.Hour}

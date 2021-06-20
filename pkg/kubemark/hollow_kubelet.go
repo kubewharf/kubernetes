@@ -203,6 +203,7 @@ func GetHollowKubeletConfig(opt *HollowKubletOptions) (*options.KubeletFlags, *k
 	c.MaxOpenFiles = 1024
 	c.RegistryBurst = 10
 	c.RegistryPullQPS = 5.0
+	c.RegistryMaxConcurrency = 3
 	c.ResolverConfig = kubetypes.ResolvConfDefault
 	c.KubeletCgroups = "/kubelet"
 	c.SerializeImagePulls = true

@@ -230,6 +230,14 @@ type KubeletConfiguration struct {
 	// Default: 10
 	// +optional
 	RegistryBurst int32 `json:"registryBurst,omitempty"`
+	// registryMaxConcurrency is the max concurrency of image pulls.
+	// Set to 0 for no limit.
+	// Dynamic Kubelet Config (beta): If dynamically updating this field, consider that
+	// it may impact scalability by changing the amount of traffic produced
+	// by image pulls.
+	// Default: 3
+	// +optional
+	RegistryMaxConcurrency *int32 `json:"registryMaxConcurrency,omitempty"`
 	// eventRecordQPS is the maximum event creations per second. If 0, there
 	// is no limit enforced.
 	// Dynamic Kubelet Config (beta): If dynamically updating this field, consider that

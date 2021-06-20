@@ -87,6 +87,11 @@ func SetDefaults_KubeletConfiguration(obj *kubeletconfigv1beta1.KubeletConfigura
 	if obj.RegistryBurst == 0 {
 		obj.RegistryBurst = 10
 	}
+
+	if obj.RegistryMaxConcurrency == nil {
+		obj.RegistryMaxConcurrency = utilpointer.Int32Ptr(3)
+	}
+
 	if obj.EventRecordQPS == nil {
 		obj.EventRecordQPS = utilpointer.Int32Ptr(5)
 	}
