@@ -50,7 +50,7 @@ type throttledImageService struct {
 	maxConcurrency int32
 }
 
-func (ts throttledImageService) PullImage(image kubecontainer.ImageSpec, secrets []v1.Secret, podSandboxConfig *runtimeapi.PodSandboxConfig) (string, error) {
+func (ts *throttledImageService) PullImage(image kubecontainer.ImageSpec, secrets []v1.Secret, podSandboxConfig *runtimeapi.PodSandboxConfig) (string, error) {
 	if ts.maxConcurrency > 0 {
 		defer func() {
 			atomic.AddInt32(&ts.concurrency, -1)
