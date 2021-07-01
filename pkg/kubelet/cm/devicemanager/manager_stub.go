@@ -22,7 +22,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	"k8s.io/kubernetes/pkg/kubelet/config"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
-	watcher "k8s.io/kubernetes/pkg/kubelet/util/pluginwatcher"
+	"k8s.io/kubernetes/pkg/kubelet/pluginmanager/cache"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 )
 
@@ -69,7 +69,7 @@ func (h *ManagerStub) GetRefinedResource() DevicePluginHeterogenousResource {
 }
 
 // GetWatcherHandler returns plugin watcher interface
-func (h *ManagerStub) GetWatcherHandler() watcher.PluginHandler {
+func (h *ManagerStub) GetWatcherHandler() cache.PluginHandler {
 	return nil
 }
 
