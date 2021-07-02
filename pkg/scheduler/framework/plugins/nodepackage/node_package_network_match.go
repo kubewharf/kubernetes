@@ -51,6 +51,11 @@ func (m *MatchNodePackageNBW) Name() string {
 
 // Score invoked at the score extension point.
 func (m *MatchNodePackageNBW) Score(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (int64, *framework.Status) {
+	// if feature gate is disable, skip the predicate check
+	if !utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) {
+		return 0, nil
+	}
+
 	nodeInfo, err := m.handle.SnapshotSharedLister().NodeInfos().Get(nodeName)
 	if err != nil {
 		return 0, framework.NewStatus(framework.Error, fmt.Sprintf("getting node %q from Snapshot: %v", nodeName, err))
@@ -61,14 +66,11 @@ func (m *MatchNodePackageNBW) Score(ctx context.Context, state *framework.CycleS
 		return 0, framework.NewStatus(framework.Error, "node not found")
 	}
 
-	// if feature gate is disable, skip the predicate check
-	if !utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) {
-		return 0, nil
-	}
-
 	refinedNode, err := m.refinedNodeResourceLister.Get(node.Name)
 	if err != nil {
-		return 0, framework.NewStatus(framework.Error, fmt.Sprintf("get refined node resource crd error: %v", err))
+		// this node has passed predicate checkings, if no refined node resource for it,
+		// this may due to pod doesn't request them, so do nothing here.
+		return 0, nil
 	}
 
 	var nbw25g bool
