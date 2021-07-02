@@ -19,12 +19,12 @@ package nodepackage
 import (
 	"context"
 	"fmt"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	"k8s.io/kubernetes/pkg/features"
 
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
-	utilfeature "k8s.io/apiserver/pkg/util/feature"
-	"k8s.io/kubernetes/pkg/features"
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 )
 
@@ -48,6 +48,11 @@ func (m *MatchNodePackageMem) Name() string {
 
 // Score invoked at the score extension point.
 func (m *MatchNodePackageMem) Score(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (int64, *framework.Status) {
+	// if feature gate is disable, skip the predicate check
+	if !utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) {
+		return 0, nil
+	}
+
 	nodeInfo, err := m.handle.SnapshotSharedLister().NodeInfos().Get(nodeName)
 	if err != nil {
 		return 0, framework.NewStatus(framework.Error, fmt.Sprintf("getting node %q from Snapshot: %v", nodeName, err))
@@ -56,11 +61,6 @@ func (m *MatchNodePackageMem) Score(ctx context.Context, state *framework.CycleS
 	node := nodeInfo.Node()
 	if node == nil {
 		return 0, framework.NewStatus(framework.Error, "node not found")
-	}
-
-	// if feature gate is disable, skip the predicate check
-	if !utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) {
-		return 0, nil
 	}
 
 	nodeMemCapacity, ok := node.Status.Capacity[v1.ResourceMemory]
