@@ -148,11 +148,11 @@ func (spc *StoragePoolChecker) Filter(ctx context.Context, cycleState *framework
 	storagePool, err := spc.storagePoolLister.Get(node.Name)
 	if err != nil {
 		failReasons = append(failReasons, fmt.Sprintf("no storage pool on %s", node.Name))
-		return framework.NewStatus(framework.Error, failReasons...)
+		return framework.NewStatus(framework.Unschedulable, failReasons...)
 	}
 	if storagePool == nil || len(storagePool.Status.Classes) == 0 {
 		failReasons = append(failReasons, fmt.Sprintf("nothing in the storage pool on %s", node.Name))
-		return framework.NewStatus(framework.Error, failReasons...)
+		return framework.NewStatus(framework.Unschedulable, failReasons...)
 	}
 
 	localStoragePools := newLocalStoragePoolInfoList(storagePool.Status.Classes)
