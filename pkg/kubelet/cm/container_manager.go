@@ -89,9 +89,6 @@ type ContainerManager interface {
 	// extended resources required by container.
 	GetResources(pod *v1.Pod, container *v1.Container) (*kubecontainer.RunContainerOptions, error)
 
-	// GetAllocateResourcesPodAdmitHandler returns an instance of a PodAdmitHandler responsible for allocating pod resources.
-	GetAllocateResourcesPodAdmitHandler() lifecycle.PodAdmitHandler
-
 	// UpdatePluginResources calls Allocate of device plugin handler for potential
 	// requests for device plugin resources, and returns an error if fails.
 	// Otherwise, it updates allocatableResource in nodeInfo if necessary,

@@ -136,9 +136,6 @@ type endpointInfo struct {
 
 type sourcesReadyStub struct{}
 
-// PodReusableDevices is a map by pod name of devices to reuse.
-type PodReusableDevices map[string]map[string]sets.String
-
 const (
 	refinedResource      = "bytedance.com/refined"
 	numericResourceType  = "Numeric"
@@ -1237,20 +1234,6 @@ func (m *ManagerImpl) GetDevices(podUID, containerName string) []*podresourcesap
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	return m.podDevices.getContainerDevices(podUID, containerName)
-}
-
-// ShouldResetExtendedResourceCapacity returns whether the extended resources should be zeroed or not,
-// depending on whether the node has been recreated. Absence of the checkpoint file strongly indicates the node
-// has been recreated.
-func (m *ManagerImpl) ShouldResetExtendedResourceCapacity() bool {
-	if utilfeature.DefaultFeatureGate.Enabled(features.DevicePlugins) {
-		checkpoints, err := m.checkpointManager.ListCheckpoints()
-		if err != nil {
-			return false
-		}
-		return len(checkpoints) == 0
-	}
-	return false
 }
 
 func (m *ManagerImpl) writeRefinedResourceToStateFile(devices []pluginapi.Device, path string) error {

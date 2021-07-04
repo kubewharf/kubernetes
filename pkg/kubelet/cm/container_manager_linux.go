@@ -60,6 +60,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/config"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
+	"k8s.io/kubernetes/pkg/kubelet/nadvisor"
 	"k8s.io/kubernetes/pkg/kubelet/pluginmanager/cache"
 	"k8s.io/kubernetes/pkg/kubelet/qos"
 	"k8s.io/kubernetes/pkg/kubelet/stats/pidlimit"
@@ -68,9 +69,6 @@ import (
 	"k8s.io/kubernetes/pkg/util/oom"
 	"k8s.io/kubernetes/pkg/util/procfs"
 	utilsysctl "k8s.io/kubernetes/pkg/util/sysctl"
-	utilpath "k8s.io/utils/path"
-
-	"code.byted.org/tce/kubernetes/pkg/kubelet/nadvisor"
 )
 
 const (
@@ -250,15 +248,7 @@ func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.I
 		return nil, err
 	}
 
-	// Correct NUMA information is currently missing from cadvisor's
-	// MachineInfo struct, so we use the CPUManager's internal logic for
-	// gathering NUMANodeInfo to pass to components that care about it.
-	numaNodeInfo, err := cputopology.GetNUMANodeInfo()
-	if err != nil {
-		return nil, err
-	}
-
-	capacity = cadvisor.CapacityFromMachineInfo(machineInfo)
+	capacity := cadvisor.CapacityFromMachineInfo(machineInfo)
 	for k, v := range capacity {
 		internalCapacity[k] = v
 	}
@@ -311,7 +301,7 @@ func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.I
 		qosContainerManager: qosContainerManager,
 	}
 
-	cpuTopology, err := cputopology.Discover(machineInfo, nodeAdvisor.NumaTopology)
+	cpuTopology, err := cputopology.Discover(machineInfo, numaNodeInfo)
 	if err != nil {
 		klog.Errorf("discrover cpu topology failed %s", err.Error())
 		return nil, err

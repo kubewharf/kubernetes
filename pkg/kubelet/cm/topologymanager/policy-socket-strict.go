@@ -32,9 +32,9 @@ func NewSocketStrictPolicy(topology *topology.CPUTopology, numaNodes []int) Poli
 	// key is numa id, value is socket id
 	numaInfo := make(map[int]int)
 	for _, cpuInfo := range topology.CPUDetails {
-		numaInfo[cpuInfo.NumaID] = cpuInfo.SocketID
+		numaInfo[cpuInfo.NUMANodeID] = cpuInfo.SocketID
 	}
-	numaSizePerSocket := topology.CPUDetails.Numas().Size() / topology.CPUDetails.Sockets().Size()
+	numaSizePerSocket := topology.CPUDetails.NUMANodes().Size() / topology.CPUDetails.Sockets().Size()
 	klog.Infof("[policy-socket-strict] numa to socket info is %v, numaSizePerSocket is %d", numaInfo, numaSizePerSocket)
 	return &socketStrictPolicy{numaToSocket: numaInfo, numaSizePerSocket: numaSizePerSocket, numaNodes: numaNodes}
 }

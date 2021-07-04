@@ -102,9 +102,6 @@ func (cm *containerManagerStub) GetResources(pod *v1.Pod, container *v1.Containe
 	return &kubecontainer.RunContainerOptions{}, nil
 }
 
-func (cm *containerManagerStub) GetAllocateResourcesPodAdmitHandler() lifecycle.PodAdmitHandler {
-	return topologymanager.NewFakeManager()
-}
 func (cm *containerManagerStub) UpdatePluginResources(*schedulernodeinfo.NodeInfo, *lifecycle.PodAdmitAttributes) error {
 	return nil
 }

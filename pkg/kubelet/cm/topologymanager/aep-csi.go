@@ -1,18 +1,19 @@
 package topologymanager
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager/bitmask"
-	"k8s.io/kubernetes/staging/src/k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/kubernetes/staging/src/k8s.io/client-go/util/retry"
 )
 
 const (
@@ -63,7 +64,7 @@ func (aepCSIHintProvider *AepCSIHintProvider) GetTopologyHints(pod *v1.Pod, cont
 	for _, volume := range pod.Spec.Volumes {
 		if volume.PersistentVolumeClaim != nil && len(volume.PersistentVolumeClaim.ClaimName) > 0 {
 			// get pvc from apiserver
-			pvc, err := aepCSIHintProvider.kubeClient.CoreV1().PersistentVolumeClaims(pod.Namespace).Get(volume.PersistentVolumeClaim.ClaimName, metav1.GetOptions{ResourceVersion: "0"})
+			pvc, err := aepCSIHintProvider.kubeClient.CoreV1().PersistentVolumeClaims(pod.Namespace).Get(context.TODO(), volume.PersistentVolumeClaim.ClaimName, metav1.GetOptions{ResourceVersion: "0"})
 			if err != nil {
 				klog.Errorf("get pvc %s failed, err is %s", volume.PersistentVolumeClaim.ClaimName, err.Error())
 				return rejectedHints
@@ -79,7 +80,7 @@ func (aepCSIHintProvider *AepCSIHintProvider) GetTopologyHints(pod *v1.Pod, cont
 			}
 			klog.Infof("[aep-csi-hint-provider] pod %s container %s pvc name is %s, bounded pv is %s", pod.Name, container.Name, pvc.Name, pvc.Spec.VolumeName)
 			// get pv from apiserver
-			pv, err := aepCSIHintProvider.kubeClient.CoreV1().PersistentVolumes().Get(pvc.Spec.VolumeName, metav1.GetOptions{})
+			pv, err := aepCSIHintProvider.kubeClient.CoreV1().PersistentVolumes().Get(context.TODO(), pvc.Spec.VolumeName, metav1.GetOptions{})
 			if err != nil {
 				klog.Error("get pv %s for pvc %s failed, err is %s", pvc.Spec.VolumeName, pvc.Name, err.Error())
 				return rejectedHints
@@ -161,12 +162,12 @@ func (aepCSIHintProvider *AepCSIHintProvider) Allocate(pod *v1.Pod, container *v
 	hint := aepCSIHintProvider.topologyAffinityStore.GetAffinity(string(pod.UID), container.Name)
 	affinity := hint.NUMANodeAffinity
 	klog.Infof("[aep-csi-hint-provider] hint provided by topology manager is %v", hint)
-	var aepPvs [] *v1.PersistentVolume
+	var aepPvs []*v1.PersistentVolume
 	var allErrs []error
 
 	for _, volume := range pod.Spec.Volumes {
 		if volume.PersistentVolumeClaim != nil && len(volume.PersistentVolumeClaim.ClaimName) > 0 {
-			pvc, err := aepCSIHintProvider.kubeClient.CoreV1().PersistentVolumeClaims(pod.Namespace).Get(volume.PersistentVolumeClaim.ClaimName, metav1.GetOptions{ResourceVersion: "0"})
+			pvc, err := aepCSIHintProvider.kubeClient.CoreV1().PersistentVolumeClaims(pod.Namespace).Get(context.TODO(), volume.PersistentVolumeClaim.ClaimName, metav1.GetOptions{ResourceVersion: "0"})
 			if err != nil {
 				allErrs = append(allErrs, err)
 				continue
@@ -178,7 +179,7 @@ func (aepCSIHintProvider *AepCSIHintProvider) Allocate(pod *v1.Pod, container *v
 				allErrs = append(allErrs, fmt.Errorf("pvc %s has no volume name", pvc.Name))
 				continue
 			}
-			pv, err := aepCSIHintProvider.kubeClient.CoreV1().PersistentVolumes().Get(pvc.Spec.VolumeName, metav1.GetOptions{})
+			pv, err := aepCSIHintProvider.kubeClient.CoreV1().PersistentVolumes().Get(context.TODO(), pvc.Spec.VolumeName, metav1.GetOptions{})
 			if err != nil || pv.Spec.CSI == nil {
 				allErrs = append(allErrs, fmt.Errorf("pvc %s has no volume name", pvc.Name))
 				continue
@@ -210,9 +211,9 @@ func (aepCSIHintProvider *AepCSIHintProvider) Allocate(pod *v1.Pod, container *v
 		pv.Spec.CSI.VolumeAttributes[LVNUMA] = strconv.Itoa(affinity.GetBits()[i])
 		klog.Infof("[aep-csi-hint-provider] dispatch pv %s to numa id %d", pv.Name, affinity.GetBits()[i])
 		err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-			_, updateErr := aepCSIHintProvider.kubeClient.CoreV1().PersistentVolumes().Update(pv)
+			_, updateErr := aepCSIHintProvider.kubeClient.CoreV1().PersistentVolumes().Update(context.TODO(), pv, metav1.UpdateOptions{})
 			if updateErr != nil {
-				updatedPv, getErr := aepCSIHintProvider.kubeClient.CoreV1().PersistentVolumes().Get(pv.Name, metav1.GetOptions{})
+				updatedPv, getErr := aepCSIHintProvider.kubeClient.CoreV1().PersistentVolumes().Get(context.TODO(), pv.Name, metav1.GetOptions{})
 				if getErr == nil {
 					pv = updatedPv.DeepCopy()
 					pv.Spec.CSI.VolumeAttributes[LVNUMA] = strconv.Itoa(affinity.GetBits()[i])

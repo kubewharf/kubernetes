@@ -25,8 +25,8 @@ import (
 	cadvisorapi "github.com/google/cadvisor/info/v1"
 	"k8s.io/klog"
 
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
-	"k8s.io/kubernetes/staging/src/k8s.io/apimachinery/pkg/util/sets"
 )
 
 // NUMANodeInfo is a map from NUMANode ID to a list of CPU IDs associated with
@@ -72,11 +72,11 @@ func (topo *CPUTopology) CheckValid() error {
 	if topo.CPUDetails.Sockets().Size() == 0 {
 		return errors.New("cpu topology cpu detail socket is zero")
 	}
-	if topo.CPUDetails.Numas().Size()%topo.CPUDetails.Sockets().Size() != 0 {
-		return fmt.Errorf("cpu topology cpu detail numa size %d can't divide by socket size %d", topo.CPUDetails.Numas().Size(), topo.CPUDetails.Sockets().Size())
+	if topo.CPUDetails.NUMANodes().Size()%topo.CPUDetails.Sockets().Size() != 0 {
+		return fmt.Errorf("cpu topology cpu detail numa size %d can't divide by socket size %d", topo.CPUDetails.NUMANodes().Size(), topo.CPUDetails.Sockets().Size())
 	}
 
-	avgNumaSizeInSocket := topo.CPUDetails.Numas().Size() / topo.CPUDetails.Sockets().Size()
+	avgNumaSizeInSocket := topo.CPUDetails.NUMANodes().Size() / topo.CPUDetails.Sockets().Size()
 	// key is socket id, value is numa in socket
 	socketInfo := make(map[int]sets.Int)
 	for _, cpuInfo := range topo.CPUDetails {
