@@ -19,11 +19,11 @@ package nodepackage
 import (
 	"context"
 	"fmt"
-	utilfeature "k8s.io/apiserver/pkg/util/feature"
-	"k8s.io/kubernetes/pkg/features"
 
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	"k8s.io/kubernetes/pkg/features"
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 )
 
@@ -47,11 +47,6 @@ func (m *MatchNodePackageCPU) Name() string {
 
 // Score invoked at the score extension point.
 func (m *MatchNodePackageCPU) Score(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (int64, *framework.Status) {
-	// if feature gate is disable, skip the predicate check
-	if !utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) {
-		return 0, nil
-	}
-
 	nodeInfo, err := m.handle.SnapshotSharedLister().NodeInfos().Get(nodeName)
 	if err != nil {
 		return 0, framework.NewStatus(framework.Error, fmt.Sprintf("getting node %q from Snapshot: %v", nodeName, err))
@@ -62,29 +57,24 @@ func (m *MatchNodePackageCPU) Score(ctx context.Context, state *framework.CycleS
 		return 0, framework.NewStatus(framework.Error, "node not found")
 	}
 
+	// if feature gate is disable, skip the predicate check
+	if !utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) {
+		return 0, nil
+	}
+
 	nodeCPUCapacity, ok := node.Status.Capacity[v1.ResourceCPU]
 	if !ok {
 		return 0, framework.NewStatus(framework.Error, "cpu capacity not found in node status")
 	}
 
-	nodeNumaCapacity, ok := node.Status.Capacity[v1.ResourceBytedanceSocket]
-	if !ok || nodeNumaCapacity.Value() == 0 {
-		return 0, framework.NewStatus(framework.Error, "socket capacity not found in node status")
-	}
-
-	cpuPerNuma := nodeCPUCapacity.MilliValue() / nodeNumaCapacity.Value()
-
-	// now cpu per numa value can be: 20,24,32 cores
-	// and we won't have new types of machines recently, so hard code here.
-	switch cpuPerNuma {
-	case 20 * 1000:
+	// when we reach here, node capacity must be greater (or equal to) than pod request
+	// so, do not need to get pod request
+	if nodeCPUCapacity.MilliValue() <= 40*1000 {
 		return 10, nil
-	case 24 * 1000:
-		return 5, nil
-	case 32 * 1000:
+	} else if nodeCPUCapacity.MilliValue() <= 48*1000 {
+		return 8, nil
+	} else {
 		return 1, nil
-	default:
-		return 0, nil
 	}
 }
 
