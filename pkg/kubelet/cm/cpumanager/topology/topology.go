@@ -27,6 +27,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
+	"k8s.io/kubernetes/pkg/kubelet/nadvisor"
 )
 
 // NUMANodeInfo is a map from NUMANode ID to a list of CPU IDs associated with
@@ -250,8 +251,43 @@ func (d CPUDetails) CPUsInCores(ids ...int) cpuset.CPUSet {
 	return b.Result()
 }
 
+func transformNAdvisorNumaTopologyToNUMANodeInfo(numaTopology []nadvisor.Numa) NUMANodeInfo {
+	info := make(NUMANodeInfo)
+
+	for _, numa := range numaTopology {
+		threads := []int{}
+		for _, core := range numa.Cores {
+			for _, thread := range core.Threads {
+				threads = append(threads, thread)
+			}
+		}
+
+		info[numa.Id] = info[numa.Id].Union(cpuset.NewCPUSet(threads...))
+	}
+
+	return info
+}
+
 // Discover returns CPUTopology based on cadvisor node info
 func Discover(machineInfo *cadvisorapi.MachineInfo, numaNodeInfo NUMANodeInfo) (*CPUTopology, error) {
+	// check if is aliyun, may be deprecated in the future
+	if topoRefined, socketTopology, numaTopology, err := nadvisor.GetRefinedTopology(); err != nil {
+		return nil, fmt.Errorf("get refined topology failed with error: %v", err)
+	} else if topoRefined {
+		if machineInfo == nil {
+			return nil, fmt.Errorf("topology discover met nil machineInfo")
+		} else if len(numaTopology) == 0 {
+			return nil, fmt.Errorf("refined topology with empty numaTopology")
+		}
+
+		machineInfo.Topology = socketTopology
+		numaNodeInfo = transformNAdvisorNumaTopologyToNUMANodeInfo(numaTopology)
+
+		klog.Infof("get refined topology: %+v", numaNodeInfo)
+	} else {
+		klog.Infof("topology refined: %v; topology: %v", topoRefined, numaNodeInfo)
+	}
+
 	if machineInfo.NumCores == 0 {
 		return nil, fmt.Errorf("could not detect number of cpus")
 	}

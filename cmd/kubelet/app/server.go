@@ -90,7 +90,6 @@ import (
 	evictionapi "k8s.io/kubernetes/pkg/kubelet/eviction/api"
 	dynamickubeletconfig "k8s.io/kubernetes/pkg/kubelet/kubeletconfig"
 	"k8s.io/kubernetes/pkg/kubelet/kubeletconfig/configfiles"
-	"k8s.io/kubernetes/pkg/kubelet/nadvisor"
 	"k8s.io/kubernetes/pkg/kubelet/server"
 	"k8s.io/kubernetes/pkg/kubelet/server/streaming"
 	"k8s.io/kubernetes/pkg/kubelet/stats/pidlimit"
@@ -661,16 +660,6 @@ func run(s *options.KubeletServer, kubeDeps *kubelet.Dependencies, featureGate f
 		}
 	}
 
-	kubeDeps.NodeAdvisor = nadvisor.New()
-	// Check if is aliyun
-	if topoRefined, _, numaTopology, err := nadvisor.GetRefinedTopology(); err != nil {
-		return err
-	} else {
-		if topoRefined {
-			kubeDeps.NodeAdvisor.NumaTopology = numaTopology
-		}
-	}
-
 	if kubeDeps.TCEMetricsInterface == nil {
 		kubeDeps.TCEMetricsInterface = cadvisor.NewTceMetricsClient()
 	}
@@ -781,7 +770,6 @@ func run(s *options.KubeletServer, kubeDeps *kubelet.Dependencies, featureGate f
 			s.FailSwapOn,
 			devicePluginEnabled,
 			kubeDeps.Recorder,
-			kubeDeps.NodeAdvisor,
 			kubeDeps.KubeClient,
 		)
 

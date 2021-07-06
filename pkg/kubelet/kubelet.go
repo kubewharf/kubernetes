@@ -85,7 +85,6 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/logs"
 	"k8s.io/kubernetes/pkg/kubelet/metrics"
 	"k8s.io/kubernetes/pkg/kubelet/metrics/collectors"
-	"k8s.io/kubernetes/pkg/kubelet/nadvisor"
 	"k8s.io/kubernetes/pkg/kubelet/network/dns"
 	"k8s.io/kubernetes/pkg/kubelet/nodelease"
 	oomwatcher "k8s.io/kubernetes/pkg/kubelet/oom"
@@ -275,7 +274,6 @@ type Dependencies struct {
 	DynamicPluginProber     volume.DynamicPluginProber
 	TLSOptions              *server.TLSOptions
 	KubeletConfigController *kubeletconfig.Controller
-	NodeAdvisor             nadvisor.NodeAdvisor
 	RemoteRuntimeService    internalapi.RuntimeService
 	RemoteImageService      internalapi.ImageManagerService
 	criHandler              http.Handler
