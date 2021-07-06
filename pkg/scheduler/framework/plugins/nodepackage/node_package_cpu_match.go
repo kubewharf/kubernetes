@@ -69,7 +69,7 @@ func (m *MatchNodePackageCPU) Score(ctx context.Context, state *framework.CycleS
 	}
 
 	nodeCPUCapacity, ok := node.Status.Capacity[v1.ResourceCPU]
-	if !ok {
+	if !ok || nodeCPUCapacity.Value() == 0 {
 		return 0, framework.NewStatus(framework.Error, "cpu capacity not found in node status")
 	}
 

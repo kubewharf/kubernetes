@@ -392,20 +392,17 @@ func (g *genericScheduler) selectHost(pod *v1.Pod, nodeScoreList framework.NodeS
 	}
 	maxScore := nodeScoreList[0].Score
 	selected := nodeScoreList[0].Name
-	selectedIndex := 0
 	cntOfMaxScore := 1
-	for index, ns := range nodeScoreList[1:] {
+	for _, ns := range nodeScoreList[1:] {
 		if ns.Score > maxScore {
 			maxScore = ns.Score
 			selected = ns.Name
-			selectedIndex = index
 			cntOfMaxScore = 1
 		} else if ns.Score == maxScore {
 			cntOfMaxScore++
 			if rand.Intn(cntOfMaxScore) == 0 {
 				// Replace the candidate with probability of 1/cntOfMaxScore
 				selected = ns.Name
-				selectedIndex = index
 			}
 		}
 	}
@@ -425,7 +422,6 @@ func (g *genericScheduler) selectHost(pod *v1.Pod, nodeScoreList framework.NodeS
 
 	// only if pod affinity is nil, we can cache dp info, otherwise, we may break affinity rules
 	if cacheNodes {
-		maxScore := nodeScoreList[selectedIndex].Score
 		cached := 0
 		topM := 20
 		for _, nodeScore := range nodeScoreList {
