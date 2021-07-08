@@ -208,6 +208,7 @@ func (c *Configurator) create() (*Scheduler, error) {
 		c.nodeInfoSnapshot,
 		extenders,
 		c.informerFactory.Core().V1().PersistentVolumeClaims().Lister(),
+		c.informerFactory.Storage().V1().StorageClasses().Lister(),
 		GetPodDisruptionBudgetLister(c.informerFactory),
 		c.informerFactory.Scheduling().V1().PriorityClasses().Lister(),
 		c.informerFactory.Apps().V1().Deployments().Lister(),

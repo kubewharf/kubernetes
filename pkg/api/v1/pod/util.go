@@ -22,9 +22,17 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	corelisters "k8s.io/client-go/listers/core/v1"
+	storagelisters "k8s.io/client-go/listers/storage/v1"
 	"k8s.io/kubernetes/pkg/features"
+)
+
+const (
+	LocalVolumeProvisioner = "local-volume-provisioner"
+	ShareMemoryProvisioner = "share-memory-provisioner"
 )
 
 // FindPort locates the container port for the given pod and portName.  If the
@@ -333,4 +341,41 @@ func GetPodPriority(pod *v1.Pod) int32 {
 	// that there was no global default priority class and the priority class
 	// name of the pod was empty. So, we resolve to the static default priority.
 	return 0
+}
+
+func IsStatefulPod(pod *v1.Pod, pvcLister corelisters.PersistentVolumeClaimLister, scLister storagelisters.StorageClassLister) (bool, error) {
+	var errs []error
+	for _, volume := range pod.Spec.Volumes {
+		var pvcSource *v1.PersistentVolumeClaimVolumeSource
+		if pvcSource = volume.VolumeSource.PersistentVolumeClaim; pvcSource == nil {
+			continue
+		}
+		if using, err := usingLPV(pod.GetNamespace(), pvcSource.ClaimName, pvcLister, scLister); err != nil {
+			errs = append(errs, err)
+			continue
+		} else if using {
+			return true, nil
+		}
+	}
+	return false, utilerrors.NewAggregate(errs)
+}
+
+func usingLPV(pvcNamespace, pvcName string, pvcLister corelisters.PersistentVolumeClaimLister, scLister storagelisters.StorageClassLister) (bool, error) {
+	pvc, err := pvcLister.PersistentVolumeClaims(pvcNamespace).Get(pvcName)
+	if err != nil {
+		return false, err
+	}
+	scName := pvc.Spec.StorageClassName
+	if scName == nil {
+		return false, nil
+	}
+	sc, err := scLister.Get(*scName)
+	if err != nil {
+		return false, err
+	}
+	provisioner := sc.Provisioner
+	if provisioner == LocalVolumeProvisioner || provisioner == ShareMemoryProvisioner {
+		return true, nil
+	}
+	return false, nil
 }

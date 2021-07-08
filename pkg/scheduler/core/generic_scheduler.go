@@ -33,16 +33,15 @@ import (
 	policy "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	appv1listers "k8s.io/client-go/listers/apps/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	policylisters "k8s.io/client-go/listers/policy/v1beta1"
 	schedulingv1listers "k8s.io/client-go/listers/scheduling/v1"
+	storagev1 "k8s.io/client-go/listers/storage/v1"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
 	extenderv1 "k8s.io/kube-scheduler/extender/v1"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
-	"k8s.io/kubernetes/pkg/features"
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 	internalcache "k8s.io/kubernetes/pkg/scheduler/internal/cache"
 	internalqueue "k8s.io/kubernetes/pkg/scheduler/internal/queue"
@@ -136,6 +135,7 @@ type genericScheduler struct {
 	extenders                   []SchedulerExtender
 	nodeInfoSnapshot            *internalcache.Snapshot
 	pvcLister                   corelisters.PersistentVolumeClaimLister
+	scLister                    storagev1.StorageClassLister
 	pdbLister                   policylisters.PodDisruptionBudgetLister
 	pcLister                    schedulingv1listers.PriorityClassLister
 	deployLister                appv1listers.DeploymentLister
@@ -1261,25 +1261,11 @@ func (g *genericScheduler) selectVictimsOnNode(
 		}
 
 		if podutil.GetPodPriority(p) == podPriority {
-			if util.IsABPod(p) {
-				// pod is AB test pod, can not be preempted
-				continue
-			}
-
-			if util.HasResource(pod, util.ResourceGPU) && !util.HasResource(p, util.ResourceGPU) {
+			// TODO: preemption at the same priority
+			if util.CanPodBePreemptedAtSamePriority(p, pod, g.pvcLister, g.scLister) {
 				potentialVictims = append(potentialVictims, p)
 				if err := removePod(p); err != nil {
 					return nil, 0, false
-				}
-				continue
-			}
-			if utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) {
-				// TODO: preemption at the same priority
-				if util.CanPodBePreemptedAtSamePriority(p, pod) {
-					potentialVictims = append(potentialVictims, p)
-					if err := removePod(p); err != nil {
-						return nil, 0, false
-					}
 				}
 			}
 		}
@@ -1446,6 +1432,7 @@ func NewGenericScheduler(
 	nodeInfoSnapshot *internalcache.Snapshot,
 	extenders []SchedulerExtender,
 	pvcLister corelisters.PersistentVolumeClaimLister,
+	scLister storagev1.StorageClassLister,
 	pdbLister policylisters.PodDisruptionBudgetLister,
 	pcLister schedulingv1listers.PriorityClassLister,
 	deployLister appv1listers.DeploymentLister,
@@ -1459,6 +1446,7 @@ func NewGenericScheduler(
 		extenders:                   extenders,
 		nodeInfoSnapshot:            nodeInfoSnapshot,
 		pvcLister:                   pvcLister,
+		scLister:                    scLister,
 		pdbLister:                   pdbLister,
 		pcLister:                    pcLister,
 		deployLister:                deployLister,
