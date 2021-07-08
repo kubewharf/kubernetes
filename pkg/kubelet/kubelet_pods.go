@@ -154,6 +154,8 @@ func makeMounts(pod *v1.Pod, podDir string, container *v1.Container, hostName, h
 	mountEtcHostsFile := len(podIPs) > 0 && runtime.GOOS != "windows"
 	klog.V(3).Infof("container: %v/%v/%v podIPs: %q creating hosts mount: %v", pod.Namespace, pod.Name, container.Name, podIPs, mountEtcHostsFile)
 	mounts := []kubecontainer.Mount{}
+	rootfsVolumeName := volumeutil.GetPodRootFSDiskName(pod)
+	isVMPod := v1helper.IsVMRuntime(pod)
 	var cleanupAction func()
 	for i, mount := range container.VolumeMounts {
 		// do not mount /etc/hosts if container is already mounting on the path
@@ -162,6 +164,12 @@ func makeMounts(pod *v1.Pod, podDir string, container *v1.Container, hostName, h
 		if !ok || vol.Mounter == nil {
 			klog.Errorf("Mount cannot be satisfied for container %q, because the volume is missing or the volume mounter is nil: %+v", container.Name, mount)
 			return nil, cleanupAction, fmt.Errorf("cannot find volume %q to mount into container %q", mount.Name, container.Name)
+		}
+
+		// ignore mounts for rootfs volume which volume
+		if mount.Name == rootfsVolumeName && isVMPod {
+			klog.Infof("Pod %q container %q mount %s is a rootfs volume mount, skip", format.Pod(pod), container.Name, mount.Name)
+			continue
 		}
 
 		relabelVolume := false
@@ -268,7 +276,6 @@ func makeMounts(pod *v1.Pod, podDir string, container *v1.Container, hostName, h
 		klog.V(5).Infof("Pod %q container %q mount %q has propagation %q", format.Pod(pod), container.Name, mount.Name, propagation)
 
 		mustMountRO := vol.Mounter.GetAttributes().ReadOnly
-
 		mounts = append(mounts, kubecontainer.Mount{
 			Name:           mount.Name,
 			ContainerPath:  containerPath,

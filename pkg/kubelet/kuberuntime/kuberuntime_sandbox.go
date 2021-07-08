@@ -18,21 +18,26 @@ package kuberuntime
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/url"
+	"path/filepath"
 	"sort"
 
 	"code.byted.org/tce/kube-tracing"
+	"github.com/pkg/errors"
 	"k8s.io/api/core/v1"
 	kubetypes "k8s.io/apimachinery/pkg/types"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/api/v1/resource"
+	"k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	"k8s.io/kubernetes/pkg/features"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/types"
 	"k8s.io/kubernetes/pkg/kubelet/util/format"
+	"k8s.io/kubernetes/pkg/volume/util"
 )
 
 // createPodSandbox creates a pod sandbox and returns (podSandBoxID, message, error).
@@ -149,11 +154,23 @@ func (m *kubeGenericRuntimeManager) generatePodSandboxConfig(pod *v1.Pod, attemp
 			}
 
 			for _, annotation := range opts.Annotations {
-				if annotation.Name == types.SriovNICDeviceAnnotation {
-					podSandboxConfig.Annotations[types.SriovNICDeviceAnnotation] = annotation.Value
+				if annotation.Name == types.SriovNICDeviceAnnotationKey {
+					podSandboxConfig.Annotations[types.SriovNICDeviceAnnotationKey] = annotation.Value
 					break
 				}
 			}
+		}
+	}
+
+	volumeName := util.GetPodRootFSDiskName(pod)
+	if volumeName != "" && helper.IsVMRuntime(pod) {
+		volumeInfo, err := m.getRootfsVolumeInfo(pod, volumeName)
+		if err != nil {
+			return nil, err
+		}
+		klog.Warningf("Get rootfs volume: %s host path for pod %s path, voluemInfo: %s", volumeName, pod.Name, volumeInfo)
+		if volumeInfo != "" {
+			podSandboxConfig.Annotations[types.KataRootFSVolumeAnnotationKey] = volumeInfo
 		}
 	}
 
@@ -244,6 +261,24 @@ func (m *kubeGenericRuntimeManager) getKubeletSandboxes(all bool) ([]*runtimeapi
 	}
 
 	return resp, nil
+}
+
+func (m *kubeGenericRuntimeManager) getRootfsVolumeInfo(pod *v1.Pod, volumeName string) (string, error) {
+	volumeMap := m.runtimeHelper.GetMountedVolumesForPod(pod)
+	if volume, ok := volumeMap[volumeName]; ok {
+		hostPath, err := util.GetPath(volume.Mounter)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to get path for volume: %s", volumeName)
+		}
+		bytes, err := ioutil.ReadFile(filepath.Join(hostPath, "volume.json"))
+		if err != nil {
+			return "", errors.Wrapf(err, "read file failed for volume", volumeName)
+		}
+		return string(bytes), nil
+	}
+
+	klog.Warningf("No mounted volume mapped to rootfs-volume name: %s for pod: %s, ignore", volumeName, pod.Name)
+	return "", nil
 }
 
 // determinePodSandboxIP determines the IP addresses of the given pod sandbox.

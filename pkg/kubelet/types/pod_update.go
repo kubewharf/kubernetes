@@ -51,6 +51,9 @@ const (
 
 	ContainerShmSizeAnnotationKey   = "pod.tce.kubernetes.io/container-shm-size"
 	ContainerPidsLimitAnnotationKey = "pod.tce.kubernetes.io/container-pids-limit"
+	// SriovNICDeviceAnnotationKey determines the PCIe devices info of Allocated VFs
+	SriovNICDeviceAnnotationKey   = "bytedance.cni.v1/pci-devices"
+	KataRootFSVolumeAnnotationKey = "io.katacontainers.config.hypervisor.rootfs_volume"
 )
 
 // PodOperation defines what changes will be made on a pod configuration.

@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+
 	"os"
 	"path/filepath"
 	"reflect"
@@ -41,6 +42,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
+	utilpod "k8s.io/kubernetes/pkg/api/pod"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	"k8s.io/kubernetes/pkg/volume"
@@ -596,11 +598,23 @@ func IsLocalEphemeralVolume(volume v1.Volume) bool {
 		volume.ConfigMap != nil || volume.DownwardAPI != nil
 }
 
+// GetPodRootFSDiskName returns the name of rootfs disk that are used by all containers for the pod.
+func GetPodRootFSDiskName(pod *v1.Pod) string {
+	if pod.Annotations != nil {
+		return pod.Annotations[utilpod.PodRootFSVolumeNameAnnotation]
+	}
+	return ""
+}
+
 // GetPodVolumeNames returns names of volumes that are used in a pod,
 // either as filesystem mount or raw block device.
 func GetPodVolumeNames(pod *v1.Pod) (mounts sets.String, devices sets.String) {
 	mounts = sets.NewString()
 	devices = sets.NewString()
+
+	if volumeName := GetPodRootFSDiskName(pod); volumeName != "" && v1helper.IsVMRuntime(pod) {
+		mounts.Insert(volumeName)
+	}
 
 	podutil.VisitContainers(&pod.Spec, func(container *v1.Container) bool {
 		if container.VolumeMounts != nil {

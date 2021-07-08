@@ -36,6 +36,7 @@ import (
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	kubelettypes "k8s.io/kubernetes/pkg/kubelet/types"
 	utilnode "k8s.io/kubernetes/pkg/util/node"
+	"k8s.io/kubernetes/pkg/volume/util"
 )
 
 // getRootDir returns the full path to the directory under which kubelet can
@@ -194,6 +195,10 @@ func (kl *Kubelet) GetRunningPods() ([]*v1.Pod, error) {
 		apiPods = append(apiPods, pod.ToAPIPod())
 	}
 	return apiPods, nil
+}
+
+func (kl *Kubelet) GetMountedVolumesForPod(pod *v1.Pod) kubecontainer.VolumeMap {
+	return kl.volumeManager.GetMountedVolumesForPod(util.GetUniquePodName(pod))
 }
 
 // GetPodByFullName gets the pod with the given 'full' name, which
