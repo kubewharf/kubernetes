@@ -40,10 +40,14 @@ const (
 	PriorityBestEffortNodeManager = "best-effort-node-manager"
 
 	// default priority value for each priority type when no default priority class exists
-	DefaultPriorityForGuaranteedKublet      int32 = 91
-	DefaultPriorityForGuaranteedNodeManager int32 = 61
-	DefaultPriorityForBestEffortKublet      int32 = 31
-	DefaultPriorityForBestEffortNodeManager int32 = 1
+	MinPriorityForGuaranteedKublet      int32 = 100
+	MaxPriorityForGuaranteedKublet      int32 = 120
+	MinPriorityForGuaranteedNodeManager int32 = 70
+	MaxPriorityForGuaranteedNodeManager int32 = 90
+	MinPriorityForBestEffortKublet      int32 = 40
+	MaxPriorityForBestEffortKublet      int32 = 60
+	MinPriorityForBestEffortNodeManager int32 = 10
+	MaxPriorityForBestEffortNodeManager int32 = 30
 
 	// pod launchers
 	PodLauncherKubelet     = "kubelet"
