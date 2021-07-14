@@ -466,11 +466,16 @@ type bytedriveBlk struct {
 }
 
 func (ed *noopDir) GetAttributes() volume.Attributes {
+	isBlock := false
+	if ed.volume != nil && ed.volume.Bytedrive != nil {
+		isBlock = true
+	}
 	return volume.Attributes{
-		ReadOnly:        ed.readOnly,
-		Managed:         false,
-		SupportsSELinux: false,
-		SkipSubPath:     true,
+		ReadOnly:            ed.readOnly,
+		Managed:             false,
+		SupportsSELinux:     false,
+		SkipSubPath:         true,
+		IsRemoteBlockVolume: isBlock,
 	}
 }
 

@@ -145,7 +145,6 @@ func (m *kubeGenericRuntimeManager) generatePodSandboxConfig(pod *v1.Pod, attemp
 	podSandboxConfig.Linux = lc
 
 	// get sriov device annotation from containers in pod creation
-	// TODO: need a more uniform and clean to way pass these parameters.
 	if len(pod.Spec.Containers) > 0 {
 		for _, container := range pod.Spec.Containers {
 			opts, err := m.runtimeHelper.GenerateCreatePodResourceOptions(pod, &container)
@@ -162,15 +161,22 @@ func (m *kubeGenericRuntimeManager) generatePodSandboxConfig(pod *v1.Pod, attemp
 		}
 	}
 
-	volumeName := util.GetPodRootFSDiskName(pod)
-	if volumeName != "" && helper.IsVMRuntime(pod) {
-		volumeInfo, err := m.getRootfsVolumeInfo(pod, volumeName)
-		if err != nil {
-			return nil, err
+	if helper.IsVMRuntime(pod) {
+		// get rootfs
+		volumeName := util.GetPodRootFSDiskName(pod)
+		if volumeName != "" {
+			volumeInfo, err := m.getRootfsVolumeInfo(pod, volumeName)
+			if err != nil {
+				return nil, err
+			}
+			klog.Infof("Get rootfs volume: %s host path for pod %s path, voluemInfo: %s", volumeName, pod.Name, volumeInfo)
+			if volumeInfo != "" {
+				podSandboxConfig.Annotations[types.KataRootFSVolumeAnnotationKey] = volumeInfo
+			}
 		}
-		klog.Warningf("Get rootfs volume: %s host path for pod %s path, voluemInfo: %s", volumeName, pod.Name, volumeInfo)
-		if volumeInfo != "" {
-			podSandboxConfig.Annotations[types.KataRootFSVolumeAnnotationKey] = volumeInfo
+
+		if m.shouldEnableStorageDaemon(pod) {
+			podSandboxConfig.Annotations[types.KataStorageDaemonAnnotationKey] = "true"
 		}
 	}
 
@@ -279,6 +285,16 @@ func (m *kubeGenericRuntimeManager) getRootfsVolumeInfo(pod *v1.Pod, volumeName 
 
 	klog.Warningf("No mounted volume mapped to rootfs-volume name: %s for pod: %s, ignore", volumeName, pod.Name)
 	return "", nil
+}
+
+func (m *kubeGenericRuntimeManager) shouldEnableStorageDaemon(pod *v1.Pod) bool {
+	volumeMap := m.runtimeHelper.GetMountedVolumesForPod(pod)
+	for _, volume := range volumeMap {
+		if volume.Mounter != nil && volume.Mounter.GetAttributes().IsRemoteBlockVolume {
+			return true
+		}
+	}
+	return false
 }
 
 // determinePodSandboxIP determines the IP addresses of the given pod sandbox.
