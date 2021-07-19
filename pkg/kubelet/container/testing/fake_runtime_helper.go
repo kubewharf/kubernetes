@@ -73,3 +73,7 @@ func (f *FakeRuntimeHelper) GetPodDir(podUID kubetypes.UID) string {
 func (f *FakeRuntimeHelper) GetExtraSupplementalGroupsForPod(pod *v1.Pod) []int64 {
 	return nil
 }
+
+func (f *FakeRuntimeHelper) GetMountedVolumesForPod(pod *v1.Pod) kubecontainer.VolumeMap {
+	return nil
+}

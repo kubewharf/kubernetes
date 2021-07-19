@@ -24,7 +24,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	podutil "k8s.io/kubernetes/pkg/api/pod"
 	_ "k8s.io/kubernetes/pkg/apis/core/install"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	volumetest "k8s.io/kubernetes/pkg/volume/testing"
@@ -246,6 +248,137 @@ func TestMakeMounts(t *testing.T) {
 			pod := v1.Pod{
 				Spec: v1.PodSpec{
 					HostNetwork: true,
+				},
+			}
+
+			mounts, _, err := makeMounts(&pod, "/pod", &tc.container, "fakepodname", "", []string{""}, tc.podVolumes, fhu, fsp, nil)
+
+			// validate only the error if we expect an error
+			if tc.expectErr {
+				if err == nil || err.Error() != tc.expectedErrMsg {
+					t.Fatalf("expected error message `%s` but got `%v`", tc.expectedErrMsg, err)
+				}
+				return
+			}
+
+			// otherwise validate the mounts
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			assert.Equal(t, tc.expectedMounts, mounts, "mounts of container %+v", tc.container)
+		})
+	}
+}
+
+func TestMakeMountsWithRootFsVolume(t *testing.T) {
+	propagationHostToContainer := v1.MountPropagationHostToContainer
+	propagationNone := v1.MountPropagationNone
+
+	testCases := map[string]struct {
+		Annotation     map[string]string
+		RuntimeClass   string
+		container      v1.Container
+		podVolumes     kubecontainer.VolumeMap
+		expectErr      bool
+		expectedErrMsg string
+		expectedMounts []kubecontainer.Mount
+	}{
+		"runc pod with rootfs volume": {
+			Annotation:   make(map[string]string),
+			RuntimeClass: "",
+			podVolumes: kubecontainer.VolumeMap{
+				"disk":          kubecontainer.VolumeInfo{Mounter: &stubVolume{path: "/mnt/disk"}},
+				"rootfs-volume": kubecontainer.VolumeInfo{Mounter: &stubVolume{path: "/var/lib/kubelet/podID/volumes/empty/rootfs"}},
+			},
+			container: v1.Container{
+				Name: "container1",
+				VolumeMounts: []v1.VolumeMount{
+					{
+						MountPath:        "/etc/hosts",
+						Name:             "disk",
+						ReadOnly:         false,
+						MountPropagation: &propagationHostToContainer,
+					},
+					{
+						MountPath:        "/mnt/path3",
+						Name:             "rootfs-volume",
+						ReadOnly:         true,
+						MountPropagation: &propagationNone,
+					},
+				},
+			},
+			expectedMounts: []kubecontainer.Mount{
+				{
+					Name:           "disk",
+					ContainerPath:  "/etc/hosts",
+					HostPath:       "/mnt/disk",
+					ReadOnly:       false,
+					SELinuxRelabel: false,
+					Propagation:    runtimeapi.MountPropagation_PROPAGATION_HOST_TO_CONTAINER,
+				},
+				{
+					Name:           "rootfs-volume",
+					ContainerPath:  "/mnt/path3",
+					HostPath:       "/var/lib/kubelet/podID/volumes/empty/rootfs",
+					ReadOnly:       true,
+					SELinuxRelabel: false,
+					Propagation:    runtimeapi.MountPropagation_PROPAGATION_PRIVATE,
+				},
+			},
+			expectErr: false,
+		},
+		"kata pod with rootfs volume": {
+			Annotation: map[string]string{
+				podutil.PodRootFSVolumeNameAnnotation: "rootfs-volume",
+			},
+			RuntimeClass: "kata-clh",
+			podVolumes: kubecontainer.VolumeMap{
+				"disk":          kubecontainer.VolumeInfo{Mounter: &stubVolume{path: "/mnt/disk"}},
+				"rootfs-volume": kubecontainer.VolumeInfo{Mounter: &stubVolume{path: "/var/lib/kubelet/podID/volumes/empty/rootfs"}},
+			},
+			container: v1.Container{
+				Name: "container1",
+				VolumeMounts: []v1.VolumeMount{
+					{
+						MountPath:        "/etc/hosts",
+						Name:             "disk",
+						ReadOnly:         false,
+						MountPropagation: &propagationHostToContainer,
+					},
+					{
+						MountPath:        "/mnt/path3",
+						Name:             "rootfs-volume",
+						ReadOnly:         true,
+						MountPropagation: &propagationNone,
+					},
+				},
+			},
+			expectedMounts: []kubecontainer.Mount{
+				{
+					Name:           "disk",
+					ContainerPath:  "/etc/hosts",
+					HostPath:       "/mnt/disk",
+					ReadOnly:       false,
+					SELinuxRelabel: false,
+					Propagation:    runtimeapi.MountPropagation_PROPAGATION_HOST_TO_CONTAINER,
+				},
+			},
+			expectErr: false,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			fhu := hostutil.NewFakeHostUtil(nil)
+			fsp := &subpath.FakeSubpath{}
+			pod := v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: tc.Annotation,
+				},
+				Spec: v1.PodSpec{
+					RuntimeClassName: &tc.RuntimeClass,
+					HostNetwork:      true,
 				},
 			}
 

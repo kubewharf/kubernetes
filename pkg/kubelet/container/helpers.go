@@ -57,6 +57,8 @@ type RuntimeHelper interface {
 	// supplemental groups for the Pod. These extra supplemental groups come
 	// from annotations on persistent volumes that the pod depends on.
 	GetExtraSupplementalGroupsForPod(pod *v1.Pod) []int64
+
+	GetMountedVolumesForPod(pod *v1.Pod) VolumeMap
 }
 
 // ShouldContainerBeRestarted checks whether a container needs to be restarted.

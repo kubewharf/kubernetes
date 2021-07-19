@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	featuregatetesting "k8s.io/component-base/featuregate/testing"
+	podutil "k8s.io/kubernetes/pkg/api/pod"
 	_ "k8s.io/kubernetes/pkg/apis/core/install"
 	"k8s.io/kubernetes/pkg/features"
 
@@ -665,6 +666,7 @@ func TestMakeAbsolutePath(t *testing.T) {
 
 func TestGetPodVolumeNames(t *testing.T) {
 	defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.EphemeralContainers, true)()
+	runtimeClassName := "kata-clh"
 	tests := []struct {
 		name            string
 		pod             *v1.Pod
@@ -866,6 +868,55 @@ func TestGetPodVolumeNames(t *testing.T) {
 				},
 			},
 			expectedMounts:  sets.NewString("vol1", "vol2"),
+			expectedDevices: sets.NewString(),
+		},
+		{
+			name: "runc pod with rootfs volume",
+			pod: &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						podutil.PodRootFSVolumeNameAnnotation: "rootfs-volume",
+					},
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name: "container1",
+						},
+					},
+					Volumes: []v1.Volume{
+						{
+							Name: "rootfs-volume",
+						},
+					},
+				},
+			},
+			expectedMounts:  sets.NewString(),
+			expectedDevices: sets.NewString(),
+		},
+		{
+			name: "kata pod with rootfs volume",
+			pod: &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						podutil.PodRootFSVolumeNameAnnotation: "rootfs-volume",
+					},
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name: "container1",
+						},
+					},
+					RuntimeClassName: &runtimeClassName,
+					Volumes: []v1.Volume{
+						{
+							Name: "rootfs-volume",
+						},
+					},
+				},
+			},
+			expectedMounts:  sets.NewString("rootfs-volume"),
 			expectedDevices: sets.NewString(),
 		},
 	}

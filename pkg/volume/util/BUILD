@@ -20,6 +20,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api/legacyscheme:go_default_library",
+        "//pkg/api/pod:go_default_library",
         "//pkg/api/v1/pod:go_default_library",
         "//pkg/apis/core/v1/helper:go_default_library",
         "//pkg/util/resizefs:go_default_library",
@@ -59,6 +60,7 @@ go_test(
     ],
     embed = [":go_default_library"],
     deps = [
+        "//pkg/api/pod:go_default_library",
         "//pkg/apis/core/install:go_default_library",
         "//pkg/apis/core/v1/helper:go_default_library",
         "//pkg/features:go_default_library",
