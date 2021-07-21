@@ -24,11 +24,15 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	appv1listers "k8s.io/client-go/listers/apps/v1"
+	corelisters "k8s.io/client-go/listers/core/v1"
 	schedulingv1listers "k8s.io/client-go/listers/scheduling/v1"
+	storagev1 "k8s.io/client-go/listers/storage/v1"
 	"k8s.io/klog"
 	extenderv1 "k8s.io/kube-scheduler/extender/v1"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
+	"k8s.io/kubernetes/pkg/features"
 )
 
 // GetPodFullName returns a name that uniquely identifies a pod.
@@ -317,8 +321,37 @@ func PodRequestRefinedResources(pod *v1.Pod) bool {
 	return false
 }
 
-func CanPodBePreemptedAtSamePriority(pod, preemptor *v1.Pod) bool {
+func CanPodBePreemptedAtSamePriority(pod, preemptor *v1.Pod, pvcLister corelisters.PersistentVolumeClaimLister, scLister storagev1.StorageClassLister) bool {
 	//TODO: add more preemption checking situations
+	if IsABPod(pod) {
+		// pod is AB test pod, can not be preempted
+		return false
+	}
+
+	podStateful, err := podutil.IsStatefulPod(pod, pvcLister, scLister)
+	if err != nil || podStateful {
+		return false
+	}
+	preemptorStateful, err := podutil.IsStatefulPod(preemptor, pvcLister, scLister)
+	if err != nil {
+		return false
+	} else if preemptorStateful {
+		return true
+	}
+
+	preemptorHasGPU := HasResource(preemptor, ResourceGPU)
+	podHasGPU := HasResource(pod, ResourceGPU)
+	if preemptorHasGPU != podHasGPU {
+		if preemptorHasGPU {
+			return true
+		} else {
+			return false
+		}
+	}
+
+	if !utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) {
+		return false
+	}
 
 	// pods request refined resources can preempt those who don't
 	preemptorRequestsRefinedResources := PodRequestRefinedResources(preemptor)

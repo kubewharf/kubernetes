@@ -818,6 +818,7 @@ func TestGenericScheduler(t *testing.T) {
 				snapshot,
 				[]SchedulerExtender{},
 				pvcLister,
+				informerFactory.Storage().V1().StorageClasses().Lister(),
 				informerFactory.Policy().V1beta1().PodDisruptionBudgets().Lister(),
 				informerFactory.Scheduling().V1().PriorityClasses().Lister(),
 				informerFactory.Apps().V1().Deployments().Lister(),
@@ -850,7 +851,7 @@ func makeScheduler(nodes []*v1.Node) *genericScheduler {
 		nil,
 		internalqueue.NewSchedulingQueue(nil),
 		emptySnapshot,
-		nil, nil, nil, nil, nil, false,
+		nil, nil, nil, nil, nil, nil, false,
 		schedulerapi.DefaultPercentageOfNodesToScore, false)
 	cache.UpdateSnapshot(s.(*genericScheduler).nodeInfoSnapshot)
 	return s.(*genericScheduler)
@@ -1143,6 +1144,7 @@ func TestZeroRequest(t *testing.T) {
 				nil,
 				emptySnapshot,
 				[]SchedulerExtender{},
+				nil,
 				nil,
 				nil,
 				nil,
@@ -1626,6 +1628,7 @@ func TestSelectNodesForPreemption(t *testing.T) {
 				internalqueue.NewSchedulingQueue(nil),
 				snapshot,
 				[]SchedulerExtender{},
+				nil,
 				nil,
 				informerFactory.Policy().V1beta1().PodDisruptionBudgets().Lister(),
 				informerFactory.Scheduling().V1().PriorityClasses().Lister(),
@@ -2427,6 +2430,7 @@ func TestPreempt(t *testing.T) {
 				snapshot,
 				extenders,
 				informerFactory.Core().V1().PersistentVolumeClaims().Lister(),
+				informerFactory.Storage().V1().StorageClasses().Lister(),
 				informerFactory.Policy().V1beta1().PodDisruptionBudgets().Lister(),
 				informerFactory.Scheduling().V1().PriorityClasses().Lister(),
 				informerFactory.Apps().V1().Deployments().Lister(),

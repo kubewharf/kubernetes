@@ -601,6 +601,7 @@ func TestGenericSchedulerWithExtenders(t *testing.T) {
 				emptySnapshot,
 				extenders,
 				informerFactory.Core().V1().PersistentVolumeClaims().Lister(),
+				informerFactory.Storage().V1().StorageClasses().Lister(),
 				informerFactory.Policy().V1beta1().PodDisruptionBudgets().Lister(),
 				informerFactory.Scheduling().V1().PriorityClasses().Lister(),
 				informerFactory.Apps().V1().Deployments().Lister(),
