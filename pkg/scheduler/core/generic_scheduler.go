@@ -1251,7 +1251,7 @@ func (g *genericScheduler) selectVictimsOnNode(
 		}
 
 		if cache.ShouldDeployVictimsBeThrottled(p, g.preemptThrottleValue) {
-			klog.Infof("too many victims of this deployment in a short period, skip this eviction")
+			klog.V(5).Infof("too many victims of this deployment in a short period, skip this eviction")
 			continue
 		}
 
@@ -1317,7 +1317,7 @@ func (g *genericScheduler) selectVictimsOnNode(
 		if err != nil {
 			klog.Warningf("Encountered error while selecting victims on node %v: %v", nodeInfo.Node().Name, err)
 		}
-		klog.V(4).Infof("pod:%s does not fit on node: %s after adding all pdb-violating pods", pod.Name, nodeInfo.Node().Name)
+		klog.V(5).Infof("pod:%s does not fit on node: %s after adding all pdb-violating pods", pod.Name, nodeInfo.Node().Name)
 		return nil, 0, false
 	}
 
