@@ -206,9 +206,9 @@ for repo in $(kube::util::list_staging_repos); do
     kube::util::list_staging_repos | xargs -n 1 -I {} echo "-droprequire k8s.io/{}"   | xargs -L 100 go mod edit
     # rewrite `replace` directives for staging components to point to peer directories
     kube::util::list_staging_repos | xargs -n 1 -I {} echo "-replace k8s.io/{}=../{}" | xargs -L 100 go mod edit
-    # === @zoumo
-    # we should drop code.byted.org/* dependencies because it will cause import loop
-    need_drop="$(go mod edit -json | jq -r '.Require[]? | select(.Path | startswith("code.byted.org")) | .Path')"
+    # === Bytedance: @zoumo
+    # we should drop code.byted.org/* and sigs.k8s.io/controller-runtime dependencies because they will cause import loop
+    need_drop="$(go mod edit -json | jq -r '.Require[]? | select(.Path | startswith("code.byted.org") or startswith("sigs.k8s.io/controller-runtime")) | .Path')"
     echo "${need_drop}" | xargs -n 1 -I {} echo "-droprequire {}" | xargs -L 100 go mod edit
     echo "${need_drop}" | xargs -n 1 -I {} echo "-dropreplace {}" | xargs -L 100 go mod edit
     # === end
