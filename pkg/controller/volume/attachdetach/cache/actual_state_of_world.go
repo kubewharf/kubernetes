@@ -665,7 +665,7 @@ func getAttachedVolume(
 		DetachRequestedTime: nodeAttachedTo.detachRequestedTime}
 }
 
-func (asw *actualStateOfWorld) MarkVolumeAsResidual(volumeName v1.UniqueVolumeName, volumeSpec *volume.Spec, nodeName types.NodeName, devicePath string) error {
+func (asw *actualStateOfWorld) MarkVolumeAsResidual(volumeName v1.UniqueVolumeName, volumeSpec *volume.Spec, devicePath, deviceMountPath string) error {
 	return nil
 }
 
