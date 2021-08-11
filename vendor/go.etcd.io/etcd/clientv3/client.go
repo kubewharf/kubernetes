@@ -36,8 +36,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	grpccredentials "google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/resolver"
 	"google.golang.org/grpc/status"
 )
 
@@ -45,7 +47,8 @@ var (
 	ErrNoAvailableEndpoints = errors.New("etcdclient: no available endpoints")
 	ErrOldCluster           = errors.New("etcdclient: old cluster version")
 
-	roundRobinBalancerName = fmt.Sprintf("etcd-%s", picker.RoundrobinBalanced.String())
+	roundRobinBalancerName    = fmt.Sprintf("etcd-%s", picker.RoundrobinBalanced.String())
+	rwSeparatedRRBalancerName = fmt.Sprintf("etcd-%s", picker.RWSeparatedRoundrobinBalanced.String())
 )
 
 func init() {
@@ -65,6 +68,12 @@ func init() {
 	balancer.RegisterBuilder(balancer.Config{
 		Policy: picker.RoundrobinBalanced,
 		Name:   roundRobinBalancerName,
+		Logger: lg,
+	})
+
+	balancer.RegisterBuilder(balancer.Config{
+		Policy: picker.RWSeparatedRoundrobinBalanced,
+		Name:   rwSeparatedRRBalancerName,
 		Logger: lg,
 	})
 }
@@ -97,6 +106,10 @@ type Client struct {
 	callOpts []grpc.CallOption
 
 	lg *zap.Logger
+
+	nextEndpoint int
+
+	balancerName string
 }
 
 // New creates a new etcdv3 client from a given configuration.
@@ -104,7 +117,6 @@ func New(cfg Config) (*Client, error) {
 	if len(cfg.Endpoints) == 0 {
 		return nil, ErrNoAvailableEndpoints
 	}
-
 	return newClient(&cfg)
 }
 
@@ -141,6 +153,11 @@ func (c *Client) Close() error {
 	if c.conn != nil {
 		return toErr(c.ctx, c.conn.Close())
 	}
+
+	if c.cfg.KubeBrainFeatureEnabled {
+		picker.UnregisterCluster(c.cfg.Endpoints)
+	}
+
 	return c.ctx.Err()
 }
 
@@ -157,6 +174,13 @@ func (c *Client) Endpoints() []string {
 	eps := make([]string, len(c.cfg.Endpoints))
 	copy(eps, c.cfg.Endpoints)
 	return eps
+}
+
+// KubeBrainFeatureEnabled returns the feature switch status of KubeBrain
+func (c *Client) KubeBrainFeatureEnabled() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.cfg.KubeBrainFeatureEnabled
 }
 
 // SetEndpoints updates client's endpoints.
@@ -286,7 +310,7 @@ func (c *Client) getToken(ctx context.Context) error {
 			err = fmt.Errorf("failed to configure auth dialer: %v", err)
 			continue
 		}
-		dOpts = append(dOpts, grpc.WithBalancerName(roundRobinBalancerName))
+		dOpts = append(dOpts, grpc.WithBalancerName(c.balancerName))
 		auth, err = newAuthenticator(ctx, target, dOpts, c)
 		if err != nil {
 			continue
@@ -418,16 +442,21 @@ func newClient(cfg *Config) (*Client, error) {
 	if cfg.Context != nil {
 		baseCtx = cfg.Context
 	}
+	balancerName := roundRobinBalancerName
+	if cfg.KubeBrainFeatureEnabled {
+		balancerName = rwSeparatedRRBalancerName
+	}
 
 	ctx, cancel := context.WithCancel(baseCtx)
 	client := &Client{
-		conn:     nil,
-		cfg:      *cfg,
-		creds:    creds,
-		ctx:      ctx,
-		cancel:   cancel,
-		mu:       new(sync.RWMutex),
-		callOpts: defaultCallOpts,
+		conn:         nil,
+		cfg:          *cfg,
+		creds:        creds,
+		ctx:          ctx,
+		cancel:       cancel,
+		mu:           new(sync.RWMutex),
+		callOpts:     defaultCallOpts,
+		balancerName: balancerName,
 	}
 
 	lcfg := logutil.DefaultZapLoggerConfig
@@ -478,7 +507,7 @@ func newClient(cfg *Config) (*Client, error) {
 
 	// Use a provided endpoint target so that for https:// without any tls config given, then
 	// grpc will assume the certificate server name is the endpoint host.
-	conn, err := client.dialWithBalancer(dialEndpoint, grpc.WithBalancerName(roundRobinBalancerName))
+	conn, err := client.dialWithBalancer(dialEndpoint, grpc.WithBalancerName(client.balancerName))
 	if err != nil {
 		client.cancel()
 		client.resolverGroup.Close()
@@ -501,9 +530,88 @@ func newClient(cfg *Config) (*Client, error) {
 			return nil, err
 		}
 	}
-
+	if client.cfg.KubeBrainFeatureEnabled {
+		picker.RegisterCluster(client.cfg.Endpoints, client.checkLeader)
+	}
+	client.lg.Info("current leader", zap.Strings("endpoints", client.cfg.Endpoints), zap.String("leader", picker.GetLeader(client.cfg.Endpoints)))
 	go client.autoSync()
+
 	return client, nil
+}
+
+func (c *Client) checkLeader() (resolver.Address, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	c.lg.Info("start leader checking", zap.Strings("endpoints", c.cfg.Endpoints))
+	l := len(c.cfg.Endpoints)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	addrc := make(chan resolver.Address)
+	errc := make(chan error)
+	var wg sync.WaitGroup
+	wg.Add(l)
+	for i := 0; i < l; i++ {
+		go func(i int) {
+			defer wg.Done()
+			ep := c.cfg.Endpoints[i]
+			if isHealth, _ := c.grpcHealthCheck(ctx, ep); isHealth {
+				addr := ep2Addr(ep)
+				select {
+				case addrc <- addr: // only accept the first one
+				case <-ctx.Done():
+				}
+			}
+		}(i)
+	}
+
+	go func() {
+		wg.Wait()
+		select {
+		case <-ctx.Done():
+		case errc <- rpctypes.ErrNoLeader:
+		}
+	}()
+
+	select {
+	case addr := <-addrc:
+		c.lg.Info("cur leader", zap.String("leader", addr.Addr))
+		return addr, nil
+	case err := <-errc:
+		c.lg.Error("no leader")
+		return resolver.Address{}, err
+	case <-ctx.Done(): // cause only by timeout
+		c.lg.Info("time out")
+		return resolver.Address{}, rpctypes.ErrNoLeader
+	}
+
+}
+
+func (c *Client) healthCheck() {
+	picker.UpdateClusterLeader(c.cfg.Endpoints, c.checkLeader)
+}
+
+func ep2Addr(ep string) resolver.Address {
+	return resolver.Address{Addr: ep, Type: resolver.Backend}
+}
+
+func (c *Client) grpcHealthCheck(ctx context.Context, ep string) (isHealth bool, err error) {
+	c.lg.Debug("start check endpoints", zap.String("endpoint", ep))
+	conn, err := c.Dial(ep)
+	if err != nil {
+		c.lg.Warn("dial failed", zap.String("endpoints", ep))
+		return false, err
+	}
+	defer conn.Close()
+	cli := grpc_health_v1.NewHealthClient(conn)
+	resp, err := cli.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
+	if err != nil {
+		c.lg.Warn("check failed", zap.String("endpoints", ep))
+		return false, err
+	}
+	c.lg.Info("health check", zap.String("endpoints", ep),
+		zap.String("status", grpc_health_v1.HealthCheckResponse_ServingStatus_name[int32(resp.Status)]))
+	return resp.Status == grpc_health_v1.HealthCheckResponse_SERVING, nil
 }
 
 // roundRobinQuorumBackoff retries against quorum between each backoff.

@@ -85,4 +85,7 @@ type Config struct {
 	PermitWithoutStream bool `json:"permit-without-stream"`
 
 	// TODO: support custom balancer picker
+
+	// KubeBrainFeatureEnabled when set will allow client to use RW separated balancer to make it work properly with KubeBrain
+	KubeBrainFeatureEnabled  bool
 }

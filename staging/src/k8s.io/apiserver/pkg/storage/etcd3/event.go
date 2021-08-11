@@ -43,12 +43,18 @@ func parseKV(kv *mvccpb.KeyValue) *event {
 	}
 }
 
-func parseEvent(e *clientv3.Event) (*event, error) {
-	if !e.IsCreate() && e.PrevKv == nil {
-		// If the previous value is nil, error. One example of how this is possible is if the previous value has been compacted already.
-		return nil, fmt.Errorf("etcd event received with PrevKv=nil (key=%q, modRevision=%d, type=%s)", string(e.Kv.Key), e.Kv.ModRevision, e.Type.String())
-
+func parseEvent(e *clientv3.Event, ignoreModPrev bool) (*event, error) {
+	if !ignoreModPrev {
+		if !e.IsCreate() && e.PrevKv == nil {
+			// If the previous value is nil, error. One example of how this is possible is if the previous value has been compacted already.
+			return nil, fmt.Errorf("etcd event received with PrevKv=nil (key=%q, modRevision=%d, type=%s)", string(e.Kv.Key), e.Kv.ModRevision, e.Type.String())
+		}
+	} else {
+		if e.Type == mvccpb.DELETE && e.PrevKv == nil {
+			return nil, fmt.Errorf("etcd delete event received with PrevKv=nil (key=%q, modRevision=%d, type=%s)", string(e.Kv.Key), e.Kv.ModRevision, e.Type.String())
+		}
 	}
+
 	ret := &event{
 		key:       string(e.Kv.Key),
 		value:     e.Kv.Value,

@@ -311,6 +311,8 @@ type Cacher struct {
 	watchersToStop []*cacheWatcher
 	// Maintain a timeout queue to send the bookmark event before the watcher times out.
 	bookmarkWatchers *watcherBookmarkTimeBuckets
+	// countInCacheEnabled when set will operate count in watchCache but not storage
+	countInCacheEnabled bool
 }
 
 // NewCacherFromConfig creates a new Cacher responsible for servicing WATCH and LIST requests from
@@ -769,6 +771,12 @@ func (c *Cacher) GuaranteedUpdate(
 
 // Count implements storage.Interface.
 func (c *Cacher) Count(pathPrefix string) (int64, error) {
+	if c.countInCacheEnabled {
+		if c.ready.check() {
+			return int64(len(c.watchCache.store.ListKeys())), nil
+		}
+		return 0, nil
+	}
 	return c.storage.Count(pathPrefix)
 }
 

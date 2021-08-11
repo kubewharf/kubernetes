@@ -31,7 +31,7 @@ func Create(c storagebackend.Config) (storage.Interface, DestroyFunc, error) {
 	switch c.Type {
 	case "etcd2":
 		return nil, nil, fmt.Errorf("%v is no longer a supported storage backend", c.Type)
-	case storagebackend.StorageTypeUnset, storagebackend.StorageTypeETCD3:
+	case storagebackend.StorageTypeUnset, storagebackend.StorageTypeETCD3, storagebackend.StorageTypeKubeBrain:
 		return newETCD3Storage(c)
 	default:
 		return nil, nil, fmt.Errorf("unknown storage type: %s", c.Type)
@@ -43,7 +43,7 @@ func CreateHealthCheck(c storagebackend.Config) (func() error, error) {
 	switch c.Type {
 	case "etcd2":
 		return nil, fmt.Errorf("%v is no longer a supported storage backend", c.Type)
-	case storagebackend.StorageTypeUnset, storagebackend.StorageTypeETCD3:
+	case storagebackend.StorageTypeUnset, storagebackend.StorageTypeETCD3, storagebackend.StorageTypeKubeBrain:
 		return newETCD3HealthCheck(c)
 	default:
 		return nil, fmt.Errorf("unknown storage type: %s", c.Type)

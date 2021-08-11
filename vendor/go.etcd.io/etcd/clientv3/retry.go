@@ -16,6 +16,7 @@ package clientv3
 
 import (
 	"context"
+	"strings"
 
 	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
 	pb "go.etcd.io/etcd/etcdserver/etcdserverpb"
@@ -88,7 +89,18 @@ func isSafeRetryMutableRPC(err error) bool {
 		return false
 	}
 	desc := rpctypes.ErrorDesc(err)
-	return desc == "there is no address available" || desc == "there is no connection available"
+	return desc == "there is no address available" || desc == "there is no connection available" || isNotLeaderErr(desc)
+}
+
+const (
+	isNotLeaderTxnErrDesc   = "txn error"
+	isNotLeaderWatchErrDesc = "watch error"
+)
+
+// isNotLeaderErr is the error returned by follower in txn
+func isNotLeaderErr(desc string) bool {
+	return strings.HasPrefix(desc, isNotLeaderTxnErrDesc) || strings.HasPrefix(desc, isNotLeaderWatchErrDesc)
+
 }
 
 type retryKVClient struct {

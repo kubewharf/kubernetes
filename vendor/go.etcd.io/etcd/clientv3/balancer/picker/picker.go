@@ -55,6 +55,9 @@ const (
 	// Custom defines custom balancer picker.
 	// TODO: custom picker is not supported yet.
 	Custom
+
+	// RWSeparatedRoundrobinBalanced balances read request over followers
+	RWSeparatedRoundrobinBalanced
 )
 
 func (p Policy) String() string {
@@ -67,6 +70,9 @@ func (p Policy) String() string {
 
 	case Custom:
 		panic("'custom' picker policy is not supported yet")
+
+	case RWSeparatedRoundrobinBalanced:
+		return "rw-separated-roundrobin-balanced"
 
 	default:
 		panic(fmt.Errorf("invalid balancer picker policy (%d)", p))
@@ -84,6 +90,9 @@ func New(cfg Config) Picker {
 
 	case Custom:
 		panic("'custom' picker policy is not supported yet")
+
+	case RWSeparatedRoundrobinBalanced:
+		return newRWSeparatedRoundRobinBalanced(cfg)
 
 	default:
 		panic(fmt.Errorf("invalid balancer picker policy (%d)", cfg.Policy))

@@ -65,6 +65,10 @@ func init() {
 	legacyregistry.RawMustRegister(grpcprom.DefaultClientMetrics)
 }
 
+func isKubeBrainFeatureEnabled(c storagebackend.Config) bool {
+	return c.Type == storagebackend.StorageTypeKubeBrain
+}
+
 func newETCD3HealthCheck(c storagebackend.Config) (func() error, error) {
 	// constructing the etcd v3 client blocks and times out if etcd is not available.
 	// retry in a loop in the background until we successfully create the client, storing the client or error encountered
@@ -75,7 +79,7 @@ func newETCD3HealthCheck(c storagebackend.Config) (func() error, error) {
 	clientErrMsg.Store("etcd client connection not yet established")
 
 	go wait.PollUntil(time.Second, func() (bool, error) {
-		client, err := newETCD3Client(c.Transport)
+		client, err := newETCD3Client(c.Transport, isKubeBrainFeatureEnabled(c))
 		if err != nil {
 			clientErrMsg.Store(err.Error())
 			return false, nil
@@ -101,7 +105,7 @@ func newETCD3HealthCheck(c storagebackend.Config) (func() error, error) {
 	}, nil
 }
 
-func newETCD3Client(c storagebackend.TransportConfig) (*clientv3.Client, error) {
+func newETCD3Client(c storagebackend.TransportConfig, kubeBrainFeatureEnabled bool) (*clientv3.Client, error) {
 	tlsInfo := transport.TLSInfo{
 		CertFile:      c.CertFile,
 		KeyFile:       c.KeyFile,
@@ -140,13 +144,14 @@ func newETCD3Client(c storagebackend.TransportConfig) (*clientv3.Client, error) 
 		dialOptions = append(dialOptions, grpc.WithContextDialer(dialer))
 	}
 	cfg := clientv3.Config{
-		DialTimeout:          dialTimeout,
-		DialKeepAliveTime:    keepaliveTime,
-		DialKeepAliveTimeout: keepaliveTimeout,
-		DialOptions:          dialOptions,
-		Endpoints:            c.ServerList,
-		TLS:                  tlsConfig,
-		MaxCallRecvMsgSize:   grpcMaxCallRecvMsgSize,
+		DialTimeout:             dialTimeout,
+		DialKeepAliveTime:       keepaliveTime,
+		DialKeepAliveTimeout:    keepaliveTimeout,
+		DialOptions:             dialOptions,
+		Endpoints:               c.ServerList,
+		TLS:                     tlsConfig,
+		MaxCallRecvMsgSize:      grpcMaxCallRecvMsgSize,
+		KubeBrainFeatureEnabled: kubeBrainFeatureEnabled,
 	}
 
 	return clientv3.New(cfg)
@@ -167,13 +172,13 @@ var (
 // startCompactorOnce start one compactor per transport. If the interval get smaller on repeated calls, the
 // compactor is replaced. A destroy func is returned. If all destroy funcs with the same transport are called,
 // the compactor is stopped.
-func startCompactorOnce(c storagebackend.TransportConfig, interval time.Duration) (func(), error) {
+func startCompactorOnce(c storagebackend.TransportConfig, interval time.Duration, kubeBrainFeatureEnabled bool) (func(), error) {
 	lock.Lock()
 	defer lock.Unlock()
 
 	key := fmt.Sprintf("%v", c) // gives: {[server1 server2] keyFile certFile caFile}
 	if compactor, foundBefore := compactors[key]; !foundBefore || compactor.interval > interval {
-		compactorClient, err := newETCD3Client(c)
+		compactorClient, err := newETCD3Client(c, kubeBrainFeatureEnabled)
 		if err != nil {
 			return nil, err
 		}
@@ -214,12 +219,12 @@ func startCompactorOnce(c storagebackend.TransportConfig, interval time.Duration
 }
 
 func newETCD3Storage(c storagebackend.Config) (storage.Interface, DestroyFunc, error) {
-	stopCompactor, err := startCompactorOnce(c.Transport, c.CompactionInterval)
+	stopCompactor, err := startCompactorOnce(c.Transport, c.CompactionInterval, isKubeBrainFeatureEnabled(c))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	client, err := newETCD3Client(c.Transport)
+	client, err := newETCD3Client(c.Transport, isKubeBrainFeatureEnabled(c))
 	if err != nil {
 		stopCompactor()
 		return nil, nil, err

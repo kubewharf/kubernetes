@@ -43,8 +43,10 @@ go_library(
         "//vendor/google.golang.org/grpc/codes:go_default_library",
         "//vendor/google.golang.org/grpc/credentials:go_default_library",
         "//vendor/google.golang.org/grpc/grpclog:go_default_library",
+        "//vendor/google.golang.org/grpc/health/grpc_health_v1:go_default_library",
         "//vendor/google.golang.org/grpc/keepalive:go_default_library",
         "//vendor/google.golang.org/grpc/metadata:go_default_library",
+        "//vendor/google.golang.org/grpc/resolver:go_default_library",
         "//vendor/google.golang.org/grpc/status:go_default_library",
     ],
 )

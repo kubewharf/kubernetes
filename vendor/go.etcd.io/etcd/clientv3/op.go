@@ -300,8 +300,6 @@ func opWatch(key string, opts ...OpOption) Op {
 	switch {
 	case ret.leaseID != 0:
 		panic("unexpected lease in watch")
-	case ret.limit != 0:
-		panic("unexpected limit in watch")
 	case ret.sort != nil:
 		panic("unexpected sort in watch")
 	case ret.serializable:
