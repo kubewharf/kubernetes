@@ -114,6 +114,8 @@ type Config struct {
 	Codec runtime.Codec
 
 	EnableEtcdProtection bool
+
+	EnableCountInCache bool
 }
 
 type watchersMap map[int]*cacheWatcher
@@ -370,6 +372,7 @@ func NewCacherFromConfig(config Config) (*Cacher, error) {
 		timer:                time.NewTimer(time.Duration(0)),
 		bookmarkWatchers:     newTimeBucketWatchers(clock),
 		enableEtcdProtection: config.EnableEtcdProtection,
+		countInCacheEnabled:  config.EnableCountInCache,
 	}
 
 	// Ensure that timer is stopped.
