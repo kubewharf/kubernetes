@@ -419,6 +419,13 @@ func (f *DeltaFIFO) ListKeys() []string {
 	return list
 }
 
+// Len returns the size of DeltaFIFO
+func (f *DeltaFIFO) Len() int {
+	f.lock.RLock()
+	defer f.lock.RUnlock()
+	return len(f.items)
+}
+
 // Get returns the complete list of deltas for the requested item,
 // or sets exists=false.
 // You should treat the items returned inside the deltas as immutable.

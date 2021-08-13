@@ -68,6 +68,9 @@ type Store interface {
 	// meaning in some implementations that have non-trivial
 	// additional behavior (e.g., DeltaFIFO).
 	Resync() error
+
+	// Len returns the total key numbers
+	Len() int
 }
 
 // KeyFunc knows how to make a key from an object. Implementations should be deterministic.
@@ -181,6 +184,11 @@ func (c *cache) List() []interface{} {
 // in the cache.
 func (c *cache) ListKeys() []string {
 	return c.cacheStorage.ListKeys()
+}
+
+// Len returns the size of cache
+func (c *cache) Len() int {
+	return c.cacheStorage.Len()
 }
 
 // GetIndexers returns the indexers of cache

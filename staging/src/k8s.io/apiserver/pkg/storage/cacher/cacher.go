@@ -776,7 +776,7 @@ func (c *Cacher) GuaranteedUpdate(
 func (c *Cacher) Count(pathPrefix string) (int64, error) {
 	if c.countInCacheEnabled {
 		if c.ready.check() {
-			return int64(len(c.watchCache.store.ListKeys())), nil
+			return int64(c.watchCache.Len()), nil
 		}
 		return 0, nil
 	}

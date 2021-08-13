@@ -280,6 +280,13 @@ func (h *Heap) ListKeys() []string {
 	return list
 }
 
+// Len returns the size of Heap.
+func (h *Heap) Len() int {
+	h.lock.RLock()
+	defer h.lock.RUnlock()
+	return len(h.data.items)
+}
+
 // Get returns the requested item, or sets exists=false.
 func (h *Heap) Get(obj interface{}) (interface{}, bool, error) {
 	key, err := h.data.keyFunc(obj)

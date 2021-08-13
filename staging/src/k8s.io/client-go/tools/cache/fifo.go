@@ -243,6 +243,13 @@ func (f *FIFO) ListKeys() []string {
 	return list
 }
 
+// Len returns the size of FIFO
+func (f *FIFO) Len() int {
+	f.lock.RLock()
+	defer f.lock.RUnlock()
+	return len(f.items)
+}
+
 // Get returns the requested item, or sets exists=false.
 func (f *FIFO) Get(obj interface{}) (item interface{}, exists bool, err error) {
 	key, err := f.keyFunc(obj)

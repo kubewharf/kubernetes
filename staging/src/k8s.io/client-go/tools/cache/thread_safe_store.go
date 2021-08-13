@@ -51,7 +51,7 @@ type ThreadSafeStore interface {
 	ListIndexFuncValues(name string) []string
 	ByIndex(indexName, indexKey string) ([]interface{}, error)
 	GetIndexers() Indexers
-
+	Len() int
 	// AddIndexers adds more indexers to this store.  If you call this after you already have data
 	// in the store, the results are undefined.
 	AddIndexers(newIndexers Indexers) error
@@ -122,6 +122,13 @@ func (c *threadSafeMap) ListKeys() []string {
 		list = append(list, key)
 	}
 	return list
+}
+
+// Len returns the len of map
+func (c *threadSafeMap) Len() int {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	return len(c.items)
 }
 
 func (c *threadSafeMap) Replace(items map[string]interface{}, resourceVersion string) {
