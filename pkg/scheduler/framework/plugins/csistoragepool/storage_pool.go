@@ -188,7 +188,7 @@ type localStoragePoolInfo struct {
 
 func (lsp localStoragePoolInfo) canSatisfy(request pvcLocalStorageRequest) bool {
 	return lsp.scName == request.scName &&
-		lsp.capacity.Cmp(request.request) > 0
+		lsp.capacity.Cmp(request.request) >= 0
 }
 
 type localStoragePoolInfoList []*localStoragePoolInfo
