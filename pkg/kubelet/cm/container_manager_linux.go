@@ -741,7 +741,7 @@ func (cm *containerManagerImpl) GetAllocateResourcesPodAdmitHandler() lifecycle.
 			return &resourceAllocator{cm.cpuManager, cm.deviceManager}
 		}(),
 		retryPeriod: time.Second * 1,
-		maxRetry:    3,
+		maxRetry:    5,
 	}
 }
 
@@ -762,14 +762,14 @@ func (m *retriableResourceAllocator) Admit(attrs *lifecycle.PodAdmitAttributes) 
 	}
 	for retry < maxRetry {
 		lastResult := m.admitHandler.Admit(attrs)
+		retryAdmission := !lastResult.Admit && strings.Contains(lastResult.Message, "which is unexpected")
+		if retryAdmission {
+			klog.V(4).Infof("Admission error occurs for pod %v/%v, result = %v, attempt = %v, maxRetry = %v", attrs.Pod.Namespace, attrs.Pod.Name, lastResult, retry, maxRetry)
+		}
 
-		if retry == maxRetry-1 {
+		if retry == maxRetry-1 || !retryAdmission {
 			return lastResult
 		}
-		if lastResult.Admit || !strings.Contains(lastResult.Message, "which is unexpected") {
-			return lastResult
-		}
-		klog.V(4).Infof("Admission error occurs for pod %v/%v, result = %v, attempt = %v, maxRetry = %v", attrs.Pod.Namespace, attrs.Pod.Name, lastResult, retry, maxRetry)
 		time.Sleep(backoff)
 		backoff *= 2
 		retry++
