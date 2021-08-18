@@ -46,7 +46,6 @@ import (
 	"k8s.io/kubernetes/plugin/pkg/admission/podnodeselector"
 	"k8s.io/kubernetes/plugin/pkg/admission/podpreset"
 	"k8s.io/kubernetes/plugin/pkg/admission/podtolerationrestriction"
-	podpriority "k8s.io/kubernetes/plugin/pkg/admission/priority"
 	"k8s.io/kubernetes/plugin/pkg/admission/resourcequota"
 	"k8s.io/kubernetes/plugin/pkg/admission/runtimeclass"
 	"k8s.io/kubernetes/plugin/pkg/admission/security/podsecuritypolicy"
@@ -84,7 +83,7 @@ var AllOrderedPlugins = []string{
 	imagepolicy.PluginName,                  // ImagePolicyWebhook
 	podsecuritypolicy.PluginName,            // PodSecurityPolicy
 	podnodeselector.PluginName,              // PodNodeSelector
-	podpriority.PluginName,                  // Priority
+	//podpriority.PluginName,                  // DEPRECATED, use GodelPodPriority instead of Priority
 	defaulttolerationseconds.PluginName,     // DefaultTolerationSeconds
 	podtolerationrestriction.PluginName,     // PodTolerationRestriction
 	exec.DenyEscalatingExec,                 // DenyEscalatingExec
@@ -140,7 +139,7 @@ func RegisterAllAdmissionPlugins(plugins *admission.Plugins) {
 	runtimeclass.Register(plugins)
 	resourcequota.Register(plugins)
 	podsecuritypolicy.Register(plugins)
-	podpriority.Register(plugins)
+	//podpriority.Register(plugins)     // DEPRECATED, conflicts with godelpodpriority
 	scdeny.Register(plugins)
 	serviceaccount.Register(plugins)
 	setdefault.Register(plugins)
@@ -164,7 +163,7 @@ func DefaultOffAdmissionPlugins() sets.String {
 		validatingwebhook.PluginName,            //ValidatingAdmissionWebhook
 		resourcequota.PluginName,                //ResourceQuota
 		storageobjectinuseprotection.PluginName, //StorageObjectInUseProtection
-		podpriority.PluginName,                  //PodPriority
+		//podpriority.PluginName,                  // Deprecated, use GodelPodPriority instead of PodPriority
 		godelpodannotations.PluginName,          //GodelPodAnnotations
 		godelpodpriority.PluginName,             //GodelPodPriority
 		nodetaint.PluginName,                    //TaintNodesByCondition
