@@ -467,6 +467,10 @@ func (dc *DisruptionController) enqueuePdbForRecheck(pdb *policy.PodDisruptionBu
 }
 
 func (dc *DisruptionController) getPdbForPod(pod *v1.Pod) *policy.PodDisruptionBudget {
+	if pod.Annotations != nil && pod.Annotations[SkipSyncPDBAnnotation] == "true" {
+		return nil
+	}
+
 	// GetPodPodDisruptionBudgets returns an error only if no
 	// PodDisruptionBudgets are found.  We don't return that as an error to the
 	// caller.
