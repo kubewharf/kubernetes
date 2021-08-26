@@ -822,8 +822,8 @@ func (asw *actualStateOfWorld) newAttachedVolume(
 }
 
 func (asw *actualStateOfWorld) MarkVolumeAsResidual(
-	volumeName v1.UniqueVolumeName, volumeSpec *volume.Spec, _ types.NodeName, devicePath string) error {
-	return asw.addResidualVolume(volumeName, volumeSpec, devicePath)
+	volumeName v1.UniqueVolumeName, volumeSpec *volume.Spec, devicePath, deviceMountPath string) error {
+	return asw.addResidualVolume(volumeName, volumeSpec, devicePath, deviceMountPath)
 }
 
 func (asw *actualStateOfWorld) RemoveResidualVolume(volumeName v1.UniqueVolumeName) {
@@ -851,7 +851,7 @@ func (asw *actualStateOfWorld) removeResidualVolume(volumeName v1.UniqueVolumeNa
 }
 
 func (asw *actualStateOfWorld) addResidualVolume(
-	volumeName v1.UniqueVolumeName, volumeSpec *volume.Spec, devicePath string) error {
+	volumeName v1.UniqueVolumeName, volumeSpec *volume.Spec, devicePath, deviceMountPath string) error {
 	asw.Lock()
 	defer asw.Unlock()
 
@@ -882,22 +882,17 @@ func (asw *actualStateOfWorld) addResidualVolume(
 		pluginIsAttachable = true
 	}
 
-	volumeObj, volumeExists := asw.residualVolumes[volumeName]
-	if !volumeExists {
-		volumeObj = attachedVolume{
-			volumeName:         volumeName,
-			spec:               volumeSpec,
-			mountedPods:        make(map[volumetypes.UniquePodName]mountedPod),
-			pluginName:         volumePlugin.GetPluginName(),
-			pluginIsAttachable: pluginIsAttachable,
-			devicePath:         devicePath,
-		}
-	} else {
-		// If volume object already exists, update the fields such as device path
-		volumeObj.devicePath = devicePath
-		klog.V(2).Infof("Volume %q is already added to residualVolume list, update device path %q",
-			volumeName,
-			devicePath)
+	if asw.residualVolumes == nil {
+		asw.residualVolumes = make(map[v1.UniqueVolumeName]attachedVolume)
+	}
+	volumeObj := attachedVolume{
+		volumeName:         volumeName,
+		spec:               volumeSpec,
+		mountedPods:        make(map[volumetypes.UniquePodName]mountedPod),
+		pluginName:         volumePlugin.GetPluginName(),
+		pluginIsAttachable: pluginIsAttachable,
+		devicePath:         devicePath,
+		deviceMountPath:    deviceMountPath,
 	}
 	asw.residualVolumes[volumeName] = volumeObj
 

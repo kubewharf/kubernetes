@@ -360,6 +360,15 @@ func (rc *reconciler) unmountDetachDevices() {
 			rc.actualStateOfWorld.RemoveResidualVolume(residualVolume.VolumeName)
 			continue
 		}
+		if _, err := os.Stat(residualVolume.DeviceMountPath); err != nil {
+			if os.IsNotExist(err) {
+				klog.Infof("device mount path for residual volume %s is already not exist", residualVolume.DeviceMountPath)
+			} else {
+				klog.Errorf("failed to stat device mount path for residual volume %s: %v", residualVolume.DeviceMountPath, err)
+			}
+			rc.actualStateOfWorld.RemoveResidualVolume(residualVolume.VolumeName)
+			continue
+		}
 		if !rc.operationExecutor.IsOperationPending(residualVolume.VolumeName, nestedpendingoperations.EmptyUniquePodName, nestedpendingoperations.EmptyNodeName) {
 			// Volume is globally mounted to device, unmount it
 			klog.V(5).Infof(residualVolume.GenerateMsgDetailed("Starting operationExecutor.UnmountDevice", ""))
@@ -373,7 +382,6 @@ func (rc *reconciler) unmountDetachDevices() {
 				klog.Errorf(residualVolume.GenerateErrorDetailed(fmt.Sprintf("operationExecutor.UnmountDevice failed (controllerAttachDetachEnabled %v)", rc.controllerAttachDetachEnabled), err).Error())
 			}
 			if err == nil {
-				rc.actualStateOfWorld.RemoveResidualVolume(residualVolume.VolumeName)
 				klog.Infof(residualVolume.GenerateMsgDetailed("operationExecutor.UnmountDevice started", ""))
 			}
 		}
@@ -448,7 +456,12 @@ func (rc *reconciler) syncCSIPluginsStates() {
 			klog.V(4).Infof("Volume exists in desired state (volume.SpecName %s), skip cleaning up mounts", volume.volumeSpecName)
 			continue
 		}
-		if err := rc.actualStateOfWorld.MarkVolumeAsResidual(reconstructedVolume.volumeName, reconstructedVolume.volumeSpec, "", reconstructedVolume.devicePath); err != nil {
+		deviceMountPath, err := getDeviceMountPath(reconstructedVolume)
+		if err != nil {
+			klog.Errorf("failed to get device mount path for %s: %v", reconstructedVolume.volumeName, err)
+			continue
+		}
+		if err := rc.actualStateOfWorld.MarkVolumeAsResidual(reconstructedVolume.volumeName, reconstructedVolume.volumeSpec, reconstructedVolume.devicePath, deviceMountPath); err != nil {
 			klog.Errorf("add residual csi pv failed %s: %v", reconstructedVolume.volumeName, err)
 			continue
 		}
@@ -501,6 +514,11 @@ func (rc *reconciler) reconstructVolumeWithoutPod(volume podVolume) (*reconstruc
 		return nil, fmt.Errorf("only support csi plugin")
 	}
 
+	deviceMounter, err := deviceMountablePlugin.NewDeviceMounter()
+	if err != nil {
+		return nil, err
+	}
+
 	reconstructedVolume := &reconstructedVolume{
 		volumeName: uniqueVolumeName,
 		volumeSpec: volumeSpec,
@@ -510,7 +528,8 @@ func (rc *reconciler) reconstructVolumeWithoutPod(volume podVolume) (*reconstruc
 		outerVolumeSpecName: volume.volumeSpecName,
 		// devicePath is updated during updateStates() by checking node status's VolumesAttached data.
 		// TODO: get device path directly from the volume mount path.
-		devicePath: "",
+		devicePath:    "",
+		deviceMounter: deviceMounter,
 	}
 	return reconstructedVolume, nil
 }
