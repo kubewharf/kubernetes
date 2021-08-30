@@ -630,6 +630,13 @@ const (
 	//
 	// Enables controlling pod ranking on replicaset scale-down.
 	PodDeletionCost featuregate.Feature = "PodDeletionCost"
+
+	// owner: @zhangyadong.0808
+	// alpha: v1.18
+	//
+	// Enable injecting env vars for services into containers in namespace ns should see.
+	// Note: you can disable this to avoid container spec becomes too large and use DNS to resolve service address.
+	ServiceEnv featuregate.Feature = "ServiceEnv"
 )
 
 func init() {
@@ -728,6 +735,7 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 	LocalVMPodOverhead:                             {Default: true, PreRelease: featuregate.Alpha},
 	ShareGPU:                                       {Default: false, PreRelease: featuregate.Alpha},
 	PodDeletionCost:                                {Default: false, PreRelease: featuregate.Alpha},
+	ServiceEnv:                                     {Default: true, PreRelease: featuregate.Alpha},
 
 	// inherited features from generic apiserver, relisted here to get a conflict if it is changed
 	// unintentionally on either side:
