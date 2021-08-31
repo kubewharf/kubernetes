@@ -55,7 +55,16 @@ func newRawContainerHandler(name string, cgroupSubsystems *libcontainer.CgroupSu
 		return nil, err
 	}
 
-	cgroupPaths := common.MakeCgroupPaths(cgroupSubsystems.MountPoints, name)
+	var cgroupPaths map[string]string
+	if isRootCgroup(name) {
+		mountPoints := cgroupSubsystems.MountPoints
+		if _, exists := mountPoints["memory"]; exists {
+			delete(mountPoints, "memory")
+		}
+		cgroupPaths = common.MakeCgroupPaths(mountPoints, name)
+	} else {
+		cgroupPaths = common.MakeCgroupPaths(cgroupSubsystems.MountPoints, name)
+	}
 
 	cgroupManager, err := libcontainer.NewCgroupManager(name, cgroupPaths)
 	if err != nil {

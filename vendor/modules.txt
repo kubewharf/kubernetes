@@ -374,7 +374,7 @@ github.com/golang/protobuf/ptypes/timestamp
 github.com/golang/protobuf/ptypes/wrappers
 # github.com/google/btree v1.0.0 => github.com/google/btree v1.0.0
 github.com/google/btree
-# github.com/google/cadvisor v0.37.1 => code.byted.org/tce/cadvisor v0.37.1
+# github.com/google/cadvisor v0.37.2 => code.byted.org/tce/cadvisor v0.37.2
 github.com/google/cadvisor/accelerators
 github.com/google/cadvisor/cache/memory
 github.com/google/cadvisor/client/v2
