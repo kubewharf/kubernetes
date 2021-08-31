@@ -6,8 +6,8 @@ code.byted.org/kubernetes/apis v0.1.3 h1:1AhPZMwrLkZBuVBTf8O5FjocTTolDQXzZYNcaaO
 code.byted.org/kubernetes/apis v0.1.3/go.mod h1:EegxlZ1MxCDPD/SXuONXvRXVm1sZr7AINmv/shms+oY=
 code.byted.org/kubernetes/clientsets v0.1.3 h1:byTjyaBDmRMDsr51L8S4rDILiPepQINf8qLoya8OYBo=
 code.byted.org/kubernetes/clientsets v0.1.3/go.mod h1:qjrQKoavpNyOSffNJIvckHTO8klkudI6xv8FkkYvZgk=
-code.byted.org/tce/cadvisor v0.37.1 h1:3W5C+D5Tm/jPqdJ8Cn7NSnNJd6nRddxvKizUUgqwCK8=
-code.byted.org/tce/cadvisor v0.37.1/go.mod h1:OhDE+goNVel0eGY8mR7Ifq1QUI1in5vJBIgIpcajK/I=
+code.byted.org/tce/cadvisor v0.37.2 h1:rP7Cl+arIXJaNlBsk6OqleXQlftFMLjZ/0sLcCndtgw=
+code.byted.org/tce/cadvisor v0.37.2/go.mod h1:OhDE+goNVel0eGY8mR7Ifq1QUI1in5vJBIgIpcajK/I=
 code.byted.org/tce/etcd v0.5.0-alpha.5.0.20210803123658-fa1e66085bad h1:KqbtUi1Laca4biPkwHqE6P2ZZYOrmAPHzR5oZ22yZa0=
 code.byted.org/tce/etcd v0.5.0-alpha.5.0.20210803123658-fa1e66085bad/go.mod h1:yZKMTq8NLl18zB7hYMHn5mlxS1sHttbfz/b4Cz86ZDw=
 code.byted.org/tce/jaeger-client-go v2.16.2+incompatible h1:TxgdBcO1bo/xAbuHGTrp6sCxlGgM/a1tq/fGQJMMPnk=
