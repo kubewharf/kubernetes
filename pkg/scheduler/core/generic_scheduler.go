@@ -143,6 +143,7 @@ type genericScheduler struct {
 	percentageOfNodesToScore    int32
 	enableNonPreempting         bool
 	nextStartNodeIndex          int
+	preemptMinIntervalSeconds   int64
 }
 
 // snapshot snapshots scheduler cache and node infos for all fit and priority
@@ -1247,6 +1248,10 @@ func (g *genericScheduler) selectVictimsOnNode(
 			continue
 		}
 
+		if StartRecently(p, g.preemptMinIntervalSeconds, cache) {
+			continue
+		}
+
 		if cache.ShouldDeployVictimsBeThrottled(p) {
 			klog.Infof("too many victims of this deployment in a short period, skip this eviction")
 			continue
@@ -1438,7 +1443,8 @@ func NewGenericScheduler(
 	deployLister appv1listers.DeploymentLister,
 	disablePreemption bool,
 	percentageOfNodesToScore int32,
-	enableNonPreempting bool) ScheduleAlgorithm {
+	enableNonPreempting bool,
+	preemptMinIntervalSeconds int64) ScheduleAlgorithm {
 	return &genericScheduler{
 		cache:                       cache,
 		refinedNodeResourceInformer: refinedNodeResourceInformer,
@@ -1453,5 +1459,32 @@ func NewGenericScheduler(
 		disablePreemption:           disablePreemption,
 		percentageOfNodesToScore:    percentageOfNodesToScore,
 		enableNonPreempting:         enableNonPreempting,
+		preemptMinIntervalSeconds:   preemptMinIntervalSeconds,
 	}
+}
+
+func StartRecently(pod *v1.Pod, minIntervalSeconds int64, cache internalcache.Cache) bool {
+	deployName := util.GetDeployNameFromPod(pod)
+	if len(deployName) == 0 {
+		return false
+	}
+	deployNamespace := pod.GetNamespace()
+	deployKey := fmt.Sprintf("%s/%s", deployNamespace, deployName)
+	minIntervalItem := cache.GetDeployItems(deployKey).GetPreemptMinIntervalSeconds()
+	if minIntervalItem != nil {
+		minIntervalSeconds = *minIntervalItem
+	}
+	if minIntervalSeconds <= 0 {
+		return false
+	}
+	startTime := pod.Status.StartTime
+	if startTime == nil {
+		return true
+	}
+	nowTime := time.Now()
+	limitTime := startTime.Add(time.Duration(minIntervalSeconds) * time.Second)
+	if nowTime.Before(limitTime) {
+		return true
+	}
+	return false
 }

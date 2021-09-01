@@ -22,6 +22,7 @@ import (
 
 	nnrv1alpha1 "code.byted.org/kubernetes/apis/k8s/non.native.resource/v1alpha1"
 	bytedinformers "code.byted.org/kubernetes/clientsets/k8s/informers"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -487,6 +488,14 @@ func addAllEventHandlers(
 			},
 		)
 	}
+
+	informerFactory.Apps().V1().Deployments().Informer().AddEventHandler(
+		cache.ResourceEventHandlerFuncs{
+			AddFunc:    sched.onDeployAdd,
+			UpdateFunc: sched.onDeployUpdate,
+			DeleteFunc: sched.onDeployDelete,
+		},
+	)
 }
 
 func (sched *Scheduler) onRefinedNodeResourceAdd(obj interface{}) {
@@ -605,4 +614,27 @@ func nodeConditionsChanged(newNode *v1.Node, oldNode *v1.Node) bool {
 
 func nodeSpecUnschedulableChanged(newNode *v1.Node, oldNode *v1.Node) bool {
 	return newNode.Spec.Unschedulable != oldNode.Spec.Unschedulable && newNode.Spec.Unschedulable == false
+}
+
+func (sched *Scheduler) onDeployAdd(obj interface{}) {
+	deploy, ok := obj.(*appsv1.Deployment)
+	if !ok {
+		klog.Errorf("cannot convert to *appsv1.Deployment: %v", obj)
+		return
+	}
+	sched.SchedulerCache.SetDeployItems(deploy)
+}
+
+func (sched *Scheduler) onDeployUpdate(oldObj, newObj interface{}) {
+	sched.onDeployDelete(newObj)
+	sched.onDeployAdd(newObj)
+}
+
+func (sched *Scheduler) onDeployDelete(obj interface{}) {
+	deploy, ok := obj.(*appsv1.Deployment)
+	if !ok {
+		klog.Errorf("cannot convert to *appsv1.Deployment: %v", obj)
+		return
+	}
+	sched.SchedulerCache.DeleteDeployItems(deploy)
 }

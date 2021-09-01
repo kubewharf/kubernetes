@@ -117,6 +117,8 @@ type Configurator struct {
 	extenders        []schedulerapi.Extender
 
 	nodePackageResourceMatchFactor float64
+
+	preemptMinIntervalSeconds int64
 }
 
 func (c *Configurator) buildFramework(p schedulerapi.KubeSchedulerProfile) (framework.Framework, error) {
@@ -215,6 +217,7 @@ func (c *Configurator) create() (*Scheduler, error) {
 		c.disablePreemption,
 		c.percentageOfNodesToScore,
 		c.enableNonPreempting,
+		c.preemptMinIntervalSeconds,
 	)
 
 	return &Scheduler{

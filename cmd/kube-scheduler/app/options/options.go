@@ -75,6 +75,9 @@ type Options struct {
 	Master string
 
 	ShowHiddenMetricsForVersion string
+
+	// only if pod started more than this time duration, it could be preempted
+	PreemptMinIntervalSeconds int64
 }
 
 // NewOptions returns default scheduler app options.
@@ -110,6 +113,7 @@ func NewOptions() (*Options, error) {
 			SchedulerName:                  corev1.DefaultSchedulerName,
 			HardPodAffinitySymmetricWeight: interpodaffinity.DefaultHardPodAffinityWeight,
 		},
+		PreemptMinIntervalSeconds: kubeschedulerconfig.DefaultPreemptMinIntervalSeconds,
 	}
 
 	o.Authentication.TolerateInClusterLookupFailure = true
@@ -155,6 +159,7 @@ func (o *Options) Flags() (nfs cliflag.NamedFlagSets) {
 	fs.StringVar(&o.ConfigFile, "config", o.ConfigFile, "The path to the configuration file. Flags override values in this file.")
 	fs.StringVar(&o.WriteConfigTo, "write-config-to", o.WriteConfigTo, "If set, write the configuration values to this file and exit.")
 	fs.StringVar(&o.Master, "master", o.Master, "The address of the Kubernetes API server (overrides any value in kubeconfig)")
+	fs.Int64Var(&o.PreemptMinIntervalSeconds, "preempt-min-interval-seconds", o.PreemptMinIntervalSeconds, "only if pod started more than this time duration, it could be preempted")
 
 	o.SecureServing.AddFlags(nfs.FlagSet("secure serving"))
 	o.CombinedInsecureServing.AddFlags(nfs.FlagSet("insecure serving"))
@@ -222,6 +227,8 @@ func (o *Options) ApplyTo(c *schedulerappconfig.Config) error {
 	if len(o.ShowHiddenMetricsForVersion) > 0 {
 		metrics.SetShowHidden()
 	}
+
+	c.PreemptMinIntervalSeconds = o.PreemptMinIntervalSeconds
 
 	return nil
 }

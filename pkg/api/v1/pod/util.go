@@ -33,6 +33,8 @@ import (
 const (
 	LocalVolumeProvisioner = "local-volume-provisioner"
 	ShareMemoryProvisioner = "share-memory-provisioner"
+
+	PreemptMinIntervalSecondsKey = "bytedance.com/preempt-min-interval-seconds"
 )
 
 // FindPort locates the container port for the given pod and portName.  If the

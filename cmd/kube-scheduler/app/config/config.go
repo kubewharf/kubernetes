@@ -60,6 +60,9 @@ type Config struct {
 	LeaderElection *leaderelection.LeaderElectionConfig
 
 	BytedInformerFactory bytedinformers.SharedInformerFactory
+
+	// only if pod started more than this time duration, it could be preempted
+	PreemptMinIntervalSeconds int64
 }
 
 type completedConfig struct {
