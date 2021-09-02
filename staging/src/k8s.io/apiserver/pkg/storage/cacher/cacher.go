@@ -114,6 +114,8 @@ type Config struct {
 	Codec runtime.Codec
 
 	EnableEtcdProtection bool
+
+	EnableCountInCache bool
 }
 
 type watchersMap map[int]*cacheWatcher
@@ -370,6 +372,7 @@ func NewCacherFromConfig(config Config) (*Cacher, error) {
 		timer:                time.NewTimer(time.Duration(0)),
 		bookmarkWatchers:     newTimeBucketWatchers(clock),
 		enableEtcdProtection: config.EnableEtcdProtection,
+		countInCacheEnabled:  config.EnableCountInCache,
 	}
 
 	// Ensure that timer is stopped.
@@ -773,7 +776,7 @@ func (c *Cacher) GuaranteedUpdate(
 func (c *Cacher) Count(pathPrefix string) (int64, error) {
 	if c.countInCacheEnabled {
 		if c.ready.check() {
-			return int64(len(c.watchCache.store.ListKeys())), nil
+			return int64(c.watchCache.Len()), nil
 		}
 		return 0, nil
 	}

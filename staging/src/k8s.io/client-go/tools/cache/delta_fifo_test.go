@@ -169,7 +169,7 @@ func TestDeltaFIFO_addUpdate(t *testing.T) {
 	if e, a := []interface{}{mkFifoObj("foo", 15)}, f.List(); !reflect.DeepEqual(e, a) {
 		t.Errorf("Expected %+v, got %+v", e, a)
 	}
-	if e, a := []string{"foo"}, f.ListKeys(); !reflect.DeepEqual(e, a) {
+	if e, a, l := []string{"foo"}, f.ListKeys(), f.Len(); !reflect.DeepEqual(e, a) || len(a) != l {
 		t.Errorf("Expected %+v, got %+v", e, a)
 	}
 

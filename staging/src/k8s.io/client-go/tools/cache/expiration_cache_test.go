@@ -141,8 +141,8 @@ func TestTTLList(t *testing.T) {
 			t.Errorf("Unable to add obj %#v", obj)
 		}
 	}
-	listObjs := ttlStore.List()
-	if len(listObjs) != 1 || !reflect.DeepEqual(listObjs[0], testObjs[1]) {
+	listObjs, l := ttlStore.List(), ttlStore.Len()
+	if len(listObjs) != 1 || !reflect.DeepEqual(listObjs[0], testObjs[1]) || len(listObjs) != l {
 		t.Errorf("List returned unexpected results %#v", listObjs)
 	}
 

@@ -69,6 +69,11 @@ func (f *FakeCustomStore) ListKeys() []string {
 	return nil
 }
 
+// Len returns the 0
+func (f *FakeCustomStore) Len() int {
+	return 0
+}
+
 // Get calls the custom Get function if defined
 func (f *FakeCustomStore) Get(obj interface{}) (item interface{}, exists bool, err error) {
 	if f.GetFunc != nil {

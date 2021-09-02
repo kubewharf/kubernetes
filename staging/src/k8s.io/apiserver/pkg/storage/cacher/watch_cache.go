@@ -383,6 +383,10 @@ func (w *watchCache) ListKeys() []string {
 	return w.store.ListKeys()
 }
 
+func (w *watchCache) Len() int {
+	return w.store.Len()
+}
+
 // Get takes runtime.Object as a parameter. However, it returns
 // pointer to <storeElement>.
 func (w *watchCache) Get(obj interface{}) (interface{}, bool, error) {

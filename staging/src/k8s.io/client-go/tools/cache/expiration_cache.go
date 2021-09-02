@@ -143,6 +143,11 @@ func (c *ExpirationCache) ListKeys() []string {
 	return c.cacheStorage.ListKeys()
 }
 
+// Len returns the size of ExpirationCache
+func (c *ExpirationCache) Len() int {
+	return c.cacheStorage.Len()
+}
+
 // Add timestamps an item and inserts it into the cache, overwriting entries
 // that might exist under the same key.
 func (c *ExpirationCache) Add(obj interface{}) error {
