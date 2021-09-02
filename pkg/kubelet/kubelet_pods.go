@@ -617,21 +617,26 @@ func (kl *Kubelet) makeEnvironmentVariables(pod *v1.Pod, container *v1.Container
 	// To avoid this users can: (1) wait between starting a service and starting; or (2) detect
 	// missing service env var and exit and be restarted; or (3) use DNS instead of env vars
 	// and keep trying to resolve the DNS name of the service (recommended).
+	serviceEnv, err := kl.getServiceEnvVarMap(pod.Namespace, *pod.Spec.EnableServiceLinks)
+	if err != nil {
+		return result, err
+	}
+
+	// Note: If disable ServiceEnv featuregate, don't inject service env vars in case container spec becomes too large.
+	// Except KUBERNETES_XXX which is special env for apiserver address.
+	if !utilfeature.DefaultFeatureGate.Enabled(features.ServiceEnv) {
+		for name := range serviceEnv {
+			if !strings.HasPrefix(name, "KUBERNETES") {
+				delete(serviceEnv, name)
+			}
+		}
+	}
 
 	var (
 		configMaps = make(map[string]*v1.ConfigMap)
 		secrets    = make(map[string]*v1.Secret)
 		tmpEnv     = make(map[string]string)
-		serviceEnv = make(map[string]string)
-		err        error
 	)
-
-	if utilfeature.DefaultFeatureGate.Enabled(features.ServiceEnv) {
-		serviceEnv, err = kl.getServiceEnvVarMap(pod.Namespace, *pod.Spec.EnableServiceLinks)
-		if err != nil {
-			return result, err
-		}
-	}
 
 	// Env will override EnvFrom variables.
 	// Process EnvFrom first then allow Env to replace existing values.
