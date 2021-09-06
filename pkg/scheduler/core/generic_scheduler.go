@@ -272,6 +272,22 @@ func (g *genericScheduler) Schedule(ctx context.Context, prof *profile.Profile, 
 		return g.tryToSchedulePreemptor(ctx, prof, state, pod)
 	}
 
+	if err := g.snapshot(); err != nil {
+		return result, err
+	}
+	trace.Step("Snapshotting scheduler cache and node infos done")
+
+	if g.nodeInfoSnapshot.NumNodes() == 0 {
+		return result, ErrNoNodesAvailable
+	}
+
+	// Run "prefilter" plugins.
+	preFilterStatus := prof.RunPreFilterPlugins(ctx, state, pod)
+	if !preFilterStatus.IsSuccess() {
+		return result, preFilterStatus.AsError()
+	}
+	trace.Step("Running prefilter plugins done")
+
 	// check cached nodes (for deployment) first
 	dpName := util.GetDeployNameFromPod(pod)
 	if len(dpName) > 0 {
@@ -305,23 +321,7 @@ func (g *genericScheduler) Schedule(ctx context.Context, prof *profile.Profile, 
 	}
 
 	trace.Step("fail to find node from cache")
-
 	// if we can not find a suitable node from cache, return back to the normal workflow
-	if err := g.snapshot(); err != nil {
-		return result, err
-	}
-	trace.Step("Snapshotting scheduler cache and node infos done")
-
-	if g.nodeInfoSnapshot.NumNodes() == 0 {
-		return result, ErrNoNodesAvailable
-	}
-
-	// Run "prefilter" plugins.
-	preFilterStatus := prof.RunPreFilterPlugins(ctx, state, pod)
-	if !preFilterStatus.IsSuccess() {
-		return result, preFilterStatus.AsError()
-	}
-	trace.Step("Running prefilter plugins done")
 
 	startPredicateEvalTime := time.Now()
 	filteredNodes, filteredNodesStatuses, err := g.findNodesThatFitPod(ctx, prof, state, pod)
