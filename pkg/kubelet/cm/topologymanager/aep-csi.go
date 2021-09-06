@@ -56,7 +56,7 @@ func (aepCSIHintProvider *AepCSIHintProvider) GetTopologyHints(pod *v1.Pod, cont
 		return nil
 	}
 	rejectedHints := map[string][]TopologyHint{
-		AepCSI: []TopologyHint{},
+		AepCSI: {},
 	}
 	requiredNuma := 0
 	// numa id set of allocated aep device
