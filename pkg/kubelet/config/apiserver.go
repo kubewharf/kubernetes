@@ -59,7 +59,7 @@ func skipForKubelet(pod *v1.Pod) bool {
 	if utilpod.LauncherIsNodeManager(pod.Annotations) {
 		return true
 	}
-	if pod.Status.Phase == v1.PodPending && !utilpod.LauncherIsKubelet(pod.Annotations) {
+	if !utilpod.LauncherIsKubelet(pod.Annotations) {
 		return true
 	}
 	return false
