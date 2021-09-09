@@ -871,17 +871,39 @@ func getVolumesFromPodDir(podDir string) ([]podVolume, error) {
 		volumesDirs := map[v1.PersistentVolumeMode]string{
 			v1.PersistentVolumeFilesystem: path.Join(podDir, config.DefaultKubeletVolumesDirName),
 		}
+
 		// Find block volume information
 		// ex. block volume: /pods/{podUid}/volumeDevices/{escapeQualifiedPluginName}/{volumeName}
 		volumesDirs[v1.PersistentVolumeBlock] = path.Join(podDir, config.DefaultKubeletVolumeDevicesDirName)
+
+		// Find filesystem volume with sub-path information
+		// ex. block volume: /pods/{podUid}/volume-subpaths/{escapeQualifiedPluginName}/{containerName}/{volumeName}
+		var PersistentSubPathVolumeFilesystem v1.PersistentVolumeMode = "FilesystemSubPath"
+		volumesDirs[PersistentSubPathVolumeFilesystem] = path.Join(podDir, config.DefaultKubeletVolumeSubpathsDirName)
 
 		for volumeMode, volumesDir := range volumesDirs {
 			var volumesDirInfo []os.FileInfo
 			if volumesDirInfo, err = ioutil.ReadDir(volumesDir); err != nil {
 				// Just skip the loop because given volumesDir doesn't exist depending on volumeMode
+				klog.Errorf("Could not read dir %v: %v", volumesDir, err)
 				continue
 			}
+
 			for _, volumeDir := range volumesDirInfo {
+				if volumeMode == PersistentSubPathVolumeFilesystem {
+					volumePath := path.Join(volumesDir, volumeDir.Name())
+					klog.V(5).Infof("podName: %v, volume path from volume plugin directory: %v", podName, volumePath)
+
+					volumes = append(volumes, podVolume{
+						podName:        volumetypes.UniquePodName(podName),
+						volumeSpecName: volumeDir.Name(),
+						volumePath:     volumePath,
+						pluginName:     "kubernetes.io/host-path",
+						volumeMode:     v1.PersistentVolumeFilesystem,
+					})
+					continue
+				}
+
 				pluginName := volumeDir.Name()
 				volumePluginPath := path.Join(volumesDir, pluginName)
 				volumePluginDirs, err := utilpath.ReadDirNoStat(volumePluginPath)
@@ -889,10 +911,11 @@ func getVolumesFromPodDir(podDir string) ([]podVolume, error) {
 					klog.Errorf("Could not read volume plugin directory %q: %v", volumePluginPath, err)
 					continue
 				}
+
 				unescapePluginName := utilstrings.UnescapeQualifiedName(pluginName)
 				for _, volumeName := range volumePluginDirs {
 					volumePath := path.Join(volumePluginPath, volumeName)
-					klog.V(5).Infof("podName: %v, volume path from volume plugin directory: %v, ", podName, volumePath)
+					klog.V(5).Infof("podName: %v, volume path from volume plugin directory: %v", podName, volumePath)
 					volumes = append(volumes, podVolume{
 						podName:        volumetypes.UniquePodName(podName),
 						volumeSpecName: volumeName,
