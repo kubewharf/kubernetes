@@ -17,7 +17,7 @@ limitations under the License.
 package devicemanager
 
 import (
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog"
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
@@ -39,7 +39,7 @@ func (m *ManagerImpl) GetTopologyHints(pod *v1.Pod, container *v1.Container) map
 		requested := int(requestedObj.Value())
 
 		// Only consider resources associated with a device plugin.
-		if m.isDevicePluginResource(resource) {
+		if m.isDevicePluginResource(resource) && !requestedObj.IsZero() {
 			// Only consider devices that actually container topology information.
 			if aligned := m.deviceHasTopologyAlignment(resource); !aligned {
 				klog.Infof("[devicemanager] Resource '%v' does not have a topology preference", resource)
@@ -91,6 +91,10 @@ func (m *ManagerImpl) deviceHasTopologyAlignment(resource string) bool {
 }
 
 func (m *ManagerImpl) getAvailableDevices(resource string) sets.String {
+	if resource == "bytedance.com/aep" {
+		klog.Infof("bytedance.com/aep healthy devices is %v, allocated devices is %v", m.healthyDevices[resource], m.allocatedDevices[resource])
+	}
+
 	// Strip all devices in use from the list of healthy ones.
 	return m.healthyDevices[resource].Difference(m.allocatedDevices[resource])
 }

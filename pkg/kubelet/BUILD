@@ -315,6 +315,7 @@ filegroup(
         "//pkg/kubelet/lifecycle:all-srcs",
         "//pkg/kubelet/logs:all-srcs",
         "//pkg/kubelet/metrics:all-srcs",
+        "//pkg/kubelet/nadvisor:all-srcs",
         "//pkg/kubelet/network:all-srcs",
         "//pkg/kubelet/nodelease:all-srcs",
         "//pkg/kubelet/nodestatus:all-srcs",

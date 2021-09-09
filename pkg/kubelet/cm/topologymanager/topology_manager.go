@@ -20,8 +20,9 @@ import (
 	"fmt"
 	"sync"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
+
 	cputopology "k8s.io/kubernetes/pkg/kubelet/cm/cpumanager/topology"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager/bitmask"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
@@ -122,7 +123,7 @@ func (th *TopologyHint) LessThan(other TopologyHint) bool {
 var _ Manager = &manager{}
 
 //NewManager creates a new TopologyManager based on provided policy
-func NewManager(numaNodeInfo cputopology.NUMANodeInfo, topologyPolicyName string) (Manager, error) {
+func NewManager(numaNodeInfo cputopology.NUMANodeInfo, topologyPolicyName string, topology *cputopology.CPUTopology) (Manager, error) {
 	klog.Infof("[topologymanager] Creating topology manager with %s policy", topologyPolicyName)
 
 	var numaNodes []int
@@ -132,6 +133,10 @@ func NewManager(numaNodeInfo cputopology.NUMANodeInfo, topologyPolicyName string
 
 	if topologyPolicyName != PolicyNone && len(numaNodes) > maxAllowableNUMANodes {
 		return nil, fmt.Errorf("unsupported on machines with more than %v NUMA Nodes", maxAllowableNUMANodes)
+	}
+
+	if topology == nil {
+		return nil, fmt.Errorf("cpu topoloby is nil")
 	}
 
 	var policy Policy
@@ -148,6 +153,9 @@ func NewManager(numaNodeInfo cputopology.NUMANodeInfo, topologyPolicyName string
 
 	case PolicySingleNumaNode:
 		policy = NewSingleNumaNodePolicy(numaNodes)
+
+	case PolicySocketStrict:
+		policy = NewSocketStrictPolicy(topology, numaNodes)
 
 	default:
 		return nil, fmt.Errorf("unknown policy: \"%s\"", topologyPolicyName)

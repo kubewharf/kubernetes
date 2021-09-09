@@ -637,6 +637,18 @@ const (
 	// Enable injecting env vars for services into containers in namespace ns should see.
 	// Note: you can disable this to avoid container spec becomes too large and use DNS to resolve service address.
 	ServiceEnv featuregate.Feature = "ServiceEnv"
+
+	// owner: @xuchen.xiaoying
+	// alpha: v1.14
+	//
+	// if enabled, topology manager considers numa hint for local persisent volume, i.e. aep
+	AepCSITopologyAware featuregate.Feature = "AepCSITopologyAware"
+
+	// owner: @xuchen.xiaoying
+	// alpha: v1.14
+	//
+	// if enabled, gpu sidecar container e.g. mps will be injected NVIDIA_VISIBLE_DEVICES same as primary container
+	GPUSidecarVisibleDevice featuregate.Feature = "GPUSidecarVisibleDevice"
 )
 
 func init() {
@@ -736,6 +748,8 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 	ShareGPU:                                       {Default: false, PreRelease: featuregate.Alpha},
 	PodDeletionCost:                                {Default: false, PreRelease: featuregate.Alpha},
 	ServiceEnv:                                     {Default: true, PreRelease: featuregate.Alpha},
+	AepCSITopologyAware:                            {Default: false, PreRelease: featuregate.Alpha},
+	GPUSidecarVisibleDevice:                        {Default: false, PreRelease: featuregate.Alpha},
 
 	// inherited features from generic apiserver, relisted here to get a conflict if it is changed
 	// unintentionally on either side:

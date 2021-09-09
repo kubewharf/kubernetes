@@ -21,14 +21,14 @@ package cm
 import (
 	"fmt"
 
-	"k8s.io/utils/mount"
-
 	v1 "k8s.io/api/core/v1"
+	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	internalapi "k8s.io/cri-api/pkg/apis"
 	"k8s.io/kubernetes/pkg/kubelet/cadvisor"
 	"k8s.io/kubernetes/pkg/kubelet/config"
 	"k8s.io/kubernetes/pkg/kubelet/status"
+	"k8s.io/utils/mount"
 )
 
 type unsupportedContainerManager struct {
@@ -41,6 +41,6 @@ func (unsupportedContainerManager) Start(_ *v1.Node, _ ActivePodsFunc, _ config.
 	return fmt.Errorf("Container Manager is unsupported in this build")
 }
 
-func NewContainerManager(_ mount.Interface, _ cadvisor.Interface, _ NodeConfig, failSwapOn bool, devicePluginEnabled bool, recorder record.EventRecorder) (ContainerManager, error) {
+func NewContainerManager(_ mount.Interface, _ cadvisor.Interface, _ NodeConfig, failSwapOn bool, devicePluginEnabled bool, recorder record.EventRecorder, kubeclient clientset.Interface) (ContainerManager, error) {
 	return &unsupportedContainerManager{}, nil
 }

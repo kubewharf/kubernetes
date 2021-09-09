@@ -136,9 +136,6 @@ type endpointInfo struct {
 
 type sourcesReadyStub struct{}
 
-// PodReusableDevices is a map by pod name of devices to reuse.
-type PodReusableDevices map[string]map[string]sets.String
-
 const (
 	refinedResource      = "bytedance.com/refined"
 	numericResourceType  = "Numeric"
@@ -150,6 +147,9 @@ const (
 var (
 	refinedResourceStateFile = pluginapi.DevicePluginPath + "refined_resource_statefile"
 )
+
+// PodReusableDevices is a map by pod name of devices to reuse.
+type PodReusableDevices map[string]map[string]sets.String
 
 func (s *sourcesReadyStub) AddSource(source string) {}
 func (s *sourcesReadyStub) AllReady() bool          { return true }
@@ -203,8 +203,8 @@ func newManagerImpl(socketPath string, numaNodeInfo cputopology.NUMANodeInfo, to
 }
 
 func (m *ManagerImpl) genericDeviceUpdateCallback(resourceName string, devices []pluginapi.Device) {
+	klog.Infof("Get changes from device plugin, resource: %s, devices: %+v", resourceName, devices)
 	if resourceName == refinedResource {
-		klog.Infof("Get changes from device plugin, resource: %s, devices: %+v", resourceName, devices)
 		if err := m.writeRefinedResourceToStateFile(devices, refinedResourceStateFile); err != nil {
 			klog.Errorf("Fail to write RefinedNodeResource state file: %v", err)
 		}
@@ -738,46 +738,172 @@ func (m *ManagerImpl) devicesToAllocate(podUID, contName, resource string, requi
 		return nil, nil
 	}
 	klog.V(3).Infof("Needs to allocate %d %q for pod %q container %q", needed, resource, podUID, contName)
-	// Needs to allocate additional devices.
+	// Check if resource registered with devicemanager
 	if _, ok := m.healthyDevices[resource]; !ok {
 		return nil, fmt.Errorf("can't allocate unregistered device %s", resource)
 	}
-	devices = sets.NewString()
-	// Allocates from reusableDevices list first.
-	for device := range reusableDevices {
-		devices.Insert(device)
-		needed--
-		if needed == 0 {
-			return devices, nil
+
+	// Declare the list of allocated devices.
+	// This will be populated and returned below.
+	allocated := sets.NewString()
+
+	// Create a closure to help with device allocation
+	// Returns 'true' once no more devices need to be allocated.
+	allocateRemainingFrom := func(devices sets.String) bool {
+		for device := range devices.Difference(allocated) {
+			m.allocatedDevices[resource].Insert(device)
+			allocated.Insert(device)
+			needed--
+			if needed == 0 {
+				return true
+			}
 		}
+		return false
 	}
+
+	// Allocates from reusableDevices list first.
+	if allocateRemainingFrom(reusableDevices) {
+		return allocated, nil
+	}
+
 	// Needs to allocate additional devices.
 	if m.allocatedDevices[resource] == nil {
 		m.allocatedDevices[resource] = sets.NewString()
 	}
+
 	// Gets Devices in use.
 	devicesInUse := m.allocatedDevices[resource]
-	// Gets a list of available devices.
+	// Gets Available devices.
 	available := m.healthyDevices[resource].Difference(devicesInUse)
 	if available.Len() < needed {
 		return nil, fmt.Errorf("requested number of devices unavailable for %s. Requested: %d, Available: %d", resource, needed, available.Len())
 	}
-	// By default, pull devices from the unsorted list of available devices.
-	allocated := available.UnsortedList()[:needed]
-	// If topology alignment is desired, update allocated to the set of devices
-	// with the best alignment.
+
+	// Filters available Devices based on NUMA affinity.
+	aligned, unaligned, noAffinity := m.filterByAffinity(podUID, contName, resource, available)
+
+	// If we can allocate all remaining devices from the set of aligned ones, then
+	// give the plugin the chance to influence which ones to allocate from that set.
+	if needed < aligned.Len() {
+		// First allocate from the preferred devices list (if available).
+		preferred, err := m.callGetPreferredAllocationIfAvailable(podUID, contName, resource, aligned.Union(allocated), allocated, required)
+		if err != nil {
+			return nil, err
+		}
+		if allocateRemainingFrom(preferred.Intersection(aligned)) {
+			return allocated, nil
+		}
+		// Then fallback to allocate from the aligned set if no preferred list
+		// is returned (or not enough devices are returned in that list).
+		if allocateRemainingFrom(aligned) {
+			return allocated, nil
+		}
+
+		return nil, fmt.Errorf("unexpectedly allocated less resources than required. Requested: %d, Got: %d", required, required-needed)
+	}
+
+	// If we can't allocate all remaining devices from the set of aligned ones,
+	// then start by first allocating all of the  aligned devices (to ensure
+	// that the alignment guaranteed by the TopologyManager is honored).
+	if allocateRemainingFrom(aligned) {
+		return allocated, nil
+	}
+
+	// Then give the plugin the chance to influence the decision on any
+	// remaining devices to allocate.
+	preferred, err := m.callGetPreferredAllocationIfAvailable(podUID, contName, resource, available.Union(allocated), allocated, required)
+	if err != nil {
+		return nil, err
+	}
+	if allocateRemainingFrom(preferred.Intersection(available)) {
+		return allocated, nil
+	}
+
+	// Finally, if the plugin did not return a preferred allocation (or didn't
+	// return a large enough one), then fall back to allocating the remaining
+	// devices from the 'unaligned' and 'noAffinity' sets.
+	if allocateRemainingFrom(unaligned) {
+		return allocated, nil
+	}
+	if allocateRemainingFrom(noAffinity) {
+		return allocated, nil
+	}
+
+	return nil, fmt.Errorf("unexpectedly allocated less resources than required. Requested: %d, Got: %d", required, required-needed)
+}
+
+func (m *ManagerImpl) filterByAffinity(podUID, contName, resource string, available sets.String) (sets.String, sets.String, sets.String) {
+	// If alignment information is not available, just pass the available list back.
 	hint := m.topologyAffinityStore.GetAffinity(podUID, contName)
-	if m.deviceHasTopologyAlignment(resource) && hint.NUMANodeAffinity != nil {
-		allocated = m.takeByTopology(resource, available, hint.NUMANodeAffinity, needed)
+	if !m.deviceHasTopologyAlignment(resource) || hint.NUMANodeAffinity == nil {
+		return sets.NewString(), sets.NewString(), available
 	}
-	// Updates m.allocatedDevices with allocated devices to prevent them
-	// from being allocated to other pods/containers, given that we are
-	// not holding lock during the rpc call.
-	for _, device := range allocated {
-		m.allocatedDevices[resource].Insert(device)
-		devices.Insert(device)
+
+	// Build a map of NUMA Nodes to the devices associated with them. A
+	// device may be associated to multiple NUMA nodes at the same time. If an
+	// available device does not have any NUMA Nodes associated with it, add it
+	// to a list of NUMA Nodes for the fake NUMANode -1.
+	perNodeDevices := make(map[int]sets.String)
+	nodeWithoutTopology := -1
+	for d := range available {
+		if m.allDevices[resource][d].Topology == nil || len(m.allDevices[resource][d].Topology.Nodes) == 0 {
+			if _, ok := perNodeDevices[nodeWithoutTopology]; !ok {
+				perNodeDevices[nodeWithoutTopology] = sets.NewString()
+			}
+			perNodeDevices[nodeWithoutTopology].Insert(d)
+			continue
+		}
+
+		for _, node := range m.allDevices[resource][d].Topology.Nodes {
+			if _, ok := perNodeDevices[int(node.ID)]; !ok {
+				perNodeDevices[int(node.ID)] = sets.NewString()
+			}
+			perNodeDevices[int(node.ID)].Insert(d)
+		}
 	}
-	return devices, nil
+
+	// Get a flat list of all of the nodes associated with available devices.
+	var nodes []int
+	for node := range perNodeDevices {
+		nodes = append(nodes, node)
+	}
+
+	// Sort the list of nodes by how many devices they contain.
+	sort.Slice(nodes, func(i, j int) bool {
+		return perNodeDevices[i].Len() < perNodeDevices[j].Len()
+	})
+
+	// Generate three sorted lists of devices. Devices in the first list come
+	// from valid NUMA Nodes contained in the affinity mask. Devices in the
+	// second list come from valid NUMA Nodes not in the affinity mask. Devices
+	// in the third list come from devices with no NUMA Node association (i.e.
+	// those mapped to the fake NUMA Node -1). Because we loop through the
+	// sorted list of NUMA nodes in order, within each list, devices are sorted
+	// by their connection to NUMA Nodes with more devices on them.
+	var fromAffinity []string
+	var notFromAffinity []string
+	var withoutTopology []string
+	for d := range available {
+		// Since the same device may be associated with multiple NUMA Nodes. We
+		// need to be careful not to add each device to multiple lists. The
+		// logic below ensures this by breaking after the first NUMA node that
+		// has the device is encountered.
+		for _, n := range nodes {
+			if perNodeDevices[n].Has(d) {
+				if n == nodeWithoutTopology {
+					withoutTopology = append(withoutTopology, d)
+				} else if hint.NUMANodeAffinity.IsSet(n) {
+					fromAffinity = append(fromAffinity, d)
+				} else {
+					notFromAffinity = append(notFromAffinity, d)
+				}
+				break
+			}
+		}
+	}
+
+	// Return all three lists containing the full set of devices across them.
+	return sets.NewString(fromAffinity...), sets.NewString(notFromAffinity...), sets.NewString(withoutTopology...)
 }
 
 func (m *ManagerImpl) takeByTopology(resource string, available sets.String, affinity bitmask.BitMask, request int) []string {
@@ -905,11 +1031,13 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 		}
 
 		devs := allocDevices.UnsortedList()
+		cpuRequirement := getCPURequirementFromContainer(container)
 		// TODO: refactor this part of code to just append a ContainerAllocationRequest
 		// in a passed in AllocateRequest pointer, and issues a single Allocate call per pod.
-		klog.V(3).Infof("Making allocation request for devices %v for device plugin %s", devs, resource)
+		klog.V(3).Infof("Making allocation request for devices %v for device plugin %s; pod: %s; container: %s; cpuRequirement: %d",
+			devs, resource, pod.Name, container.Name, cpuRequirement)
 		// new metadata with pod name and container name
-		md := metadata.Pairs("pod", pod.Name, "container", container.Name, "podUid", string(pod.UID))
+		md := metadata.Pairs("pod", pod.Name, "container", container.Name, "cpu_requirement", fmt.Sprintf("%d", cpuRequirement))
 		ctx := metadata.NewOutgoingContext(context.Background(), md)
 		resp, err := eI.e.allocate(ctx, devs)
 		metrics.DevicePluginAllocationDuration.WithLabelValues(resource).Observe(metrics.SinceInSeconds(startRPCTime))
@@ -926,6 +1054,8 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 			return fmt.Errorf("no containers return in allocation response %v", resp)
 		}
 
+		injectCPUResourcesAnnotationToPod(pod, resp)
+
 		// Update internal cached podDevices state.
 		m.mutex.Lock()
 		m.podDevices.insert(podUID, contName, resource, allocDevices, resp.ContainerResponses[0])
@@ -934,6 +1064,34 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 
 	// Checkpoints device to container allocation information.
 	return m.writeCheckpoint()
+}
+
+func getCPURequirementFromContainer(container *v1.Container) int64 {
+	if container == nil {
+		return 0
+	}
+
+	return container.Resources.Requests.Cpu().Value()
+}
+
+func injectCPUResourcesAnnotationToPod(pod *v1.Pod, resp *pluginapi.AllocateResponse) {
+	if pod == nil || resp == nil {
+		return
+	}
+
+	for _, containerResponse := range resp.ContainerResponses {
+		if containerResponse != nil {
+
+			for annoKey, annoValue := range containerResponse.Annotations {
+				switch annoKey {
+				case config.CPUSetAnnotation, config.NumaSetAnnotation:
+					if annoValue != "" {
+						pod.Annotations[annoKey] = annoValue
+					}
+				}
+			}
+		}
+	}
 }
 
 // GetDeviceRunContainerOptions checks whether we have cached containerDevices
@@ -1006,6 +1164,32 @@ func (m *ManagerImpl) callPreStartContainerIfNeeded(podUID, contName, resource s
 	return nil
 }
 
+// callGetPreferredAllocationIfAvailable issues GetPreferredAllocation grpc
+// call for device plugin resource with GetPreferredAllocationAvailable option set.
+func (m *ManagerImpl) callGetPreferredAllocationIfAvailable(podUID, contName, resource string, available, mustInclude sets.String, size int) (sets.String, error) {
+	eI, ok := m.endpoints[resource]
+	if !ok {
+		return nil, fmt.Errorf("endpoint not found in cache for a registered resource: %s", resource)
+	}
+
+	if eI.opts == nil || !eI.opts.GetPreferredAllocationAvailable {
+		klog.V(4).Infof("Plugin options indicate to skip GetPreferredAllocation for resource: %s", resource)
+		return nil, nil
+	}
+
+	m.mutex.Unlock()
+	klog.V(4).Infof("Issuing a GetPreferredAllocation call for container, %s, of pod %s", contName, podUID)
+	resp, err := eI.e.getPreferredAllocation(available.UnsortedList(), mustInclude.UnsortedList(), size)
+	m.mutex.Lock()
+	if err != nil {
+		return nil, fmt.Errorf("device plugin GetPreferredAllocation rpc failed with err: %v", err)
+	}
+	if resp != nil && len(resp.ContainerResponses) > 0 {
+		return sets.NewString(resp.ContainerResponses[0].DeviceIDs...), nil
+	}
+	return sets.NewString(), nil
+}
+
 // sanitizeNodeAllocatable scans through allocatedDevices in the device manager
 // and if necessary, updates allocatableResource in nodeInfo to at least equal to
 // the allocated capacity. This allows pods that have already been scheduled on
@@ -1050,20 +1234,6 @@ func (m *ManagerImpl) GetDevices(podUID, containerName string) []*podresourcesap
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	return m.podDevices.getContainerDevices(podUID, containerName)
-}
-
-// ShouldResetExtendedResourceCapacity returns whether the extended resources should be zeroed or not,
-// depending on whether the node has been recreated. Absence of the checkpoint file strongly indicates the node
-// has been recreated.
-func (m *ManagerImpl) ShouldResetExtendedResourceCapacity() bool {
-	if utilfeature.DefaultFeatureGate.Enabled(features.DevicePlugins) {
-		checkpoints, err := m.checkpointManager.ListCheckpoints()
-		if err != nil {
-			return false
-		}
-		return len(checkpoints) == 0
-	}
-	return false
 }
 
 func (m *ManagerImpl) writeRefinedResourceToStateFile(devices []pluginapi.Device, path string) error {
@@ -1117,4 +1287,18 @@ func getRefinedResourceFromDevices(devices []pluginapi.Device) (map[string]strin
 		}
 	}
 	return refinedNumericResources, refinedDiscreteResources, refinedDiscreteResourcesClass, refinedNumaTopologyStatus
+}
+
+// ShouldResetExtendedResourceCapacity returns whether the extended resources should be zeroed or not,
+// depending on whether the node has been recreated. Absence of the checkpoint file strongly indicates the node
+// has been recreated.
+func (m *ManagerImpl) ShouldResetExtendedResourceCapacity() bool {
+	if utilfeature.DefaultFeatureGate.Enabled(features.DevicePlugins) {
+		checkpoints, err := m.checkpointManager.ListCheckpoints()
+		if err != nil {
+			return false
+		}
+		return len(checkpoints) == 0
+	}
+	return false
 }

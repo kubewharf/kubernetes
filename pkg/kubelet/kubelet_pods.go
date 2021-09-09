@@ -32,9 +32,9 @@ import (
 	"strings"
 	"sync"
 
-	"code.byted.org/tce/kube-tracing"
+	kubetracing "code.byted.org/tce/kube-tracing"
 	"github.com/opentracing/opentracing-go"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -44,12 +44,14 @@ import (
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"k8s.io/klog"
+
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/pkg/api/v1/resource"
 	podshelper "k8s.io/kubernetes/pkg/apis/core/pods"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	v1qos "k8s.io/kubernetes/pkg/apis/core/v1/helper/qos"
 	"k8s.io/kubernetes/pkg/features"
+	kubefeatures "k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/fieldpath"
 	"k8s.io/kubernetes/pkg/kubelet/cm"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
@@ -520,7 +522,36 @@ func (kl *Kubelet) GenerateRunContainerOptions(pod *v1.Pod, container *v1.Contai
 	}
 	opts.Envs = append(opts.Envs, envs...)
 
-	// only podIPs is sent to makeMounts, as podIPs is populated even if dual-stack feature flag is not enabled.
+	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.GPUSidecarVisibleDevice) {
+		// add NVIDIA_VISIBLE_DEVICES env to mps sidecar
+		const gpuResource = "nvidia.com/gpu"
+		const nvidiaVisibleDevicesEnv = "NVIDIA_VISIBLE_DEVICES"
+		// this container has no gpu resource request
+		if containerGPULimit := container.Resources.Limits[gpuResource]; containerGPULimit.IsZero() {
+			for _, c := range pod.Spec.Containers {
+				// but other container in pod has gpu limit
+				if gpuLimit, ok := c.Resources.Limits[gpuResource]; ok && !gpuLimit.IsZero() && c.Name != container.Name {
+					// get option of gpu container, extract NVIDIA_VISIBLE_DEVICES env
+					if resourceOptions, err := kl.containerManager.GetResources(pod, &c); err == nil {
+						sidecarNvidiaVisibleDevicesEnvInjected := false
+						for _, env := range resourceOptions.Envs {
+							if env.Name == nvidiaVisibleDevicesEnv {
+								opts.Envs = append(opts.Envs, env)
+								klog.Infof("inject NVIDIA_VISIBLE_DEVICES env %s to sidecar container %s of pod %s", env.Value, c.Name, pod.Name)
+								sidecarNvidiaVisibleDevicesEnvInjected = true
+								break
+							}
+						}
+						if !sidecarNvidiaVisibleDevicesEnvInjected {
+							return nil, nil, fmt.Errorf("failed to inject NVIDIA_VISIBLE_DEVICES env to sidecar container %s of pod %s because no env found", c.Name, pod.Name)
+						}
+					} else {
+						return nil, nil, fmt.Errorf("failed to inject NVIDIA_VISIBLE_DEVICES env to sidecar container %s of pod %s, err is %v", c.Name, pod.Name, err)
+					}
+				}
+			}
+		}
+	}
 	mounts, cleanupAction, err := makeMounts(pod, kl.getPodDir(pod.UID), container, hostname, hostDomainName, podIPs, volumes, kl.hostutil, kl.subpather, opts.Envs)
 	if err != nil {
 		return nil, cleanupAction, err

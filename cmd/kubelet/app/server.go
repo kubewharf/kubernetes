@@ -769,7 +769,9 @@ func run(s *options.KubeletServer, kubeDeps *kubelet.Dependencies, featureGate f
 			},
 			s.FailSwapOn,
 			devicePluginEnabled,
-			kubeDeps.Recorder)
+			kubeDeps.Recorder,
+			kubeDeps.KubeClient,
+		)
 
 		if err != nil {
 			return err

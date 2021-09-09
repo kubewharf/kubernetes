@@ -45,6 +45,7 @@ import (
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/apimachinery/pkg/util/wait"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	internalapi "k8s.io/cri-api/pkg/apis"
 	kubefeatures "k8s.io/kubernetes/pkg/features"
@@ -208,7 +209,7 @@ func validateSystemRequirements(mountUtil mount.Interface) (features, error) {
 // TODO(vmarmol): Add limits to the system containers.
 // Takes the absolute name of the specified containers.
 // Empty container name disables use of the specified container.
-func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.Interface, nodeConfig NodeConfig, failSwapOn bool, devicePluginEnabled bool, recorder record.EventRecorder) (ContainerManager, error) {
+func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.Interface, nodeConfig NodeConfig, failSwapOn bool, devicePluginEnabled bool, recorder record.EventRecorder, kubeclient clientset.Interface) (ContainerManager, error) {
 	subsystems, err := GetCgroupSubsystems()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get mounted cgroup subsystems: %v", err)
@@ -245,6 +246,7 @@ func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.I
 	if err != nil {
 		return nil, err
 	}
+
 	capacity := cadvisor.CapacityFromMachineInfo(machineInfo)
 	for k, v := range capacity {
 		internalCapacity[k] = v
@@ -298,10 +300,21 @@ func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.I
 		qosContainerManager: qosContainerManager,
 	}
 
+	cpuTopology, err := cputopology.Discover(machineInfo, numaNodeInfo)
+	if err != nil {
+		klog.Errorf("discrover cpu topology failed %s", err.Error())
+		return nil, err
+	}
+	if err := cpuTopology.CheckValid(); err != nil {
+		klog.Errorf("cpu topoloy check failed, err is  %s", err.Error())
+		return nil, err
+	}
+
 	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.TopologyManager) {
 		cm.topologyManager, err = topologymanager.NewManager(
 			numaNodeInfo,
 			nodeConfig.ExperimentalTopologyManagerPolicy,
+			cpuTopology,
 		)
 
 		if err != nil {
@@ -343,6 +356,16 @@ func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.I
 		cm.topologyManager.AddHintProvider(cm.cpuManager)
 	}
 
+	// add aep csi as a hint provider for topology manager to allocate aep device with affinity to num
+	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.AepCSITopologyAware) {
+		klog.Info("aepCSITopologyAware enabled, added as a provider for topology manager")
+		var numaBits []int
+		for key := range numaNodeInfo {
+			numaBits = append(numaBits, key)
+		}
+		aepCsiHintProvider := topologymanager.NewAepCSIHintProvider(kubeclient, numaBits, cm.topologyManager)
+		cm.topologyManager.AddHintProvider(aepCsiHintProvider)
+	}
 	return cm, nil
 }
 
