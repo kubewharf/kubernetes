@@ -358,7 +358,7 @@ func TestHeap_ListKeys(t *testing.T) {
 		t.Errorf("expected %d items, got %d", len(items), len(list))
 	}
 	l := h.Len()
-	if  l != len(items) {
+	if l != len(items) {
 		t.Errorf("expected %d items, got %d", len(items), l)
 	}
 	for _, key := range list {
