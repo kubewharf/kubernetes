@@ -13,15 +13,10 @@ import (
 )
 
 type NodeShareGPUDeviceInfo struct {
-	devs           map[int]*DeviceInfo
-	gpuCount       int
-	gpuTotalMemory int
-	sync.RWMutex
+	devs     map[int]*DeviceInfo
+	gpuCount int
+	*sync.RWMutex
 	name string
-}
-
-func (n *NodeShareGPUDeviceInfo) GetTotalGPUMemory() int {
-	return n.gpuTotalMemory
 }
 
 func (n *NodeShareGPUDeviceInfo) GetGPUCount() int {
@@ -43,11 +38,13 @@ func (n *NodeShareGPUDeviceInfo) SetShareGPUDevices(node *v1.Node) {
 	// set share gpu device info in node info
 	devMap := map[int]*DeviceInfo{}
 	for i := 0; i < util.GetGPUCountInNode(node); i++ {
-		devMap[i] = newDeviceInfo(i, util.GetTotalGPUMemory(node)/util.GetGPUCountInNode(node), util.GetTotalGPUSM(node)/util.GetGPUCountInNode(node))
+		devMap[i] = newDeviceInfo(i,
+			util.GetTotalGPUMemory(node)/util.GetGPUCountInNode(node),
+			util.GetTotalGPUSM(node)/util.GetGPUCountInNode(node),
+			util.GetTotalShareGPU(node)/util.GetGPUCountInNode(node))
 	}
 	n.devs = devMap
 	n.gpuCount = util.GetGPUCountInNode(node)
-	n.gpuTotalMemory = util.GetTotalGPUMemory(node)
 	n.name = node.Name
 }
 
@@ -94,11 +91,12 @@ func (n *NodeShareGPUDeviceInfo) SatisfyShareGPU(pod *v1.Pod) bool {
 	availableGPUs := n.getAvailableGPUs()
 	reqGPUMem := util.GetGPUMemoryFromPodResource(pod)
 	reqGPUSM := util.GetGPUSMFromPodResource(pod)
+	reqShareGPU := util.GetShareGPUFromPodResource(pod)
 	if len(availableGPUs) > 0 {
 		for devID := 0; devID < len(n.devs); devID++ {
 			availableGPU, ok := availableGPUs[devID]
 			if ok {
-				if availableGPU.Memory >= reqGPUMem && availableGPU.SM >= reqGPUSM {
+				if availableGPU.Memory >= reqGPUMem && availableGPU.SM >= reqGPUSM && availableGPU.ShareGPU >= reqShareGPU {
 					return true
 				}
 			}
@@ -116,7 +114,7 @@ func (n *NodeShareGPUDeviceInfo) AllocateShareGPU(pod *v1.Pod) (err error) {
 	n.RLock()
 	defer n.RUnlock()
 	klog.Infof("NodeShareGPUDeviceInfo: Allocate() ----Begin to allocate GPU for gpu mem for pod %s in ns %s----", pod.Name, pod.Namespace)
-	devId, ok := n.allocateGPUID(pod)
+	devId, _, ok := n.AllocateGPUID(pod)
 	if ok {
 		klog.Infof("NodeShareGPUDeviceInfo: Allocate GPU ID %d to pod %s in ns %s.----", devId, pod.Name, pod.Namespace)
 		util.AddPodAnnotation(pod, devId)
@@ -135,7 +133,9 @@ func (n *NodeShareGPUDeviceInfo) AllocateShareGPU(pod *v1.Pod) (err error) {
 }
 
 // allocate the GPU ID to the pod
-func (n *NodeShareGPUDeviceInfo) allocateGPUID(pod *v1.Pod) (candidateDevID int, found bool) {
+func (n *NodeShareGPUDeviceInfo) AllocateGPUID(pod *v1.Pod) (candidateDevID int, shareGPU int, found bool) {
+	n.RLock()
+	defer n.RUnlock()
 	found = false
 	candidateDevID = -1
 	candidateAvailableGPU := &GPUResource{}
@@ -143,14 +143,15 @@ func (n *NodeShareGPUDeviceInfo) allocateGPUID(pod *v1.Pod) (candidateDevID int,
 	availableGPUs := n.getAvailableGPUs()
 	reqGPUMem := util.GetGPUMemoryFromPodResource(pod)
 	reqGPUSM := util.GetGPUSMFromPodResource(pod)
+	reqShareGPU := util.GetShareGPUFromPodResource(pod)
 
-	if reqGPUMem > 0 || reqGPUSM > 0 {
-		klog.Infof("reqGPU for pod %s in ns %s:gpu-mem %dGi gpu-sm %d", pod.Name, pod.Namespace, reqGPUMem, reqGPUSM)
+	if reqGPUMem > 0 || reqGPUSM > 0 || reqShareGPU > 0 {
+		klog.Infof("reqGPU for pod %s in ns %s:gpu-mem %dGi gpu-sm %d gpu-share %d", pod.Name, pod.Namespace, reqGPUMem, reqGPUSM, reqShareGPU)
 		if len(availableGPUs) > 0 {
 			for devID := 0; devID < len(n.devs); devID++ {
 				availableGPU, ok := availableGPUs[devID]
-				if ok && availableGPU.Memory >= reqGPUMem && availableGPU.SM >= reqGPUSM {
-					if candidateDevID == -1 || candidateAvailableGPU.SM > availableGPU.SM {
+				if ok && availableGPU.Memory >= reqGPUMem && availableGPU.SM >= reqGPUSM && availableGPU.ShareGPU >= reqShareGPU {
+					if candidateDevID == -1 || candidateAvailableGPU.ShareGPU > availableGPU.ShareGPU {
 						candidateDevID = devID
 						candidateAvailableGPU = availableGPU
 					}
@@ -168,7 +169,7 @@ func (n *NodeShareGPUDeviceInfo) allocateGPUID(pod *v1.Pod) (candidateDevID int,
 		}
 	}
 
-	return candidateDevID, found
+	return candidateDevID, candidateAvailableGPU.ShareGPU, found
 }
 
 func (n *NodeShareGPUDeviceInfo) getAvailableGPUs() map[int]*GPUResource {
@@ -178,13 +179,15 @@ func (n *NodeShareGPUDeviceInfo) getAvailableGPUs() map[int]*GPUResource {
 	availableGPUResource := make(map[int]*GPUResource)
 	for id, gpuResource := range allGPUs {
 		availableGPUResource[id] = &GPUResource{
-			Memory: gpuResource.Memory,
-			SM:     gpuResource.SM,
+			Memory:   gpuResource.Memory,
+			SM:       gpuResource.SM,
+			ShareGPU: gpuResource.ShareGPU,
 		}
 		if usedGpuResource, found := usedGPUs[id]; found {
 			availableGPUResource[id] = &GPUResource{
-				Memory: gpuResource.Memory - usedGpuResource.Memory,
-				SM:     gpuResource.SM - usedGpuResource.SM,
+				Memory:   gpuResource.Memory - usedGpuResource.Memory,
+				SM:       gpuResource.SM - usedGpuResource.SM,
+				ShareGPU: gpuResource.ShareGPU - usedGpuResource.ShareGPU,
 			}
 		}
 	}
@@ -195,6 +198,8 @@ func (n *NodeShareGPUDeviceInfo) getAvailableGPUs() map[int]*GPUResource {
 // device index: gpu resource
 func (n *NodeShareGPUDeviceInfo) getUsedGPU() map[int]*GPUResource {
 	usedGPUResources := make(map[int]*GPUResource)
+	n.RLock()
+	defer n.RUnlock()
 	for _, dev := range n.devs {
 		usedGPUResources[dev.idx] = dev.GetUsedGPU()
 	}
@@ -204,10 +209,13 @@ func (n *NodeShareGPUDeviceInfo) getUsedGPU() map[int]*GPUResource {
 // device index: gpu resource
 func (n *NodeShareGPUDeviceInfo) getAllGPU() map[int]*GPUResource {
 	allGPUResource := make(map[int]*GPUResource)
+	n.RLock()
+	defer n.RUnlock()
 	for _, dev := range n.devs {
 		allGPUResource[dev.idx] = &GPUResource{
-			SM:     dev.deviceGPUSM,
-			Memory: dev.deviceGPUMem,
+			SM:       dev.deviceGPUSM,
+			Memory:   dev.deviceGPUMem,
+			ShareGPU: dev.deviceShareGPU,
 		}
 	}
 	return allGPUResource
@@ -221,21 +229,23 @@ func (n *NodeShareGPUDeviceInfo) Clone() *NodeShareGPUDeviceInfo {
 	for idx, deviceInfo := range n.devs {
 		cloneDevs[idx] = deviceInfo.Clone()
 	}
+
 	clone := &NodeShareGPUDeviceInfo{
-		devs:           cloneDevs,
-		gpuCount:       n.gpuCount,
-		gpuTotalMemory: n.gpuTotalMemory,
-		name:           n.name,
+		devs:     cloneDevs,
+		gpuCount: n.gpuCount,
+		name:     n.name,
+		RWMutex:  new(sync.RWMutex),
 	}
 	return clone
 }
 
 type DeviceInfo struct {
-	idx          int
-	podMap       map[types.UID]*v1.Pod
-	deviceGPUMem int
-	deviceGPUSM  int
-	rwmu         *sync.RWMutex
+	idx            int
+	podMap         map[types.UID]*v1.Pod
+	deviceGPUMem   int
+	deviceShareGPU int
+	deviceGPUSM    int
+	rwmu           *sync.RWMutex
 }
 
 func (d *DeviceInfo) GetPods() []*v1.Pod {
@@ -248,33 +258,45 @@ func (d *DeviceInfo) GetPods() []*v1.Pod {
 	return pods
 }
 
-func newDeviceInfo(index int, deviceGPUMem int, deviceGPUSM int) *DeviceInfo {
-	return &DeviceInfo{
-		idx:          index,
-		deviceGPUMem: deviceGPUMem,
-		deviceGPUSM:  deviceGPUSM,
-		podMap:       map[types.UID]*v1.Pod{},
-		rwmu:         new(sync.RWMutex),
+func (d *DeviceInfo) Clone() *DeviceInfo {
+	d.rwmu.RLock()
+	defer d.rwmu.RUnlock()
+
+	podMapClone := make(map[types.UID]*v1.Pod)
+	for uid, pod := range d.podMap {
+		podMapClone[uid] = pod.DeepCopy()
 	}
+	clone := &DeviceInfo{
+		idx:            d.idx,
+		podMap:         podMapClone,
+		deviceGPUMem:   d.deviceGPUMem,
+		deviceGPUSM:    d.deviceGPUSM,
+		deviceShareGPU: d.deviceShareGPU,
+		rwmu:           new(sync.RWMutex),
+	}
+	return clone
 }
 
-func (d *DeviceInfo) GetDeviceGPUMemory() int {
-	return d.deviceGPUMem
-}
-
-func (d *DeviceInfo) GetDeviceGPUSM() int {
-	return d.deviceGPUSM
+func newDeviceInfo(index int, deviceGPUMem int, deviceGPUSM int, deviceShareGPU int) *DeviceInfo {
+	return &DeviceInfo{
+		idx:            index,
+		deviceGPUMem:   deviceGPUMem,
+		deviceGPUSM:    deviceGPUSM,
+		deviceShareGPU: deviceShareGPU,
+		podMap:         map[types.UID]*v1.Pod{},
+		rwmu:           new(sync.RWMutex),
+	}
 }
 
 func (d *DeviceInfo) GetUsedGPU() *GPUResource {
 	var podNamesOnDevice []string
+	d.rwmu.RLock()
+	defer d.rwmu.RUnlock()
 	for _, pod := range d.podMap {
 		podNamesOnDevice = append(podNamesOnDevice, pod.Name)
 	}
 	klog.Infof("[gpu device info] GetUsedGPUMemory() pods %+q, and device id is %d", podNamesOnDevice, d.idx)
 	gpuResource := new(GPUResource)
-	d.rwmu.RLock()
-	defer d.rwmu.RUnlock()
 	for _, pod := range d.podMap {
 		if pod.Status.Phase == v1.PodSucceeded || pod.Status.Phase == v1.PodFailed {
 			klog.Infof("[gpu device info] skip the pod %s in ns %s due to its status is %s", pod.Name, pod.Namespace, pod.Status.Phase)
@@ -282,6 +304,7 @@ func (d *DeviceInfo) GetUsedGPU() *GPUResource {
 		}
 		gpuResource.Memory += util.GetGPUMemoryFromPodResource(pod)
 		gpuResource.SM += util.GetGPUSMFromPodResource(pod)
+		gpuResource.ShareGPU += util.GetShareGPUFromPodResource(pod)
 	}
 	return gpuResource
 }
@@ -304,29 +327,12 @@ func (d *DeviceInfo) removePod(pod *v1.Pod) {
 	klog.V(8).Infof("[gpu device info] dev.removePod() after updated is %v, device id is %d", d.podMap, d.idx)
 }
 
-func (d *DeviceInfo) Clone() *DeviceInfo {
-	d.rwmu.RLock()
-	defer d.rwmu.RUnlock()
-
-	podMapClone := make(map[types.UID]*v1.Pod)
-	for uid, pod := range d.podMap {
-		podMapClone[uid] = pod.DeepCopy()
-	}
-	clone := &DeviceInfo{
-		idx:          d.idx,
-		podMap:       podMapClone,
-		deviceGPUMem: d.deviceGPUMem,
-		deviceGPUSM:  d.deviceGPUSM,
-		rwmu:         new(sync.RWMutex),
-	}
-	return clone
-}
-
 type GPUResource struct {
-	Memory int
-	SM     int
+	Memory   int
+	SM       int
+	ShareGPU int
 }
 
 func (gpuResource *GPUResource) String() string {
-	return fmt.Sprintf("(sm%d, memory %d)", gpuResource.SM, gpuResource.Memory)
+	return fmt.Sprintf("(sm%d, memory %d, share-gpu %d)", gpuResource.SM, gpuResource.Memory, gpuResource.ShareGPU)
 }
