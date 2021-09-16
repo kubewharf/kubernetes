@@ -903,7 +903,7 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 
 	// add host-dual-stack-ip-pod-annotations handler
 	klet.admitHandlers.AddPodAdmitHandler(hostdualstackip.NewPodAnnotationsAdmitHandler())
-
+	klet.admitHandlers.AddPodAdmitHandler(dynamic.NewFixedPortHandler())
 	podUpdater := dynamic.NewPodUpdater(klet.kubeClient)
 	assignQosPort := dynamic.NewAssignPortHandler(utilpod.PodAutoPortHighPriorityAnnotation, klet.guaranteedQosHostPortRange, podUpdater)
 	klet.admitHandlers.AddPodAdmitHandler(assignQosPort)
