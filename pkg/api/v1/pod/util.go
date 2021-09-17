@@ -35,6 +35,7 @@ const (
 	ShareMemoryProvisioner = "share-memory-provisioner"
 
 	PreemptMinIntervalSecondsKey = "bytedance.com/preempt-min-interval-seconds"
+	PreemptMinReplicaNumKey      = "bytedance.com/preempt-min-replica-num"
 )
 
 // FindPort locates the container port for the given pod and portName.  If the

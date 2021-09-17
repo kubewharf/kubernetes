@@ -94,10 +94,15 @@ type schedulerCache struct {
 
 type DeployItem struct {
 	preemptMinIntervalSeconds *int64
+	preemptMinReplicaNum      *int64
 }
 
 func (item DeployItem) GetPreemptMinIntervalSeconds() *int64 {
 	return item.preemptMinIntervalSeconds
+}
+
+func (item DeployItem) GetPreemptMinReplicaNum() *int64 {
+	return item.preemptMinReplicaNum
 }
 
 // key is victim UID
@@ -900,6 +905,13 @@ func (cache *schedulerCache) SetDeployItems(deploy *appsv1.Deployment) {
 		if minIntervalNum, err := strconv.ParseInt(minIntervalStr, 10, 64); err == nil {
 			deployItem := cache.deployItems[deployKey]
 			deployItem.preemptMinIntervalSeconds = &minIntervalNum
+			cache.deployItems[deployKey] = deployItem
+		}
+	}
+	if minReplicaStr, ok := annotations[podutil.PreemptMinReplicaNumKey]; ok {
+		if minReplicaNum, err := strconv.ParseInt(minReplicaStr, 10, 64); err == nil {
+			deployItem := cache.deployItems[deployKey]
+			deployItem.preemptMinReplicaNum = &minReplicaNum
 			cache.deployItems[deployKey] = deployItem
 		}
 	}

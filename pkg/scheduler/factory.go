@@ -119,6 +119,7 @@ type Configurator struct {
 	nodePackageResourceMatchFactor float64
 
 	preemptMinIntervalSeconds int64
+	preemptMinReplicaNum      int64
 }
 
 func (c *Configurator) buildFramework(p schedulerapi.KubeSchedulerProfile) (framework.Framework, error) {
@@ -218,6 +219,7 @@ func (c *Configurator) create() (*Scheduler, error) {
 		c.percentageOfNodesToScore,
 		c.enableNonPreempting,
 		c.preemptMinIntervalSeconds,
+		c.preemptMinReplicaNum,
 	)
 
 	return &Scheduler{

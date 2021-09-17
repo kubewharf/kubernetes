@@ -78,6 +78,8 @@ type Options struct {
 
 	// only if pod started more than this time duration, it could be preempted
 	PreemptMinIntervalSeconds int64
+	// only if replica num of this pod's owner reference is larger than the value, the pod could be preempted
+	PreemptMinReplicaNum int64
 }
 
 // NewOptions returns default scheduler app options.
@@ -114,6 +116,7 @@ func NewOptions() (*Options, error) {
 			HardPodAffinitySymmetricWeight: interpodaffinity.DefaultHardPodAffinityWeight,
 		},
 		PreemptMinIntervalSeconds: kubeschedulerconfig.DefaultPreemptMinIntervalSeconds,
+		PreemptMinReplicaNum:      kubeschedulerconfig.DefaultPreemptMinReplicaNum,
 	}
 
 	o.Authentication.TolerateInClusterLookupFailure = true
@@ -160,6 +163,7 @@ func (o *Options) Flags() (nfs cliflag.NamedFlagSets) {
 	fs.StringVar(&o.WriteConfigTo, "write-config-to", o.WriteConfigTo, "If set, write the configuration values to this file and exit.")
 	fs.StringVar(&o.Master, "master", o.Master, "The address of the Kubernetes API server (overrides any value in kubeconfig)")
 	fs.Int64Var(&o.PreemptMinIntervalSeconds, "preempt-min-interval-seconds", o.PreemptMinIntervalSeconds, "only if pod started more than this time duration, it could be preempted")
+	fs.Int64Var(&o.PreemptMinReplicaNum, "preempt-min-replica-num", o.PreemptMinReplicaNum, "only if replica num of this pod's owner reference is larger than the value, the pod could be preempted")
 
 	o.SecureServing.AddFlags(nfs.FlagSet("secure serving"))
 	o.CombinedInsecureServing.AddFlags(nfs.FlagSet("insecure serving"))
@@ -229,6 +233,7 @@ func (o *Options) ApplyTo(c *schedulerappconfig.Config) error {
 	}
 
 	c.PreemptMinIntervalSeconds = o.PreemptMinIntervalSeconds
+	c.PreemptMinReplicaNum = o.PreemptMinReplicaNum
 
 	return nil
 }

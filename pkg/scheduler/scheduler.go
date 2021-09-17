@@ -152,6 +152,7 @@ type schedulerOptions struct {
 	nodePackageResourceMatchFactor float64
 
 	preemptMinIntervalSeconds int64
+	preemptMinReplicaNum      int64
 }
 
 // Option configures a Scheduler
@@ -182,6 +183,12 @@ func WithPreemptionDisabled(disablePreemption bool) Option {
 func WithPreemptMinIntervalSeconds(preemptMinIntervalSeconds int64) Option {
 	return func(o *schedulerOptions) {
 		o.preemptMinIntervalSeconds = preemptMinIntervalSeconds
+	}
+}
+
+func WithPreemptMinReplicaNum(minReplicaNum int64) Option {
+	return func(o *schedulerOptions) {
+		o.preemptMinReplicaNum = minReplicaNum
 	}
 }
 
@@ -249,6 +256,7 @@ var defaultSchedulerOptions = schedulerOptions{
 	podMaxBackoffSeconds:           int64(internalqueue.DefaultPodMaxBackoffDuration.Seconds()),
 	nodePackageResourceMatchFactor: schedulerapi.DefaultNodePackageFactor,
 	preemptMinIntervalSeconds:      schedulerapi.DefaultPreemptMinIntervalSeconds,
+	preemptMinReplicaNum:           schedulerapi.DefaultPreemptMinReplicaNum,
 }
 
 // New returns a Scheduler
@@ -309,6 +317,7 @@ func New(client clientset.Interface,
 		extenders:                      options.extenders,
 		nodePackageResourceMatchFactor: options.nodePackageResourceMatchFactor,
 		preemptMinIntervalSeconds:      options.preemptMinIntervalSeconds,
+		preemptMinReplicaNum:           options.preemptMinReplicaNum,
 	}
 
 	metrics.Register()

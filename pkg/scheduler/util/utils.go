@@ -25,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
-	appv1listers "k8s.io/client-go/listers/apps/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	schedulingv1listers "k8s.io/client-go/listers/scheduling/v1"
 	storagev1 "k8s.io/client-go/listers/storage/v1"
@@ -549,21 +548,6 @@ func CanPodBePreempted(pod *v1.Pod, pcLister schedulingv1listers.PriorityClassLi
 	}
 
 	return pod.Annotations != nil && pod.Annotations[CanBePreemptedAnnotationKey] == "true"
-}
-
-func SmallSizeDeployment(pod *v1.Pod, deployLister appv1listers.DeploymentLister) bool {
-	deployName := GetDeployNameFromPod(pod)
-	if len(deployName) == 0 {
-		return false
-	}
-
-	deploy, err := deployLister.Deployments(pod.Namespace).Get(deployName)
-	if err != nil {
-		klog.Errorf("get deployment error: %+v", err)
-		return false
-	}
-
-	return deploy != nil && *deploy.Spec.Replicas <= 3
 }
 
 const (

@@ -144,6 +144,7 @@ type genericScheduler struct {
 	enableNonPreempting         bool
 	nextStartNodeIndex          int
 	preemptMinIntervalSeconds   int64
+	preemptMinReplicaNum        int64
 }
 
 // snapshot snapshots scheduler cache and node infos for all fit and priority
@@ -1244,7 +1245,7 @@ func (g *genericScheduler) selectVictimsOnNode(
 			continue
 		}
 
-		if util.SmallSizeDeployment(p, deployLister) {
+		if SmallSizeDeployment(p, deployLister, g.preemptMinReplicaNum, cache) {
 			continue
 		}
 
@@ -1444,7 +1445,8 @@ func NewGenericScheduler(
 	disablePreemption bool,
 	percentageOfNodesToScore int32,
 	enableNonPreempting bool,
-	preemptMinIntervalSeconds int64) ScheduleAlgorithm {
+	preemptMinIntervalSeconds int64,
+	preemptMinReplicaNum int64) ScheduleAlgorithm {
 	return &genericScheduler{
 		cache:                       cache,
 		refinedNodeResourceInformer: refinedNodeResourceInformer,
@@ -1460,6 +1462,7 @@ func NewGenericScheduler(
 		percentageOfNodesToScore:    percentageOfNodesToScore,
 		enableNonPreempting:         enableNonPreempting,
 		preemptMinIntervalSeconds:   preemptMinIntervalSeconds,
+		preemptMinReplicaNum:        preemptMinReplicaNum,
 	}
 }
 
@@ -1487,4 +1490,32 @@ func StartRecently(pod *v1.Pod, minIntervalSeconds int64, cache internalcache.Ca
 		return true
 	}
 	return false
+}
+
+func SmallSizeDeployment(pod *v1.Pod, deployLister appv1listers.DeploymentLister, preemptMinReplicaNum int64, cache internalcache.Cache) bool {
+	deployName := util.GetDeployNameFromPod(pod)
+	if len(deployName) == 0 {
+		return false
+	}
+
+	deploy, err := deployLister.Deployments(pod.Namespace).Get(deployName)
+	if err != nil {
+		klog.Errorf("get deployment error: %+v", err)
+		return false
+	}
+	if deploy == nil {
+		return false
+	}
+	replica := deploy.Spec.Replicas
+	if replica == nil {
+		return false
+	}
+
+	deployKey := fmt.Sprintf("%s/%s", deploy.GetNamespace(), deploy.GetName())
+	minReplicaItem := cache.GetDeployItems(deployKey).GetPreemptMinReplicaNum()
+	if minReplicaItem != nil {
+		preemptMinReplicaNum = *minReplicaItem
+	}
+
+	return *replica <= int32(preemptMinReplicaNum)
 }

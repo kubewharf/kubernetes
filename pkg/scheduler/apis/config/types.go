@@ -265,6 +265,7 @@ const (
 	MaxWeight = MaxTotalScore / MaxCustomPriorityScore
 
 	DefaultPreemptMinIntervalSeconds = 0
+	DefaultPreemptMinReplicaNum      = 3
 )
 
 func appendPluginSet(dst *PluginSet, src *PluginSet) *PluginSet {

@@ -190,6 +190,7 @@ func Run(ctx context.Context, cc schedulerserverconfig.CompletedConfig, outOfTre
 		scheduler.WithPodInitialBackoffSeconds(cc.ComponentConfig.PodInitialBackoffSeconds),
 		scheduler.WithExtenders(cc.ComponentConfig.Extenders...),
 		scheduler.WithPreemptMinIntervalSeconds(cc.PreemptMinIntervalSeconds),
+		scheduler.WithPreemptMinReplicaNum(cc.PreemptMinReplicaNum),
 	)
 	if err != nil {
 		return err
