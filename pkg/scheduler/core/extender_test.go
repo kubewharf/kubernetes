@@ -609,7 +609,8 @@ func TestGenericSchedulerWithExtenders(t *testing.T) {
 				schedulerapi.DefaultPercentageOfNodesToScore,
 				false,
 				schedulerapi.DefaultPreemptMinIntervalSeconds,
-				schedulerapi.DefaultPreemptMinReplicaNum)
+				schedulerapi.DefaultPreemptMinReplicaNum,
+				schedulerapi.DefaultPreemptThrottleValue)
 			podIgnored := &v1.Pod{}
 			result, err := scheduler.Schedule(context.Background(), prof, framework.NewCycleState(), podIgnored)
 			if test.expectsErr {

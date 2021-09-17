@@ -829,7 +829,8 @@ func TestGenericScheduler(t *testing.T) {
 				schedulerapi.DefaultPercentageOfNodesToScore,
 				false,
 				schedulerapi.DefaultPreemptMinIntervalSeconds,
-				schedulerapi.DefaultPreemptMinReplicaNum)
+				schedulerapi.DefaultPreemptMinReplicaNum,
+				schedulerapi.DefaultPreemptThrottleValue)
 			result, err := scheduler.Schedule(context.Background(), prof, framework.NewCycleState(), test.pod)
 			if !reflect.DeepEqual(err, test.wErr) {
 				t.Errorf("Unexpected error: %v, expected: %v", err.Error(), test.wErr)
@@ -859,7 +860,8 @@ func makeScheduler(nodes []*v1.Node) *genericScheduler {
 		nil, nil, nil, nil, nil, nil, false,
 		schedulerapi.DefaultPercentageOfNodesToScore, false,
 		schedulerapi.DefaultPreemptMinIntervalSeconds,
-		schedulerapi.DefaultPreemptMinReplicaNum)
+		schedulerapi.DefaultPreemptMinReplicaNum,
+		schedulerapi.DefaultPreemptThrottleValue)
 	cache.UpdateSnapshot(s.(*genericScheduler).nodeInfoSnapshot)
 	return s.(*genericScheduler)
 }
@@ -1160,7 +1162,8 @@ func TestZeroRequest(t *testing.T) {
 				schedulerapi.DefaultPercentageOfNodesToScore,
 				false,
 				schedulerapi.DefaultPreemptMinIntervalSeconds,
-				schedulerapi.DefaultPreemptMinReplicaNum).(*genericScheduler)
+				schedulerapi.DefaultPreemptMinReplicaNum,
+				schedulerapi.DefaultPreemptThrottleValue).(*genericScheduler)
 			scheduler.nodeInfoSnapshot = snapshot
 
 			ctx := context.Background()
@@ -1646,7 +1649,8 @@ func TestSelectNodesForPreemption(t *testing.T) {
 				schedulerapi.DefaultPercentageOfNodesToScore,
 				false,
 				schedulerapi.DefaultPreemptMinIntervalSeconds,
-				schedulerapi.DefaultPreemptMinReplicaNum)
+				schedulerapi.DefaultPreemptMinReplicaNum,
+				schedulerapi.DefaultPreemptThrottleValue)
 			g := scheduler.(*genericScheduler)
 
 			assignDefaultStartTime(test.pods)
@@ -2449,7 +2453,8 @@ func TestPreempt(t *testing.T) {
 				schedulerapi.DefaultPercentageOfNodesToScore,
 				true,
 				schedulerapi.DefaultPreemptMinIntervalSeconds,
-				schedulerapi.DefaultPreemptMinReplicaNum)
+				schedulerapi.DefaultPreemptMinReplicaNum,
+				schedulerapi.DefaultPreemptThrottleValue)
 			state := framework.NewCycleState()
 			// Some tests rely on PreFilter plugin to compute its CycleState.
 			preFilterStatus := fwk.RunPreFilterPlugins(context.Background(), state, test.pod)
