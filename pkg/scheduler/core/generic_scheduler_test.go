@@ -37,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes/fake"
 	clientsetfake "k8s.io/client-go/kubernetes/fake"
 	extenderv1 "k8s.io/kube-scheduler/extender/v1"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
@@ -827,7 +828,8 @@ func TestGenericScheduler(t *testing.T) {
 				false,
 				schedulerapi.DefaultPercentageOfNodesToScore,
 				false,
-				schedulerapi.DefaultPreemptMinIntervalSeconds)
+				schedulerapi.DefaultPreemptMinIntervalSeconds,
+				schedulerapi.DefaultPreemptMinReplicaNum)
 			result, err := scheduler.Schedule(context.Background(), prof, framework.NewCycleState(), test.pod)
 			if !reflect.DeepEqual(err, test.wErr) {
 				t.Errorf("Unexpected error: %v, expected: %v", err.Error(), test.wErr)
@@ -856,7 +858,8 @@ func makeScheduler(nodes []*v1.Node) *genericScheduler {
 		emptySnapshot,
 		nil, nil, nil, nil, nil, nil, false,
 		schedulerapi.DefaultPercentageOfNodesToScore, false,
-		schedulerapi.DefaultPreemptMinIntervalSeconds)
+		schedulerapi.DefaultPreemptMinIntervalSeconds,
+		schedulerapi.DefaultPreemptMinReplicaNum)
 	cache.UpdateSnapshot(s.(*genericScheduler).nodeInfoSnapshot)
 	return s.(*genericScheduler)
 }
@@ -1156,7 +1159,8 @@ func TestZeroRequest(t *testing.T) {
 				false,
 				schedulerapi.DefaultPercentageOfNodesToScore,
 				false,
-				schedulerapi.DefaultPreemptMinIntervalSeconds).(*genericScheduler)
+				schedulerapi.DefaultPreemptMinIntervalSeconds,
+				schedulerapi.DefaultPreemptMinReplicaNum).(*genericScheduler)
 			scheduler.nodeInfoSnapshot = snapshot
 
 			ctx := context.Background()
@@ -1641,7 +1645,8 @@ func TestSelectNodesForPreemption(t *testing.T) {
 				false,
 				schedulerapi.DefaultPercentageOfNodesToScore,
 				false,
-				schedulerapi.DefaultPreemptMinIntervalSeconds)
+				schedulerapi.DefaultPreemptMinIntervalSeconds,
+				schedulerapi.DefaultPreemptMinReplicaNum)
 			g := scheduler.(*genericScheduler)
 
 			assignDefaultStartTime(test.pods)
@@ -2443,7 +2448,8 @@ func TestPreempt(t *testing.T) {
 				false,
 				schedulerapi.DefaultPercentageOfNodesToScore,
 				true,
-				schedulerapi.DefaultPreemptMinIntervalSeconds)
+				schedulerapi.DefaultPreemptMinIntervalSeconds,
+				schedulerapi.DefaultPreemptMinReplicaNum)
 			state := framework.NewCycleState()
 			// Some tests rely on PreFilter plugin to compute its CycleState.
 			preFilterStatus := fwk.RunPreFilterPlugins(context.Background(), state, test.pod)
@@ -2679,4 +2685,85 @@ func TestStartRecently(t *testing.T) {
 		})
 	}
 
+}
+
+func TestSmallSizeDeployment(t *testing.T) {
+	tests := []struct {
+		name           string
+		replica        int32
+		minReplicaNum  int64
+		expectedResult bool
+		annotations    map[string]string
+	}{
+
+		{
+			name:           "using scheduler config, not small size rs",
+			replica:        1,
+			minReplicaNum:  0,
+			expectedResult: false,
+		},
+		{
+			name:           "using scheduler config, small size rs",
+			replica:        1,
+			minReplicaNum:  1,
+			expectedResult: true,
+		},
+		{
+			name:          "using pod config, not small size rs",
+			replica:       1,
+			minReplicaNum: 1,
+			annotations: map[string]string{
+				podutil.PreemptMinReplicaNumKey: "0",
+			},
+			expectedResult: false,
+		},
+		{
+			name:          "using pod config, small size rs",
+			replica:       1,
+			minReplicaNum: 0,
+			annotations: map[string]string{
+				podutil.PreemptMinReplicaNumKey: "1",
+			},
+			expectedResult: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			replica := new(int32)
+			*replica = test.replica
+			deploy := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace:   "default",
+					Name:        "dp",
+					Annotations: test.annotations,
+				},
+				Spec: appsv1.DeploymentSpec{
+					Replicas: replica,
+				},
+			}
+			pod := &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+					Name:      "pod",
+					Labels: map[string]string{
+						"name": "dp",
+					},
+				},
+			}
+			clientset := fake.NewSimpleClientset(deploy)
+			informerFactory := informers.NewSharedInformerFactory(clientset, 0)
+			stop := make(chan struct{})
+			deployLister := informerFactory.Apps().V1().Deployments().Lister()
+			informerFactory.Start(stop)
+			informerFactory.WaitForCacheSync(stop)
+			schedulerCache := internalcache.New(30*time.Second, stop)
+			schedulerCache.SetDeployItems(deploy)
+			gotResult := SmallSizeDeployment(pod, deployLister, test.minReplicaNum, schedulerCache)
+			if !reflect.DeepEqual(gotResult, test.expectedResult) {
+				t.Errorf("Expected: %v, Got: %v", test.expectedResult, gotResult)
+			}
+			close(stop)
+		})
+	}
 }

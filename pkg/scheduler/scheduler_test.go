@@ -828,6 +828,7 @@ func setupTestScheduler(queuedPodStore *clientcache.FIFO, scache internalcache.C
 		schedulerapi.DefaultPercentageOfNodesToScore,
 		false,
 		schedulerapi.DefaultPreemptMinIntervalSeconds,
+		schedulerapi.DefaultPreemptMinReplicaNum,
 	)
 
 	errChan := make(chan error, 1)
@@ -1187,6 +1188,7 @@ func TestSchedulerBinding(t *testing.T) {
 				false,
 				0,
 				false,
+				0,
 				0,
 			)
 			sched := Scheduler{
