@@ -191,6 +191,7 @@ func Run(ctx context.Context, cc schedulerserverconfig.CompletedConfig, outOfTre
 		scheduler.WithExtenders(cc.ComponentConfig.Extenders...),
 		scheduler.WithPreemptMinIntervalSeconds(cc.PreemptMinIntervalSeconds),
 		scheduler.WithPreemptMinReplicaNum(cc.PreemptMinReplicaNum),
+		scheduler.WithPreemptThrottleValue(cc.PreemptThrottleValue),
 	)
 	if err != nil {
 		return err

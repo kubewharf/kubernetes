@@ -49,7 +49,7 @@ func (cache *schedulerCache) SubtractOneVictim(deployName string, victimUID stri
 	return nil
 }
 
-func (cache *schedulerCache) ShouldDeployVictimsBeThrottled(pod *v1.Pod) bool {
+func (cache *schedulerCache) ShouldDeployVictimsBeThrottled(pod *v1.Pod, throttleValue int64) bool {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
@@ -58,7 +58,13 @@ func (cache *schedulerCache) ShouldDeployVictimsBeThrottled(pod *v1.Pod) bool {
 		return false
 	}
 
-	return len(cache.deployVictims[deployName]) >= 5
+	deployKey := fmt.Sprintf("%s/%s", pod.GetNamespace(), deployName)
+	throttleItem := cache.deployItems[deployKey].preemptThrottleValue
+	if throttleItem != nil {
+		throttleValue = *throttleItem
+	}
+
+	return len(cache.deployVictims[deployName]) >= int(throttleValue)
 }
 
 func (cache *schedulerCache) CleanUpOutdatedVictims() {

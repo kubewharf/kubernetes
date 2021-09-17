@@ -36,6 +36,8 @@ const (
 
 	PreemptMinIntervalSecondsKey = "bytedance.com/preempt-min-interval-seconds"
 	PreemptMinReplicaNumKey      = "bytedance.com/preempt-min-replica-num"
+	PreemptThrottleValueKey      = "bytedance.com/preemp-throttle-value"
+	PreemptThrottlePercentageKey = "bytedance.com/preemp-throttle-percentage"
 )
 
 // FindPort locates the container port for the given pod and portName.  If the

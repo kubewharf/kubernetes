@@ -65,6 +65,8 @@ type Config struct {
 	PreemptMinIntervalSeconds int64
 	// only if replica num of this pod's owner reference is larger than the value, the pod could be preempted
 	PreemptMinReplicaNum int64
+	// The num of pods preempted in a deploy could not be more than this value
+	PreemptThrottleValue int64
 }
 
 type completedConfig struct {

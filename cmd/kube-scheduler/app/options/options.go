@@ -80,6 +80,8 @@ type Options struct {
 	PreemptMinIntervalSeconds int64
 	// only if replica num of this pod's owner reference is larger than the value, the pod could be preempted
 	PreemptMinReplicaNum int64
+	// The num of pods preempted in a deploy could not be more than this value
+	PreemptThrottleValue int64
 }
 
 // NewOptions returns default scheduler app options.
@@ -117,6 +119,7 @@ func NewOptions() (*Options, error) {
 		},
 		PreemptMinIntervalSeconds: kubeschedulerconfig.DefaultPreemptMinIntervalSeconds,
 		PreemptMinReplicaNum:      kubeschedulerconfig.DefaultPreemptMinReplicaNum,
+		PreemptThrottleValue:      kubeschedulerconfig.DefaultPreemptThrottleValue,
 	}
 
 	o.Authentication.TolerateInClusterLookupFailure = true
@@ -164,6 +167,7 @@ func (o *Options) Flags() (nfs cliflag.NamedFlagSets) {
 	fs.StringVar(&o.Master, "master", o.Master, "The address of the Kubernetes API server (overrides any value in kubeconfig)")
 	fs.Int64Var(&o.PreemptMinIntervalSeconds, "preempt-min-interval-seconds", o.PreemptMinIntervalSeconds, "only if pod started more than this time duration, it could be preempted")
 	fs.Int64Var(&o.PreemptMinReplicaNum, "preempt-min-replica-num", o.PreemptMinReplicaNum, "only if replica num of this pod's owner reference is larger than the value, the pod could be preempted")
+	fs.Int64Var(&o.PreemptThrottleValue, "preempt-throttle-value", o.PreemptThrottleValue, "the num of pods preempted in a deploy could not be more than this value")
 
 	o.SecureServing.AddFlags(nfs.FlagSet("secure serving"))
 	o.CombinedInsecureServing.AddFlags(nfs.FlagSet("insecure serving"))
@@ -234,6 +238,7 @@ func (o *Options) ApplyTo(c *schedulerappconfig.Config) error {
 
 	c.PreemptMinIntervalSeconds = o.PreemptMinIntervalSeconds
 	c.PreemptMinReplicaNum = o.PreemptMinReplicaNum
+	c.PreemptThrottleValue = o.PreemptThrottleValue
 
 	return nil
 }

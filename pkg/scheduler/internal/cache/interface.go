@@ -135,7 +135,7 @@ type Cache interface {
 
 	DeletePreemptorFromCacheOnly(preemptor *v1.Pod) error
 
-	ShouldDeployVictimsBeThrottled(pod *v1.Pod) bool
+	ShouldDeployVictimsBeThrottled(pod *v1.Pod, throttleValue int64) bool
 
 	AddOneVictim(deployName string, victimUID string) error
 

@@ -266,6 +266,7 @@ const (
 
 	DefaultPreemptMinIntervalSeconds = 0
 	DefaultPreemptMinReplicaNum      = 3
+	DefaultPreemptThrottleValue      = 5
 )
 
 func appendPluginSet(dst *PluginSet, src *PluginSet) *PluginSet {

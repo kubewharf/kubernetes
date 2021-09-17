@@ -120,6 +120,7 @@ type Configurator struct {
 
 	preemptMinIntervalSeconds int64
 	preemptMinReplicaNum      int64
+	preemptThrottleValue      int64
 }
 
 func (c *Configurator) buildFramework(p schedulerapi.KubeSchedulerProfile) (framework.Framework, error) {
@@ -220,6 +221,7 @@ func (c *Configurator) create() (*Scheduler, error) {
 		c.enableNonPreempting,
 		c.preemptMinIntervalSeconds,
 		c.preemptMinReplicaNum,
+		c.preemptThrottleValue,
 	)
 
 	return &Scheduler{

@@ -141,7 +141,7 @@ func (c *Cache) IsVictims(deployName string) bool {
 	return false
 }
 
-func (c *Cache) ShouldDeployVictimsBeThrottled(pod *v1.Pod) bool {
+func (c *Cache) ShouldDeployVictimsBeThrottled(pod *v1.Pod, throttleValue int64) bool {
 	return false
 }
 

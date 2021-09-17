@@ -153,6 +153,7 @@ type schedulerOptions struct {
 
 	preemptMinIntervalSeconds int64
 	preemptMinReplicaNum      int64
+	preemptThrottleValue      int64
 }
 
 // Option configures a Scheduler
@@ -189,6 +190,12 @@ func WithPreemptMinIntervalSeconds(preemptMinIntervalSeconds int64) Option {
 func WithPreemptMinReplicaNum(minReplicaNum int64) Option {
 	return func(o *schedulerOptions) {
 		o.preemptMinReplicaNum = minReplicaNum
+	}
+}
+
+func WithPreemptThrottleValue(throttleValue int64) Option {
+	return func(o *schedulerOptions) {
+		o.preemptThrottleValue = throttleValue
 	}
 }
 
@@ -257,6 +264,7 @@ var defaultSchedulerOptions = schedulerOptions{
 	nodePackageResourceMatchFactor: schedulerapi.DefaultNodePackageFactor,
 	preemptMinIntervalSeconds:      schedulerapi.DefaultPreemptMinIntervalSeconds,
 	preemptMinReplicaNum:           schedulerapi.DefaultPreemptMinReplicaNum,
+	preemptThrottleValue:           schedulerapi.DefaultPreemptThrottleValue,
 }
 
 // New returns a Scheduler
@@ -318,6 +326,7 @@ func New(client clientset.Interface,
 		nodePackageResourceMatchFactor: options.nodePackageResourceMatchFactor,
 		preemptMinIntervalSeconds:      options.preemptMinIntervalSeconds,
 		preemptMinReplicaNum:           options.preemptMinReplicaNum,
+		preemptThrottleValue:           options.preemptThrottleValue,
 	}
 
 	metrics.Register()

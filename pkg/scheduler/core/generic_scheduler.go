@@ -145,6 +145,7 @@ type genericScheduler struct {
 	nextStartNodeIndex          int
 	preemptMinIntervalSeconds   int64
 	preemptMinReplicaNum        int64
+	preemptThrottleValue        int64
 }
 
 // snapshot snapshots scheduler cache and node infos for all fit and priority
@@ -1253,7 +1254,7 @@ func (g *genericScheduler) selectVictimsOnNode(
 			continue
 		}
 
-		if cache.ShouldDeployVictimsBeThrottled(p) {
+		if cache.ShouldDeployVictimsBeThrottled(p, g.preemptThrottleValue) {
 			klog.Infof("too many victims of this deployment in a short period, skip this eviction")
 			continue
 		}
@@ -1446,7 +1447,8 @@ func NewGenericScheduler(
 	percentageOfNodesToScore int32,
 	enableNonPreempting bool,
 	preemptMinIntervalSeconds int64,
-	preemptMinReplicaNum int64) ScheduleAlgorithm {
+	preemptMinReplicaNum int64,
+	preemptThrottleValue int64) ScheduleAlgorithm {
 	return &genericScheduler{
 		cache:                       cache,
 		refinedNodeResourceInformer: refinedNodeResourceInformer,
@@ -1463,6 +1465,7 @@ func NewGenericScheduler(
 		enableNonPreempting:         enableNonPreempting,
 		preemptMinIntervalSeconds:   preemptMinIntervalSeconds,
 		preemptMinReplicaNum:        preemptMinReplicaNum,
+		preemptThrottleValue:        preemptThrottleValue,
 	}
 }
 

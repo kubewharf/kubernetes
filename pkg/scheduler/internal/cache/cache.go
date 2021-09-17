@@ -95,6 +95,7 @@ type schedulerCache struct {
 type DeployItem struct {
 	preemptMinIntervalSeconds *int64
 	preemptMinReplicaNum      *int64
+	preemptThrottleValue      *int64
 }
 
 func (item DeployItem) GetPreemptMinIntervalSeconds() *int64 {
@@ -913,6 +914,23 @@ func (cache *schedulerCache) SetDeployItems(deploy *appsv1.Deployment) {
 			deployItem := cache.deployItems[deployKey]
 			deployItem.preemptMinReplicaNum = &minReplicaNum
 			cache.deployItems[deployKey] = deployItem
+		}
+	}
+	if throttleStr, ok := annotations[podutil.PreemptThrottleValueKey]; ok {
+		if throttleVal, err := strconv.ParseInt(throttleStr, 10, 64); err == nil {
+			deployItem := cache.deployItems[deployKey]
+			deployItem.preemptThrottleValue = &throttleVal
+			cache.deployItems[deployKey] = deployItem
+		}
+	}
+	if throttlePercentageStr, ok := annotations[podutil.PreemptThrottlePercentageKey]; ok {
+		if throttlePercentage, err := strconv.ParseInt(throttlePercentageStr, 10, 64); err == nil && deploy.Spec.Replicas != nil {
+			throttleVal := throttlePercentage * int64(*deploy.Spec.Replicas) / 100
+			deployItem := cache.deployItems[deployKey]
+			if deployItem.preemptThrottleValue == nil || *deployItem.preemptThrottleValue > throttleVal {
+				deployItem.preemptThrottleValue = &throttleVal
+				cache.deployItems[deployKey] = deployItem
+			}
 		}
 	}
 }
