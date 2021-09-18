@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	policy "k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -38,6 +39,7 @@ import (
 	"k8s.io/client-go/informers"
 	clientsetfake "k8s.io/client-go/kubernetes/fake"
 	extenderv1 "k8s.io/kube-scheduler/extender/v1"
+	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	volumescheduling "k8s.io/kubernetes/pkg/controller/volume/scheduling"
 	schedulerapi "k8s.io/kubernetes/pkg/scheduler/apis/config"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/defaultbinder"
@@ -824,7 +826,8 @@ func TestGenericScheduler(t *testing.T) {
 				informerFactory.Apps().V1().Deployments().Lister(),
 				false,
 				schedulerapi.DefaultPercentageOfNodesToScore,
-				false)
+				false,
+				schedulerapi.DefaultPreemptMinIntervalSeconds)
 			result, err := scheduler.Schedule(context.Background(), prof, framework.NewCycleState(), test.pod)
 			if !reflect.DeepEqual(err, test.wErr) {
 				t.Errorf("Unexpected error: %v, expected: %v", err.Error(), test.wErr)
@@ -852,7 +855,8 @@ func makeScheduler(nodes []*v1.Node) *genericScheduler {
 		internalqueue.NewSchedulingQueue(nil),
 		emptySnapshot,
 		nil, nil, nil, nil, nil, nil, false,
-		schedulerapi.DefaultPercentageOfNodesToScore, false)
+		schedulerapi.DefaultPercentageOfNodesToScore, false,
+		schedulerapi.DefaultPreemptMinIntervalSeconds)
 	cache.UpdateSnapshot(s.(*genericScheduler).nodeInfoSnapshot)
 	return s.(*genericScheduler)
 }
@@ -1151,7 +1155,8 @@ func TestZeroRequest(t *testing.T) {
 				nil,
 				false,
 				schedulerapi.DefaultPercentageOfNodesToScore,
-				false).(*genericScheduler)
+				false,
+				schedulerapi.DefaultPreemptMinIntervalSeconds).(*genericScheduler)
 			scheduler.nodeInfoSnapshot = snapshot
 
 			ctx := context.Background()
@@ -1635,7 +1640,8 @@ func TestSelectNodesForPreemption(t *testing.T) {
 				informerFactory.Apps().V1().Deployments().Lister(),
 				false,
 				schedulerapi.DefaultPercentageOfNodesToScore,
-				false)
+				false,
+				schedulerapi.DefaultPreemptMinIntervalSeconds)
 			g := scheduler.(*genericScheduler)
 
 			assignDefaultStartTime(test.pods)
@@ -2436,7 +2442,8 @@ func TestPreempt(t *testing.T) {
 				informerFactory.Apps().V1().Deployments().Lister(),
 				false,
 				schedulerapi.DefaultPercentageOfNodesToScore,
-				true)
+				true,
+				schedulerapi.DefaultPreemptMinIntervalSeconds)
 			state := framework.NewCycleState()
 			// Some tests rely on PreFilter plugin to compute its CycleState.
 			preFilterStatus := fwk.RunPreFilterPlugins(context.Background(), state, test.pod)
@@ -2598,4 +2605,78 @@ func nodesToNodeInfos(nodes []*v1.Node, snapshot *internalcache.Snapshot) ([]*sc
 		nodeInfos = append(nodeInfos, nodeInfo)
 	}
 	return nodeInfos, nil
+}
+
+func TestStartRecently(t *testing.T) {
+	tests := []struct {
+		name               string
+		runningTime        int64
+		minIntervalSeconds int64
+		expectedResult     bool
+		annotations        map[string]string
+	}{
+		{
+			name:               "using scheduler config, start recently",
+			runningTime:        59,
+			minIntervalSeconds: 60,
+			expectedResult:     true,
+		},
+		{
+			name:               "using scheduler config, not start recently",
+			runningTime:        61,
+			minIntervalSeconds: 60,
+			expectedResult:     false,
+		},
+		{
+			name:               "using deploy config, not start recently",
+			runningTime:        59,
+			minIntervalSeconds: 60,
+			annotations: map[string]string{
+				podutil.PreemptMinIntervalSecondsKey: "58",
+			},
+			expectedResult: false,
+		},
+		{
+			name:               "using deploy config, start recently",
+			runningTime:        61,
+			minIntervalSeconds: 60,
+			annotations: map[string]string{
+				podutil.PreemptMinIntervalSecondsKey: "62",
+			},
+			expectedResult: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			startTime := metav1.NewTime(time.Now().Add(-time.Duration(test.runningTime) * time.Second))
+			pod := &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+					Name:      "pod",
+					Labels: map[string]string{
+						"name": "dp",
+					},
+				},
+				Status: v1.PodStatus{
+					StartTime: &startTime,
+				},
+			}
+			deploy := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace:   "default",
+					Name:        "dp",
+					Annotations: test.annotations,
+				},
+			}
+			stop := make(chan struct{})
+			schedulerCache := internalcache.New(30*time.Second, stop)
+			schedulerCache.SetDeployItems(deploy)
+			gotResult := StartRecently(pod, test.minIntervalSeconds, schedulerCache)
+			if !reflect.DeepEqual(gotResult, test.expectedResult) {
+				t.Errorf("Expected: %v, Got: %v", test.expectedResult, gotResult)
+			}
+		})
+	}
+
 }
