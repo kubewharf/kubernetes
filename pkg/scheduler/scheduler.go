@@ -38,6 +38,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
+	"k8s.io/kubernetes/pkg/apis/core/validation"
 	"k8s.io/kubernetes/pkg/controller/volume/scheduling"
 	"k8s.io/kubernetes/pkg/features"
 	kubefeatures "k8s.io/kubernetes/pkg/features"
@@ -456,7 +457,8 @@ func (sched *Scheduler) recordSchedulingFailure(prof *profile.Profile, podInfo *
 	sched.Error(podInfo, err)
 	metrics.SchedulingFailedCounter.Inc()
 	pod := podInfo.Pod
-	prof.Recorder.Eventf(pod, nil, v1.EventTypeWarning, "FailedScheduling", "Scheduling", message)
+	msg := truncateMessage(message)
+	prof.Recorder.Eventf(pod, nil, v1.EventTypeWarning, "FailedScheduling", "Scheduling", msg)
 	if err := sched.podConditionUpdater.update(pod, &v1.PodCondition{
 		Type:    v1.PodScheduled,
 		Status:  v1.ConditionFalse,
@@ -465,6 +467,16 @@ func (sched *Scheduler) recordSchedulingFailure(prof *profile.Profile, podInfo *
 	}); err != nil {
 		klog.Errorf("Error updating the condition of the pod %s/%s: %v", pod.Namespace, pod.Name, err)
 	}
+}
+
+// truncateMessage truncates a message if it hits the NoteLengthLimit.
+func truncateMessage(message string) string {
+	max := validation.NoteLengthLimit
+	if len(message) <= max {
+		return message
+	}
+	suffix := " ..."
+	return message[:max-len(suffix)] + suffix
 }
 
 func podHasLeastPriority(pod *v1.Pod) bool {
@@ -547,7 +559,13 @@ func (sched *Scheduler) preempt(ctx context.Context, prof *profile.Profile, stat
 			if waitingPod := prof.GetWaitingPod(victim.UID); waitingPod != nil {
 				waitingPod.Reject("preempted")
 			}
-			prof.Recorder.Eventf(victim, preemptor, v1.EventTypeNormal, "Preempted", "Preempting", "Preempted by %v/%v on node %v", preemptor.Namespace, preemptor.Name, nodeName)
+
+			klog.V(4).Infof("victim pod %v/%v from victim PSM %v is preempted by %v/%v from preemptor PSM %v on node %v",
+				victim.Namespace, victim.Name, util.GetPSMFromPod(victim),
+				preemptor.Namespace, preemptor.Name, util.GetPSMFromPod(preemptor),
+				nodeName)
+			prof.Recorder.Eventf(victim, preemptor, v1.EventTypeNormal, "Preempted", "Preempting",
+				"Preempted by %v/%v from PSM %v on node %v", preemptor.Namespace, preemptor.Name, util.GetPSMFromPod(preemptor), nodeName)
 
 			// cache victims for deployment
 			deployName := util.GetDeployNameFromPod(victim)
@@ -813,7 +831,8 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 	if addResourceErr != nil {
 		klog.Errorf("Failed to schedule: %v, fail to add cpu/memory resource for socket policy.", podToUpdate)
 		sched.Error(podInfo.DeepCopy(), addResourceErr)
-		prof.Recorder.Eventf(podToUpdate, nil, v1.EventTypeWarning, "FailedScheduling", "%v", addResourceErr.Error())
+		msg := truncateMessage(addResourceErr.Error())
+		prof.Recorder.Eventf(podToUpdate, nil, v1.EventTypeWarning, "FailedScheduling", "%v", msg)
 		sched.podConditionUpdater.update(podToUpdate, &v1.PodCondition{
 			Type:   v1.PodScheduled,
 			Status: v1.ConditionFalse,
@@ -845,7 +864,8 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 		if allocateShareGPUErr != nil {
 			klog.Errorf("Failed to schedule: %v, fail to allocate physical gpu.", podToUpdate)
 			sched.Error(podInfo.DeepCopy(), allocateShareGPUErr)
-			prof.Recorder.Eventf(podToUpdate, nil, v1.EventTypeWarning, "FailedScheduling", "%v", allocateShareGPUErr.Error())
+			msg := truncateMessage(allocateShareGPUErr.Error())
+			prof.Recorder.Eventf(podToUpdate, nil, v1.EventTypeWarning, "FailedScheduling", "%v", msg)
 			sched.podConditionUpdater.update(podToUpdate, &v1.PodCondition{
 				Type:   v1.PodScheduled,
 				Status: v1.ConditionFalse,
@@ -864,7 +884,8 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 	if assumedPodCPUAddErr != nil {
 		klog.Errorf("Failed to schedule: %v, fail to add cpu resource for socket policy.", assumedPod)
 		sched.Error(assumedPodInfo, assumedPodCPUAddErr)
-		prof.Recorder.Eventf(assumedPod, nil, v1.EventTypeWarning, "FailedScheduling", "%v", assumedPodCPUAddErr.Error())
+		msg := truncateMessage(assumedPodCPUAddErr.Error())
+		prof.Recorder.Eventf(assumedPod, nil, v1.EventTypeWarning, "FailedScheduling", "%v", msg)
 		sched.podConditionUpdater.update(assumedPod, &v1.PodCondition{
 			Type:   v1.PodScheduled,
 			Status: v1.ConditionFalse,
@@ -969,7 +990,8 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 					klog.Errorf("scheduler cache ForgetPod failed 1: %v", err)
 				}
 				sched.Error(podInfo.DeepCopy(), errUpdate)
-				prof.Recorder.Eventf(podToUpdate, nil, v1.EventTypeNormal, "FailedScheduling", "Update failed: %v", errUpdate.Error())
+				msg := truncateMessage(errUpdate.Error())
+				prof.Recorder.Eventf(podToUpdate, nil, v1.EventTypeNormal, "FailedScheduling", "Update failed: %v", msg)
 				sched.podConditionUpdater.update(podToUpdate, &v1.PodCondition{
 					Type:   v1.PodScheduled,
 					Status: v1.ConditionFalse,

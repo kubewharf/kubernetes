@@ -580,3 +580,11 @@ func IsTCEDaemonPod(pod *v1.Pod) bool {
 
 	return false
 }
+
+const (
+	PSMLabel = "psm"
+)
+
+func GetPSMFromPod(pod *v1.Pod) string {
+	return pod.Labels[PSMLabel]
+}
