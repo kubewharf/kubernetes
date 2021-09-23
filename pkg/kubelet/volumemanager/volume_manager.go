@@ -203,6 +203,7 @@ func NewVolumeManager(
 		nodeName,
 		vm.desiredStateOfWorld,
 		vm.actualStateOfWorld,
+		podManager,
 		vm.desiredStateOfWorldPopulator.HasAddedPods,
 		vm.operationExecutor,
 		mounter,

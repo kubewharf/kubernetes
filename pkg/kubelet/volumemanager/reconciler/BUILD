@@ -13,6 +13,7 @@ go_library(
     deps = [
         "//pkg/features:go_default_library",
         "//pkg/kubelet/config:go_default_library",
+        "//pkg/kubelet/pod:go_default_library",
         "//pkg/kubelet/volumemanager/cache:go_default_library",
         "//pkg/util/goroutinemap/exponentialbackoff:go_default_library",
         "//pkg/volume:go_default_library",
