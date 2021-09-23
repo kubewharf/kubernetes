@@ -8,6 +8,9 @@ go_library(
     deps = [
         "//pkg/api/v1/pod:go_default_library",
         "//pkg/scheduler/framework/v1alpha1:go_default_library",
+        "//pkg/scheduler/util:go_default_library",
+        "//staging/src/k8s.io/api/core/v1:go_default_library",
+        "//staging/src/k8s.io/apimachinery/pkg/api/resource:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/runtime:go_default_library",
     ],
 )

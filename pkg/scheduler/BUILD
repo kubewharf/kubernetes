@@ -12,6 +12,7 @@ go_library(
     deps = [
         "//pkg/api/pod:go_default_library",
         "//pkg/api/v1/pod:go_default_library",
+        "//pkg/apis/core/validation:go_default_library",
         "//pkg/controller/volume/scheduling:go_default_library",
         "//pkg/features:go_default_library",
         "//pkg/scheduler/algorithmprovider:go_default_library",
@@ -32,6 +33,7 @@ go_library(
         "//pkg/scheduler/metrics:go_default_library",
         "//pkg/scheduler/profile:go_default_library",
         "//pkg/scheduler/util:go_default_library",
+        "//staging/src/k8s.io/api/apps/v1:go_default_library",
         "//staging/src/k8s.io/api/core/v1:go_default_library",
         "//staging/src/k8s.io/api/storage/v1:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/api/errors:go_default_library",

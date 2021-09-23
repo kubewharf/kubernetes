@@ -12,6 +12,7 @@ go_library(
     importpath = "k8s.io/kubernetes/pkg/scheduler/internal/cache",
     visibility = ["//pkg/scheduler:__subpackages__"],
     deps = [
+        "//pkg/api/v1/pod:go_default_library",
         "//pkg/api/v1/resource:go_default_library",
         "//pkg/features:go_default_library",
         "//pkg/scheduler/listers:go_default_library",
@@ -19,6 +20,7 @@ go_library(
         "//pkg/scheduler/nodeinfo:go_default_library",
         "//pkg/scheduler/util:go_default_library",
         "//pkg/util/node:go_default_library",
+        "//staging/src/k8s.io/api/apps/v1:go_default_library",
         "//staging/src/k8s.io/api/core/v1:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/api/resource:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/labels:go_default_library",
@@ -36,13 +38,16 @@ go_test(
     srcs = [
         "cache_test.go",
         "node_tree_test.go",
+        "refinedresourcecache_test.go",
         "snapshot_test.go",
     ],
     embed = [":go_default_library"],
     deps = [
+        "//pkg/api/v1/pod:go_default_library",
         "//pkg/features:go_default_library",
         "//pkg/scheduler/nodeinfo:go_default_library",
         "//pkg/scheduler/util:go_default_library",
+        "//staging/src/k8s.io/api/apps/v1:go_default_library",
         "//staging/src/k8s.io/api/core/v1:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/api/resource:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",

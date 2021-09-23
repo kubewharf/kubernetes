@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/kubernetes/pkg/kubelet/pod"
 	"os"
 	"path"
 	"path/filepath"
@@ -112,6 +113,7 @@ func NewReconciler(
 	nodeName types.NodeName,
 	desiredStateOfWorld cache.DesiredStateOfWorld,
 	actualStateOfWorld cache.ActualStateOfWorld,
+	podManager pod.Manager,
 	populatorHasAddedPods func() bool,
 	operationExecutor operationexecutor.OperationExecutor,
 	mounter mount.Interface,
@@ -127,6 +129,7 @@ func NewReconciler(
 		nodeName:                      nodeName,
 		desiredStateOfWorld:           desiredStateOfWorld,
 		actualStateOfWorld:            actualStateOfWorld,
+		podManager:                    podManager,
 		populatorHasAddedPods:         populatorHasAddedPods,
 		operationExecutor:             operationExecutor,
 		mounter:                       mounter,
@@ -146,6 +149,7 @@ type reconciler struct {
 	nodeName                      types.NodeName
 	desiredStateOfWorld           cache.DesiredStateOfWorld
 	actualStateOfWorld            cache.ActualStateOfWorld
+	podManager                    pod.Manager
 	populatorHasAddedPods         func() bool
 	operationExecutor             operationexecutor.OperationExecutor
 	mounter                       mount.Interface
@@ -208,6 +212,26 @@ func (rc *reconciler) unmountVolumes() {
 			}
 			if err == nil {
 				klog.Infof(mountedVolume.GenerateMsgDetailed("operationExecutor.UnmountVolume started", ""))
+			}
+		}
+	}
+
+	if podVolumes, err := getVolumesFromPodDir(rc.kubeletPodsDir); err != nil {
+		klog.Errorf("Cannot get volumes from disk %v", err)
+	} else if rc.populatorHasAddedPods() {
+		for _, volume := range podVolumes {
+			if !rc.actualStateOfWorld.VolumeExistsWithSpecName(volume.podName, volume.volumeSpecName) &&
+				!rc.desiredStateOfWorld.VolumeExistsWithSpecName(volume.podName, volume.volumeSpecName) {
+				pod, ok := rc.podManager.GetPodByUID(types.UID(volume.podName))
+				if !ok {
+					klog.Warningf("(pod.Name %s, pod.UID %s, volume.SpecName %s) is not existed in actual state and desired state, pod is not existed but volume still exist, try to clean up.", pod.Name, volume.podName, volume.volumeSpecName)
+				} else if util.IsPodTerminated(pod, pod.Status) {
+					klog.Warningf("(pod.Name %s, pod.UID %s, volume.SpecName %s) is not existed in actual state and desired state, all containers of pod are terminated but volume still exist, try to clean up.", pod.Name, volume.podName, volume.volumeSpecName)
+				} else {
+					klog.Warningf("(pod.Name %s, pod.UID %s, volume.SpecName %s) is not existed in actual state and desired state, but pod is not terminated", pod.Name, volume.podName, volume.volumeSpecName)
+					continue
+				}
+				rc.cleanupMounts(volume)
 			}
 		}
 	}
