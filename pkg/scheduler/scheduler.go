@@ -150,6 +150,10 @@ type schedulerOptions struct {
 	extenders                  []schedulerapi.Extender
 
 	nodePackageResourceMatchFactor float64
+
+	preemptMinIntervalSeconds int64
+	preemptMinReplicaNum      int64
+	preemptThrottleValue      int64
 }
 
 // Option configures a Scheduler
@@ -174,6 +178,24 @@ func WithAlgorithmSource(source schedulerapi.SchedulerAlgorithmSource) Option {
 func WithPreemptionDisabled(disablePreemption bool) Option {
 	return func(o *schedulerOptions) {
 		o.disablePreemption = disablePreemption
+	}
+}
+
+func WithPreemptMinIntervalSeconds(preemptMinIntervalSeconds int64) Option {
+	return func(o *schedulerOptions) {
+		o.preemptMinIntervalSeconds = preemptMinIntervalSeconds
+	}
+}
+
+func WithPreemptMinReplicaNum(minReplicaNum int64) Option {
+	return func(o *schedulerOptions) {
+		o.preemptMinReplicaNum = minReplicaNum
+	}
+}
+
+func WithPreemptThrottleValue(throttleValue int64) Option {
+	return func(o *schedulerOptions) {
+		o.preemptThrottleValue = throttleValue
 	}
 }
 
@@ -240,6 +262,9 @@ var defaultSchedulerOptions = schedulerOptions{
 	podInitialBackoffSeconds:       int64(internalqueue.DefaultPodInitialBackoffDuration.Seconds()),
 	podMaxBackoffSeconds:           int64(internalqueue.DefaultPodMaxBackoffDuration.Seconds()),
 	nodePackageResourceMatchFactor: schedulerapi.DefaultNodePackageFactor,
+	preemptMinIntervalSeconds:      schedulerapi.DefaultPreemptMinIntervalSeconds,
+	preemptMinReplicaNum:           schedulerapi.DefaultPreemptMinReplicaNum,
+	preemptThrottleValue:           schedulerapi.DefaultPreemptThrottleValue,
 }
 
 // New returns a Scheduler
@@ -299,6 +324,9 @@ func New(client clientset.Interface,
 		nodeInfoSnapshot:               snapshot,
 		extenders:                      options.extenders,
 		nodePackageResourceMatchFactor: options.nodePackageResourceMatchFactor,
+		preemptMinIntervalSeconds:      options.preemptMinIntervalSeconds,
+		preemptMinReplicaNum:           options.preemptMinReplicaNum,
+		preemptThrottleValue:           options.preemptThrottleValue,
 	}
 
 	metrics.Register()

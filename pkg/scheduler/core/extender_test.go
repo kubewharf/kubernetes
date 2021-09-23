@@ -607,7 +607,10 @@ func TestGenericSchedulerWithExtenders(t *testing.T) {
 				informerFactory.Apps().V1().Deployments().Lister(),
 				false,
 				schedulerapi.DefaultPercentageOfNodesToScore,
-				false)
+				false,
+				schedulerapi.DefaultPreemptMinIntervalSeconds,
+				schedulerapi.DefaultPreemptMinReplicaNum,
+				schedulerapi.DefaultPreemptThrottleValue)
 			podIgnored := &v1.Pod{}
 			result, err := scheduler.Schedule(context.Background(), prof, framework.NewCycleState(), podIgnored)
 			if test.expectsErr {

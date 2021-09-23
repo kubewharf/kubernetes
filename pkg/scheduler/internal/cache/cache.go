@@ -18,14 +18,17 @@ package cache
 
 import (
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/klog"
+	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/scheduler/metrics"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
@@ -85,6 +88,22 @@ type schedulerCache struct {
 	cachedPreemptors map[string]int
 	// key is deploy name, value is victims set
 	deployVictims map[string]victimSet
+	// key is deployNamespace/deployName
+	deployItems map[string]DeployItem
+}
+
+type DeployItem struct {
+	preemptMinIntervalSeconds *int64
+	preemptMinReplicaNum      *int64
+	preemptThrottleValue      *int64
+}
+
+func (item DeployItem) GetPreemptMinIntervalSeconds() *int64 {
+	return item.preemptMinIntervalSeconds
+}
+
+func (item DeployItem) GetPreemptMinReplicaNum() *int64 {
+	return item.preemptMinReplicaNum
 }
 
 // key is victim UID
@@ -136,6 +155,7 @@ func newSchedulerCache(ttl, period time.Duration, stop <-chan struct{}) *schedul
 		refinedResourceNodes: make(map[string]*schedulernodeinfo.NodeRefinedResourceInfo),
 		cachedPreemptors:     make(map[string]int),
 		deployVictims:        make(map[string]victimSet),
+		deployItems:          make(map[string]DeployItem),
 	}
 }
 
@@ -875,4 +895,55 @@ func (cache *schedulerCache) GetNodeInfo(nodeName string) *schedulernodeinfo.Nod
 		return nil
 	}
 	return nodeInfoItem.info.Clone()
+}
+
+func (cache *schedulerCache) SetDeployItems(deploy *appsv1.Deployment) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	annotations := deploy.GetAnnotations()
+	deployKey := fmt.Sprintf("%s/%s", deploy.GetNamespace(), deploy.GetName())
+	if minIntervalStr, ok := annotations[podutil.PreemptMinIntervalSecondsKey]; ok {
+		if minIntervalNum, err := strconv.ParseInt(minIntervalStr, 10, 64); err == nil {
+			deployItem := cache.deployItems[deployKey]
+			deployItem.preemptMinIntervalSeconds = &minIntervalNum
+			cache.deployItems[deployKey] = deployItem
+		}
+	}
+	if minReplicaStr, ok := annotations[podutil.PreemptMinReplicaNumKey]; ok {
+		if minReplicaNum, err := strconv.ParseInt(minReplicaStr, 10, 64); err == nil {
+			deployItem := cache.deployItems[deployKey]
+			deployItem.preemptMinReplicaNum = &minReplicaNum
+			cache.deployItems[deployKey] = deployItem
+		}
+	}
+	if throttleStr, ok := annotations[podutil.PreemptThrottleValueKey]; ok {
+		if throttleVal, err := strconv.ParseInt(throttleStr, 10, 64); err == nil {
+			deployItem := cache.deployItems[deployKey]
+			deployItem.preemptThrottleValue = &throttleVal
+			cache.deployItems[deployKey] = deployItem
+		}
+	}
+	if throttlePercentageStr, ok := annotations[podutil.PreemptThrottlePercentageKey]; ok {
+		if throttlePercentage, err := strconv.ParseInt(throttlePercentageStr, 10, 64); err == nil && deploy.Spec.Replicas != nil {
+			throttleVal := throttlePercentage * int64(*deploy.Spec.Replicas) / 100
+			deployItem := cache.deployItems[deployKey]
+			if deployItem.preemptThrottleValue == nil || *deployItem.preemptThrottleValue > throttleVal {
+				deployItem.preemptThrottleValue = &throttleVal
+				cache.deployItems[deployKey] = deployItem
+			}
+		}
+	}
+}
+
+func (cache *schedulerCache) DeleteDeployItems(deploy *appsv1.Deployment) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	deployKey := fmt.Sprintf("%s/%s", deploy.GetNamespace(), deploy.GetName())
+	delete(cache.deployItems, deployKey)
+}
+
+func (cache *schedulerCache) GetDeployItems(deployKey string) DeployItem {
+	cache.mu.RLock()
+	defer cache.mu.RUnlock()
+	return cache.deployItems[deployKey]
 }

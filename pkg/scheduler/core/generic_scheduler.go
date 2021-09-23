@@ -143,6 +143,9 @@ type genericScheduler struct {
 	percentageOfNodesToScore    int32
 	enableNonPreempting         bool
 	nextStartNodeIndex          int
+	preemptMinIntervalSeconds   int64
+	preemptMinReplicaNum        int64
+	preemptThrottleValue        int64
 }
 
 // snapshot snapshots scheduler cache and node infos for all fit and priority
@@ -389,20 +392,17 @@ func (g *genericScheduler) selectHost(pod *v1.Pod, nodeScoreList framework.NodeS
 	}
 	maxScore := nodeScoreList[0].Score
 	selected := nodeScoreList[0].Name
-	selectedIndex := 0
 	cntOfMaxScore := 1
-	for index, ns := range nodeScoreList[1:] {
+	for _, ns := range nodeScoreList[1:] {
 		if ns.Score > maxScore {
 			maxScore = ns.Score
 			selected = ns.Name
-			selectedIndex = index
 			cntOfMaxScore = 1
 		} else if ns.Score == maxScore {
 			cntOfMaxScore++
 			if rand.Intn(cntOfMaxScore) == 0 {
 				// Replace the candidate with probability of 1/cntOfMaxScore
 				selected = ns.Name
-				selectedIndex = index
 			}
 		}
 	}
@@ -422,7 +422,6 @@ func (g *genericScheduler) selectHost(pod *v1.Pod, nodeScoreList framework.NodeS
 
 	// only if pod affinity is nil, we can cache dp info, otherwise, we may break affinity rules
 	if cacheNodes {
-		maxScore := nodeScoreList[selectedIndex].Score
 		cached := 0
 		topM := 20
 		for _, nodeScore := range nodeScoreList {
@@ -1243,12 +1242,16 @@ func (g *genericScheduler) selectVictimsOnNode(
 			continue
 		}
 
-		if util.SmallSizeDeployment(p, deployLister) {
+		if SmallSizeDeployment(p, deployLister, g.preemptMinReplicaNum, cache) {
 			continue
 		}
 
-		if cache.ShouldDeployVictimsBeThrottled(p) {
-			klog.Infof("too many victims of this deployment in a short period, skip this eviction")
+		if StartRecently(p, g.preemptMinIntervalSeconds, cache) {
+			continue
+		}
+
+		if cache.ShouldDeployVictimsBeThrottled(p, g.preemptThrottleValue) {
+			klog.V(5).Infof("too many victims of this deployment in a short period, skip this eviction")
 			continue
 		}
 
@@ -1314,7 +1317,7 @@ func (g *genericScheduler) selectVictimsOnNode(
 		if err != nil {
 			klog.Warningf("Encountered error while selecting victims on node %v: %v", nodeInfo.Node().Name, err)
 		}
-		klog.V(4).Infof("pod:%s does not fit on node: %s after adding all pdb-violating pods", pod.Name, nodeInfo.Node().Name)
+		klog.V(5).Infof("pod:%s does not fit on node: %s after adding all pdb-violating pods", pod.Name, nodeInfo.Node().Name)
 		return nil, 0, false
 	}
 
@@ -1438,7 +1441,10 @@ func NewGenericScheduler(
 	deployLister appv1listers.DeploymentLister,
 	disablePreemption bool,
 	percentageOfNodesToScore int32,
-	enableNonPreempting bool) ScheduleAlgorithm {
+	enableNonPreempting bool,
+	preemptMinIntervalSeconds int64,
+	preemptMinReplicaNum int64,
+	preemptThrottleValue int64) ScheduleAlgorithm {
 	return &genericScheduler{
 		cache:                       cache,
 		refinedNodeResourceInformer: refinedNodeResourceInformer,
@@ -1453,5 +1459,62 @@ func NewGenericScheduler(
 		disablePreemption:           disablePreemption,
 		percentageOfNodesToScore:    percentageOfNodesToScore,
 		enableNonPreempting:         enableNonPreempting,
+		preemptMinIntervalSeconds:   preemptMinIntervalSeconds,
+		preemptMinReplicaNum:        preemptMinReplicaNum,
+		preemptThrottleValue:        preemptThrottleValue,
 	}
+}
+
+func StartRecently(pod *v1.Pod, minIntervalSeconds int64, cache internalcache.Cache) bool {
+	deployName := util.GetDeployNameFromPod(pod)
+	if len(deployName) == 0 {
+		return false
+	}
+	deployNamespace := pod.GetNamespace()
+	deployKey := fmt.Sprintf("%s/%s", deployNamespace, deployName)
+	minIntervalItem := cache.GetDeployItems(deployKey).GetPreemptMinIntervalSeconds()
+	if minIntervalItem != nil {
+		minIntervalSeconds = *minIntervalItem
+	}
+	if minIntervalSeconds <= 0 {
+		return false
+	}
+	startTime := pod.Status.StartTime
+	if startTime == nil {
+		return true
+	}
+	nowTime := time.Now()
+	limitTime := startTime.Add(time.Duration(minIntervalSeconds) * time.Second)
+	if nowTime.Before(limitTime) {
+		return true
+	}
+	return false
+}
+
+func SmallSizeDeployment(pod *v1.Pod, deployLister appv1listers.DeploymentLister, preemptMinReplicaNum int64, cache internalcache.Cache) bool {
+	deployName := util.GetDeployNameFromPod(pod)
+	if len(deployName) == 0 {
+		return false
+	}
+
+	deploy, err := deployLister.Deployments(pod.Namespace).Get(deployName)
+	if err != nil {
+		klog.Errorf("get deployment error: %+v", err)
+		return false
+	}
+	if deploy == nil {
+		return false
+	}
+	replica := deploy.Spec.Replicas
+	if replica == nil {
+		return false
+	}
+
+	deployKey := fmt.Sprintf("%s/%s", deploy.GetNamespace(), deploy.GetName())
+	minReplicaItem := cache.GetDeployItems(deployKey).GetPreemptMinReplicaNum()
+	if minReplicaItem != nil {
+		preemptMinReplicaNum = *minReplicaItem
+	}
+
+	return *replica <= int32(preemptMinReplicaNum)
 }

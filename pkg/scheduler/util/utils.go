@@ -25,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
-	appv1listers "k8s.io/client-go/listers/apps/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	schedulingv1listers "k8s.io/client-go/listers/scheduling/v1"
 	storagev1 "k8s.io/client-go/listers/storage/v1"
@@ -166,8 +165,8 @@ func LessImportantPod(pod1, pod2 interface{}) bool {
 	// and the resources order is: GPU, Memory, CPU
 	// the smaller, the quicker to reprieve
 	if pod1HasGPU {
-		pod1GPURequest := getPodRequest(pod1.(*v1.Pod), ResourceGPU, resource.DecimalSI)
-		pod2GPURequest := getPodRequest(pod2.(*v1.Pod), ResourceGPU, resource.DecimalSI)
+		pod1GPURequest := GetPodRequest(pod1.(*v1.Pod), ResourceGPU, resource.DecimalSI)
+		pod2GPURequest := GetPodRequest(pod2.(*v1.Pod), ResourceGPU, resource.DecimalSI)
 		result := pod1GPURequest.Cmp(*pod2GPURequest)
 		if result < 0 {
 			// pod2 request is greater than pod1,
@@ -178,8 +177,8 @@ func LessImportantPod(pod1, pod2 interface{}) bool {
 		}
 	}
 
-	pod1SocketRequest := getPodRequest(pod1.(*v1.Pod), v1.ResourceBytedanceSocket, resource.DecimalSI)
-	pod2SocketRequest := getPodRequest(pod2.(*v1.Pod), v1.ResourceBytedanceSocket, resource.DecimalSI)
+	pod1SocketRequest := GetPodRequest(pod1.(*v1.Pod), v1.ResourceBytedanceSocket, resource.DecimalSI)
+	pod2SocketRequest := GetPodRequest(pod2.(*v1.Pod), v1.ResourceBytedanceSocket, resource.DecimalSI)
 	result := pod1SocketRequest.Cmp(*pod2SocketRequest)
 	if result < 0 {
 		return true
@@ -187,8 +186,8 @@ func LessImportantPod(pod1, pod2 interface{}) bool {
 		return false
 	}
 
-	pod1CPURequest := getPodRequest(pod1.(*v1.Pod), v1.ResourceCPU, resource.DecimalSI)
-	pod2CPURequest := getPodRequest(pod2.(*v1.Pod), v1.ResourceCPU, resource.DecimalSI)
+	pod1CPURequest := GetPodRequest(pod1.(*v1.Pod), v1.ResourceCPU, resource.DecimalSI)
+	pod2CPURequest := GetPodRequest(pod2.(*v1.Pod), v1.ResourceCPU, resource.DecimalSI)
 	result = pod1CPURequest.Cmp(*pod2CPURequest)
 	if result < 0 {
 		// pod2 request is greater than pod1
@@ -197,8 +196,8 @@ func LessImportantPod(pod1, pod2 interface{}) bool {
 		return true
 	}
 
-	pod1MemoryRequest := getPodRequest(pod1.(*v1.Pod), v1.ResourceMemory, resource.BinarySI)
-	pod2MemoryRequest := getPodRequest(pod2.(*v1.Pod), v1.ResourceMemory, resource.BinarySI)
+	pod1MemoryRequest := GetPodRequest(pod1.(*v1.Pod), v1.ResourceMemory, resource.BinarySI)
+	pod2MemoryRequest := GetPodRequest(pod2.(*v1.Pod), v1.ResourceMemory, resource.BinarySI)
 	result = pod1MemoryRequest.Cmp(*pod2MemoryRequest)
 	if result < 0 {
 		// pod2 request is greater than pod1
@@ -247,7 +246,7 @@ const (
 	ResourceGPU v1.ResourceName = "nvidia.com/gpu"
 )
 
-func getPodRequest(pod *v1.Pod, resourceType v1.ResourceName, format resource.Format) *resource.Quantity {
+func GetPodRequest(pod *v1.Pod, resourceType v1.ResourceName, format resource.Format) *resource.Quantity {
 	result := resource.NewQuantity(0, format)
 	for _, container := range pod.Spec.Containers {
 		for key, value := range container.Resources.Requests {
@@ -366,8 +365,8 @@ func CanPodBePreemptedAtSamePriority(pod, preemptor *v1.Pod, pvcLister coreliste
 	// both pod and preemptor request refined resources or neither requests
 
 	// For now, just check Numa request number
-	podNumaRequest := getPodRequest(pod, v1.ResourceBytedanceSocket, resource.DecimalSI)
-	preemptorNumaRequest := getPodRequest(preemptor, v1.ResourceBytedanceSocket, resource.DecimalSI)
+	podNumaRequest := GetPodRequest(pod, v1.ResourceBytedanceSocket, resource.DecimalSI)
+	preemptorNumaRequest := GetPodRequest(preemptor, v1.ResourceBytedanceSocket, resource.DecimalSI)
 
 	if preemptorNumaRequest.Value() != podNumaRequest.Value() {
 		if preemptorNumaRequest.Value() > podNumaRequest.Value() {
@@ -549,21 +548,6 @@ func CanPodBePreempted(pod *v1.Pod, pcLister schedulingv1listers.PriorityClassLi
 	}
 
 	return pod.Annotations != nil && pod.Annotations[CanBePreemptedAnnotationKey] == "true"
-}
-
-func SmallSizeDeployment(pod *v1.Pod, deployLister appv1listers.DeploymentLister) bool {
-	deployName := GetDeployNameFromPod(pod)
-	if len(deployName) == 0 {
-		return false
-	}
-
-	deploy, err := deployLister.Deployments(pod.Namespace).Get(deployName)
-	if err != nil {
-		klog.Errorf("get deployment error: %+v", err)
-		return false
-	}
-
-	return deploy != nil && *deploy.Spec.Replicas <= 3
 }
 
 const (

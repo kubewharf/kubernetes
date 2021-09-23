@@ -47,7 +47,13 @@ func (m *MatchNodePackageMem) Name() string {
 }
 
 // Score invoked at the score extension point.
+// TODO: do we need to scoring nodes based on the memory size per numa ?
 func (m *MatchNodePackageMem) Score(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (int64, *framework.Status) {
+	// if feature gate is disable, skip the predicate check
+	if !utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) {
+		return 0, nil
+	}
+
 	nodeInfo, err := m.handle.SnapshotSharedLister().NodeInfos().Get(nodeName)
 	if err != nil {
 		return 0, framework.NewStatus(framework.Error, fmt.Sprintf("getting node %q from Snapshot: %v", nodeName, err))
@@ -58,30 +64,37 @@ func (m *MatchNodePackageMem) Score(ctx context.Context, state *framework.CycleS
 		return 0, framework.NewStatus(framework.Error, "node not found")
 	}
 
-	// if feature gate is disable, skip the predicate check
-	if !utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) {
-		return 0, nil
-	}
-
 	nodeMemCapacity, ok := node.Status.Capacity[v1.ResourceMemory]
 	if !ok {
 		return 0, framework.NewStatus(framework.Error, "memory capacity not found in node status")
 	}
 
+	nodeNumaCapacity, ok := node.Status.Capacity[v1.ResourceBytedanceSocket]
+	if !ok || nodeNumaCapacity.Value() == 0 {
+		// if numa info is not reported, do nothing here
+		return 0, nil
+	}
+
+	memPerNuma := nodeMemCapacity.Value() / nodeNumaCapacity.Value()
+
+	// for now, mem per num can be: 32,48,64,96,128,160,192,256,320,384,512G
+
 	// when we reach here, node capacity must be greater (or equal to) than pod request
 	// so, do not need to get pod request
-	memShardingInterval, err := resource.ParseQuantity("100Gi")
+	memShardingUnit, err := resource.ParseQuantity("16Gi")
 	if err != nil {
-		return 0, framework.NewStatus(framework.Error, fmt.Sprintf("parsing 100Gi error : %v", err))
+		return 0, framework.NewStatus(framework.Error, fmt.Sprintf("parsing 16Gi error : %v", err))
 	}
 
-	modValue := nodeMemCapacity.Value() / memShardingInterval.Value()
+	shardingValue := memPerNuma / memShardingUnit.Value()
 
-	if modValue > 10 {
-		return 1, nil
-	} else {
-		return int64(10 - int(modValue)), nil
+	// shardingValue can be: 2,3,4,6,8,10,12,16,20,24,32
+	score := int64(32 - int(shardingValue))
+	if score < 0 {
+		score = 0
 	}
+
+	return score, nil
 }
 
 func (m *MatchNodePackageMem) ScoreExtensions() framework.ScoreExtensions {

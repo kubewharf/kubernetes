@@ -19,6 +19,7 @@ package cache
 import (
 	nnrv1alpha1 "code.byted.org/kubernetes/apis/k8s/non.native.resource/v1alpha1"
 	nonnativeresourcelisters "code.byted.org/kubernetes/clientsets/k8s/listers/non.native.resource/v1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 )
@@ -134,13 +135,19 @@ type Cache interface {
 
 	DeletePreemptorFromCacheOnly(preemptor *v1.Pod) error
 
-	ShouldDeployVictimsBeThrottled(pod *v1.Pod) bool
+	ShouldDeployVictimsBeThrottled(pod *v1.Pod, throttleValue int64) bool
 
 	AddOneVictim(deployName string, victimUID string) error
 
 	SubtractOneVictim(deployName string, victimUID string) error
 
 	GetRefinedResourceNode(nodeName string) *schedulernodeinfo.NodeRefinedResourceInfo
+
+	SetDeployItems(deploy *appsv1.Deployment)
+
+	DeleteDeployItems(deploy *appsv1.Deployment)
+
+	GetDeployItems(deployKey string) DeployItem
 }
 
 // Dump is a dump of the cache state.

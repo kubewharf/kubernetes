@@ -263,6 +263,10 @@ const (
 
 	// MaxWeight defines the max weight value allowed for custom PriorityPolicy
 	MaxWeight = MaxTotalScore / MaxCustomPriorityScore
+
+	DefaultPreemptMinIntervalSeconds = 0
+	DefaultPreemptMinReplicaNum      = 3
+	DefaultPreemptThrottleValue      = 5
 )
 
 func appendPluginSet(dst *PluginSet, src *PluginSet) *PluginSet {

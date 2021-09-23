@@ -19,6 +19,7 @@ package fake
 import (
 	nnrv1alpha1 "code.byted.org/kubernetes/apis/k8s/non.native.resource/v1alpha1"
 	nonnativeresourcelisters "code.byted.org/kubernetes/clientsets/k8s/listers/non.native.resource/v1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	internalcache "k8s.io/kubernetes/pkg/scheduler/internal/cache"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
@@ -140,7 +141,7 @@ func (c *Cache) IsVictims(deployName string) bool {
 	return false
 }
 
-func (c *Cache) ShouldDeployVictimsBeThrottled(pod *v1.Pod) bool {
+func (c *Cache) ShouldDeployVictimsBeThrottled(pod *v1.Pod, throttleValue int64) bool {
 	return false
 }
 
@@ -158,4 +159,12 @@ func (c *Cache) GetNodeInfo(nodeName string) *schedulernodeinfo.NodeInfo {
 
 func (c *Cache) GetRefinedResourceNode(nodeName string) *schedulernodeinfo.NodeRefinedResourceInfo {
 	return nil
+}
+
+func (c *Cache) SetDeployItems(deploy *appsv1.Deployment) {}
+
+func (c *Cache) DeleteDeployItems(deploy *appsv1.Deployment) {}
+
+func (c *Cache) GetDeployItems(deployKey string) internalcache.DeployItem {
+	return internalcache.DeployItem{}
 }
