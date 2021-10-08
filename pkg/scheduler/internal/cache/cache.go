@@ -889,6 +889,8 @@ func (cache *schedulerCache) updateMetrics() {
 }
 
 func (cache *schedulerCache) GetNodeInfo(nodeName string) *schedulernodeinfo.NodeInfo {
+	cache.mu.RLock()
+	defer cache.mu.RUnlock()
 	var nodeInfoItem *nodeInfoListItem
 	var ok bool
 	if nodeInfoItem, ok = cache.nodes[nodeName]; !ok {
