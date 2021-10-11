@@ -3,9 +3,11 @@ package dynamicpodspec
 import (
 	"fmt"
 	"math/rand"
+	"net"
+	"strconv"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	netutil "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
@@ -167,6 +169,29 @@ func getAvailablePorts(allocated map[int]bool, base, max, arrangeBase, portCount
 	return result, false
 }
 
+/*
+Use listen to test the local port is available or not.
+*/
+func isPortAvailable(network string, port int) bool {
+	conn, err := net.Listen(network, ":"+strconv.Itoa(port))
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
+}
+
+func getScheduledTime(pod *v1.Pod) time.Time {
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == v1.PodScheduled {
+			if condition.Status == v1.ConditionTrue {
+				return condition.LastTransitionTime.Time
+			}
+		}
+	}
+	return time.Time{}
+}
+
 func getUsedPorts(pods ...*v1.Pod) (map[int]bool, int) {
 	// TODO: Aggregate it at the NodeInfo level.
 	ports := make(map[int]bool)
@@ -174,20 +199,17 @@ func getUsedPorts(pods ...*v1.Pod) (map[int]bool, int) {
 	var lastPodTime time.Time
 	for _, pod := range pods {
 		scheduledTime := getScheduledTime(pod)
-		podPorts := getPodPorts(pod)
-		for podPort := range podPorts {
-			if podPort == 0 {
+		for _, container := range pod.Spec.Containers {
+			for _, podPort := range container.Ports {
 				// "0" is explicitly ignored in PodFitsHostPorts,
 				// which is the only function that uses this value.
-				continue
-			}
-			ports[podPort] = true
-			if scheduledTime.After(lastPodTime) {
-				lastPodTime = scheduledTime
-				if podPort <= lastPort {
-					continue
+				if podPort.HostPort != 0 {
+					ports[int(podPort.HostPort)] = true
+					if scheduledTime.After(lastPodTime) {
+						lastPodTime = scheduledTime
+						lastPort = int(podPort.HostPort)
+					}
 				}
-				lastPort = podPort
 			}
 		}
 	}
