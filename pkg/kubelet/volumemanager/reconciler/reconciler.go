@@ -224,7 +224,7 @@ func (rc *reconciler) unmountVolumes() {
 				!rc.desiredStateOfWorld.VolumeExistsWithSpecName(volume.podName, volume.volumeSpecName) {
 				pod, ok := rc.podManager.GetPodByUID(types.UID(volume.podName))
 				if !ok {
-					klog.Warningf("(pod.Name %s, pod.UID %s, volume.SpecName %s) is not existed in actual state and desired state, pod is not existed but volume still exist, try to clean up.", pod.Name, volume.podName, volume.volumeSpecName)
+					klog.Warningf("(pod.UID %s, volume.SpecName %s) is not existed in actual state and desired state, pod is not existed but volume still exist, try to clean up.", volume.podName, volume.volumeSpecName)
 				} else if util.IsPodTerminated(pod, pod.Status) {
 					klog.Warningf("(pod.Name %s, pod.UID %s, volume.SpecName %s) is not existed in actual state and desired state, all containers of pod are terminated but volume still exist, try to clean up.", pod.Name, volume.podName, volume.volumeSpecName)
 				} else {
