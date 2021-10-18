@@ -99,6 +99,49 @@ func (kl *Kubelet) GetActivePods() []*v1.Pod {
 	return activePods
 }
 
+// GetActivePodsWithTerminatedSandbox return pods if:
+// 1. non-terminal, i.e. not in success or failed state, or
+// 2. the network state (IP) is non-empty
+func (kl *Kubelet) GetActiveSandboxPods() []*v1.Pod {
+	var activePods []*v1.Pod
+	allPods := kl.podManager.GetPods()
+	for _, pod := range allPods {
+		podTerminated := kl.podIsTerminated(pod)
+		if !podTerminated || kl.podScopedDevicesActive(pod) {
+			if podTerminated {
+				klog.V(4).Infof("Pod %v/%v is terminated with sandbox active", pod.Namespace, pod.Name)
+			}
+			activePods = append(activePods, pod)
+		}
+	}
+	return activePods
+}
+
+// podScopedDevicesActive return true if pod is using SRIOV NIC with sandbox box open
+func (kl *Kubelet) podScopedDevicesActive(pod *v1.Pod) bool {
+	quantity := resource.GetResourceRequestQuantity(pod, v1.ResourceBytedanceSriov)
+	if quantity.IsZero() {
+		return false
+	}
+
+	podStatus, err := kl.podCache.Get(pod.UID)
+	if err != nil {
+		return false
+	}
+	if len(podStatus.SandboxStatuses) == 0 {
+		klog.Errorf("Pod %v/%v has no sandbox", pod.Namespace, pod.Name)
+		return false
+	}
+	podSandboxID := podStatus.SandboxStatuses[0].Id
+	podSandboxStatus, err := kl.runtimeService.PodSandboxStatus(podSandboxID)
+	if err != nil {
+		klog.Errorf("failed to get pod %v/%v sandbox, err = %v", pod.Namespace, pod.Name, err)
+		return false
+	}
+	klog.V(5).Infof("Pod %v/%v get sandbox status, state = %v, network = %v", pod.Namespace, pod.Name, podSandboxStatus.GetState(), podSandboxStatus.GetNetwork())
+	return podSandboxStatus.State == runtimeapi.PodSandboxState_SANDBOX_READY || podSandboxStatus.Network.Ip != ""
+}
+
 // makeHookBindDevices add the devices for hook-bind.
 func (kl *Kubelet) makeHookBindDevices(pod *v1.Pod, container *v1.Container) ([]kubecontainer.DeviceInfo, error) {
 	var devices []kubecontainer.DeviceInfo

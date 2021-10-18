@@ -1431,7 +1431,7 @@ func (kl *Kubelet) initializeRuntimeDependentModules() {
 		klog.Fatalf("Kubelet failed to get node info: %v", err)
 	}
 	// containerManager must start after cAdvisor because it needs filesystem capacity information
-	if err := kl.containerManager.Start(node, kl.GetActivePods, kl.sourcesReady, kl.statusManager, kl.runtimeService); err != nil {
+	if err := kl.containerManager.Start(node, kl.GetActivePods, kl.GetActiveSandboxPods, kl.sourcesReady, kl.statusManager, kl.runtimeService); err != nil {
 		// Fail kubelet and rely on the babysitter to retry starting kubelet.
 		klog.Fatalf("Failed to start ContainerManager %v", err)
 	}

@@ -48,6 +48,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	internalapi "k8s.io/cri-api/pkg/apis"
+	v1resource "k8s.io/kubernetes/pkg/api/v1/resource"
 	kubefeatures "k8s.io/kubernetes/pkg/features"
 	podresourcesapi "k8s.io/kubernetes/pkg/kubelet/apis/podresources/v1alpha1"
 	"k8s.io/kubernetes/pkg/kubelet/cadvisor"
@@ -615,6 +616,7 @@ func (cm *containerManagerImpl) Status() Status {
 
 func (cm *containerManagerImpl) Start(node *v1.Node,
 	activePods ActivePodsFunc,
+	deviceManagerActivePods ActivePodsFunc,
 	sourcesReady config.SourcesReady,
 	podStatusProvider status.PodStatusProvider,
 	runtimeService internalapi.RuntimeService) error {
@@ -688,7 +690,10 @@ func (cm *containerManagerImpl) Start(node *v1.Node,
 	}
 
 	// Starts device manager.
-	if err := cm.deviceManager.Start(devicemanager.ActivePodsFunc(activePods), sourcesReady); err != nil {
+	if deviceManagerActivePods == nil {
+		deviceManagerActivePods = activePods
+	}
+	if err := cm.deviceManager.Start(devicemanager.ActivePodsFunc(deviceManagerActivePods), sourcesReady); err != nil {
 		return err
 	}
 
@@ -722,16 +727,54 @@ func (cm *containerManagerImpl) UpdatePluginResources(node *schedulernodeinfo.No
 }
 
 func (cm *containerManagerImpl) GetAllocateResourcesPodAdmitHandler() lifecycle.PodAdmitHandler {
-	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.TopologyManager) {
-		return cm.topologyManager
+	return &retriableResourceAllocator{
+		admitHandler: func() lifecycle.PodAdmitHandler {
+			if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.TopologyManager) {
+				return cm.topologyManager
+			}
+			// TODO: we need to think about a better way to do this. This will work for
+			// now so long as we have only the cpuManager and deviceManager relying on
+			// allocations here. However, going forward it is not generalized enough to
+			// work as we add more and more hint providers that the TopologyManager
+			// needs to call Allocate() on (that may not be directly intstantiated
+			// inside this component).
+			return &resourceAllocator{cm.cpuManager, cm.deviceManager}
+		}(),
+		retryPeriod: time.Second * 1,
+		maxRetry:    5,
 	}
-	// TODO: we need to think about a better way to do this. This will work for
-	// now so long as we have only the cpuManager and deviceManager relying on
-	// allocations here. However, going forward it is not generalized enough to
-	// work as we add more and more hint providers that the TopologyManager
-	// needs to call Allocate() on (that may not be directly intstantiated
-	// inside this component).
-	return &resourceAllocator{cm.cpuManager, cm.deviceManager}
+}
+
+type retriableResourceAllocator struct {
+	admitHandler lifecycle.PodAdmitHandler
+	retryPeriod  time.Duration
+	maxRetry     int
+}
+
+func (m *retriableResourceAllocator) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAdmitResult {
+	lastResult := lifecycle.PodAdmitResult{}
+	backoff := m.retryPeriod
+	retry := 0
+	maxRetry := m.maxRetry
+	quantity := v1resource.GetResourceRequestQuantity(attrs.Pod, v1.ResourceBytedanceSriov)
+	if quantity.IsZero() {
+		maxRetry = 1
+	}
+	for retry < maxRetry {
+		lastResult := m.admitHandler.Admit(attrs)
+		retryAdmission := !lastResult.Admit && strings.Contains(lastResult.Message, "which is unexpected")
+		if retryAdmission {
+			klog.V(4).Infof("Admission error occurs for pod %v/%v, result = %v, attempt = %v, maxRetry = %v", attrs.Pod.Namespace, attrs.Pod.Name, lastResult, retry, maxRetry)
+		}
+
+		if retry == maxRetry-1 || !retryAdmission {
+			return lastResult
+		}
+		time.Sleep(backoff)
+		backoff *= 2
+		retry++
+	}
+	return lastResult
 }
 
 type resourceAllocator struct {
