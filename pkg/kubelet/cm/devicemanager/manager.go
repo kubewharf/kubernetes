@@ -1031,13 +1031,23 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 		}
 
 		devs := allocDevices.UnsortedList()
-		cpuRequirement := getCPURequirementFromContainer(container)
+		cpuRequirement, memoryRequirement := getCPUAndMemoryRequirementFromContainer(container)
+		podRole := getRoleFromPod(pod)
 		// TODO: refactor this part of code to just append a ContainerAllocationRequest
 		// in a passed in AllocateRequest pointer, and issues a single Allocate call per pod.
-		klog.V(3).Infof("Making allocation request for devices %v for device plugin %s; pod: %s; container: %s; cpuRequirement: %d",
-			devs, resource, pod.Name, container.Name, cpuRequirement)
+		klog.V(3).Infof("Making allocation request for devices %v for device plugin %s; pod: %s/%s; container: %s; cpuRequirement: %d; memoryRequirement: %d",
+			devs, resource, pod.Namespace, pod.Name, container.Name, cpuRequirement, memoryRequirement)
 		// new metadata with pod name and container name
-		md := metadata.Pairs("pod", pod.Name, "container", container.Name, "cpu_requirement", fmt.Sprintf("%d", cpuRequirement))
+		md := metadata.Pairs("pod", pod.Name,
+			"namespace", pod.Namespace,
+			"container", container.Name,
+			"cpu_requirement", fmt.Sprintf("%d", cpuRequirement),
+			"memory_requirement", fmt.Sprintf("%d", memoryRequirement),
+			"role", podRole)
+		if utilfeature.DefaultFeatureGate.Enabled(features.AutoNICNumaAffinity) {
+			md.Append("affinity_devices", "nic")
+		}
+
 		ctx := metadata.NewOutgoingContext(context.Background(), md)
 		resp, err := eI.e.allocate(ctx, devs)
 		metrics.DevicePluginAllocationDuration.WithLabelValues(resource).Observe(metrics.SinceInSeconds(startRPCTime))
@@ -1066,12 +1076,24 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 	return m.writeCheckpoint()
 }
 
-func getCPURequirementFromContainer(container *v1.Container) int64 {
+func getCPUAndMemoryRequirementFromContainer(container *v1.Container) (cpuRequirement, memoryRequirement int64) {
 	if container == nil {
-		return 0
+		return
 	}
 
-	return container.Resources.Requests.Cpu().Value()
+	cpuRequirement, memoryRequirement =
+		container.Resources.Requests.Cpu().Value(), container.Resources.Requests.Memory().Value()
+
+	return
+}
+
+func getRoleFromPod(pod *v1.Pod) (role string) {
+	if pod == nil {
+		return ""
+	}
+
+	role = pod.Labels[config.PodRoleLabel]
+	return
 }
 
 func injectCPUResourcesAnnotationToPod(pod *v1.Pod, resp *pluginapi.AllocateResponse) {
