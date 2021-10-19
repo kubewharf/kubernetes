@@ -649,6 +649,12 @@ const (
 	//
 	// if enabled, gpu sidecar container e.g. mps will be injected NVIDIA_VISIBLE_DEVICES same as primary container
 	GPUSidecarVisibleDevice featuregate.Feature = "GPUSidecarVisibleDevice"
+
+	// owner: @shaowei.wayne
+	// alpha: v1.18
+	//
+	// if enabled, nic (with numa affinity) info will be injected in container
+	AutoNICNumaAffinity featuregate.Feature = "AutoNICNumaAffinity"
 )
 
 func init() {
@@ -750,7 +756,7 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 	ServiceEnv:                                     {Default: true, PreRelease: featuregate.Alpha},
 	AepCSITopologyAware:                            {Default: false, PreRelease: featuregate.Alpha},
 	GPUSidecarVisibleDevice:                        {Default: false, PreRelease: featuregate.Alpha},
-
+	AutoNICNumaAffinity:                            {Default: false, PreRelease: featuregate.Alpha},
 	// inherited features from generic apiserver, relisted here to get a conflict if it is changed
 	// unintentionally on either side:
 	genericfeatures.StreamingProxyRedirects: {Default: true, PreRelease: featuregate.Deprecated},

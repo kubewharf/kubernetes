@@ -31,4 +31,6 @@ const (
 
 	CPUSetAnnotation  = "bytedance.com/cpuset"
 	NumaSetAnnotation = "bytedance.com/numaset"
+
+	PodRoleLabel = "bytedance.com/pod-role"
 )
