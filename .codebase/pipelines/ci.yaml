@@ -1,6 +1,21 @@
 name: E2E
 trigger: [change]
 jobs:
+  unittest_job:
+    name: K8S Unittest
+    image: hub.byted.org/tce/data-ci-debian:v0.5
+    steps:
+      - name: Clone
+        uses: actions/checkout
+        inputs:
+          depth: 1
+      - name: Run Unittest
+        commands:
+          - env
+          - export PATH=$PATH:/usr/local/go/bin
+          - make clean
+          - make clean_generated
+          - make test
   e2e_job:
     name: K8S E2E
     image: hub.byted.org/data-ci-debian
