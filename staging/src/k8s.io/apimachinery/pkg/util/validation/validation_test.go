@@ -313,7 +313,7 @@ func TestIsValidLabelValue(t *testing.T) {
 		"ends-with-dash-",
 		".starts.with.dot",
 		"ends.with.dot.",
-		strings.Repeat("a", 64), // over the limit
+		strings.Repeat("a", 257), // over the limit
 	}
 	for i := range errorCases {
 		if errs := IsValidLabelValue(errorCases[i]); len(errs) == 0 {
