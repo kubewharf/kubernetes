@@ -37,7 +37,8 @@ func NewQuotaConfigurationForControllers(f quota.ListerForResourceFunc) quota.Co
 
 // ignoredResources are ignored by quota by default
 var ignoredResources = map[schema.GroupResource]struct{}{
-	{Group: "", Resource: "events"}: {},
+	{Group: "", Resource: "events"}:              {},
+	{Group: "events.k8s.io", Resource: "events"}: {},
 }
 
 // DefaultIgnoredResources returns the default set of resources that quota system
