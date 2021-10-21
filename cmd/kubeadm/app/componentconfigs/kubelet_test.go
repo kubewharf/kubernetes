@@ -63,6 +63,12 @@ var kubeletMarshalCases = []struct {
 			cpuManagerReconcilePeriod: 0s
 			evictionPressureTransitionPeriod: 0s
 			fileCheckFrequency: 0s
+			guaranteedQOSHostPortRange:
+			  Base: 0
+			  Size: 0
+			hostPortRange:
+			  Base: 0
+			  Size: 0
 			httpCheckFrequency: 0s
 			imageMinimumGCAge: 0s
 			kind: KubeletConfiguration
@@ -98,6 +104,12 @@ var kubeletMarshalCases = []struct {
 			cpuManagerReconcilePeriod: 0s
 			evictionPressureTransitionPeriod: 0s
 			fileCheckFrequency: 0s
+			guaranteedQOSHostPortRange:
+			  Base: 0
+			  Size: 0
+			hostPortRange:
+			  Base: 0
+			  Size: 0
 			httpCheckFrequency: 0s
 			imageMinimumGCAge: 0s
 			kind: KubeletConfiguration

@@ -172,6 +172,10 @@ func TestAddFlags(t *testing.T) {
 					ResourceNamespace: "kube-system",
 				},
 				Controllers: []string{"foo", "bar"},
+				Index: componentbaseconfig.IndexConfiguration{
+					Name: "label",
+					Key:  "name",
+				},
 			},
 			Debugging: &cmoptions.DebuggingOptions{
 				DebuggingConfiguration: &componentbaseconfig.DebuggingConfiguration{
@@ -430,6 +434,10 @@ func TestApplyTo(t *testing.T) {
 				Debugging: componentbaseconfig.DebuggingConfiguration{
 					EnableProfiling:           false,
 					EnableContentionProfiling: true,
+				},
+				Index: componentbaseconfig.IndexConfiguration{
+					Name: "label",
+					Key:  "name",
 				},
 			},
 			KubeCloudShared: kubectrlmgrconfig.KubeCloudSharedConfiguration{

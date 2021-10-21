@@ -377,6 +377,7 @@ plugins:
 				Profiles: []kubeschedulerconfig.KubeSchedulerProfile{
 					{SchedulerName: "default-scheduler"},
 				},
+				NodePackageResourceMatchFactor: 2,
 			},
 		},
 		{
@@ -469,6 +470,7 @@ plugins:
 				Profiles: []kubeschedulerconfig.KubeSchedulerProfile{
 					{SchedulerName: "default-scheduler"},
 				},
+				NodePackageResourceMatchFactor: 2,
 			},
 		},
 		{
@@ -535,6 +537,7 @@ plugins:
 				Profiles: []kubeschedulerconfig.KubeSchedulerProfile{
 					{SchedulerName: "default-scheduler"},
 				},
+				NodePackageResourceMatchFactor: 2,
 			},
 			expectedUsername: "none, http",
 		},
@@ -603,6 +606,7 @@ plugins:
 						},
 					},
 				},
+				NodePackageResourceMatchFactor: 2,
 			},
 		},
 		{
@@ -668,6 +672,7 @@ plugins:
 						},
 					},
 				},
+				NodePackageResourceMatchFactor: 2,
 			},
 		},
 		{
@@ -727,6 +732,7 @@ plugins:
 						},
 					},
 				},
+				NodePackageResourceMatchFactor: 2,
 			},
 		},
 		{
@@ -787,6 +793,7 @@ plugins:
 						},
 					},
 				},
+				NodePackageResourceMatchFactor: 2,
 			},
 		},
 		{
@@ -833,6 +840,7 @@ plugins:
 				Profiles: []kubeschedulerconfig.KubeSchedulerProfile{
 					{SchedulerName: "my-nice-scheduler"},
 				},
+				NodePackageResourceMatchFactor: 2,
 			},
 		},
 		{
@@ -883,6 +891,7 @@ plugins:
 						},
 					},
 				},
+				NodePackageResourceMatchFactor: 2,
 			},
 		},
 		{
@@ -923,6 +932,7 @@ plugins:
 				Profiles: []kubeschedulerconfig.KubeSchedulerProfile{
 					{SchedulerName: "default-scheduler"},
 				},
+				NodePackageResourceMatchFactor: 2,
 			},
 		},
 		{
@@ -971,6 +981,7 @@ plugins:
 				Profiles: []kubeschedulerconfig.KubeSchedulerProfile{
 					{SchedulerName: "default-scheduler"},
 				},
+				NodePackageResourceMatchFactor: 2,
 			},
 		},
 		{
