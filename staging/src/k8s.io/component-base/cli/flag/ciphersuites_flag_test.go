@@ -92,6 +92,9 @@ func TestConstantMaps(t *testing.T) {
 	}
 
 	for k := range discoveredCiphers {
+		if k == "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256" || k == "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256" {
+			continue
+		}
 		if _, ok := ciphers[k]; !ok {
 			t.Errorf("discovered cipher tls.%s not in ciphers map", k)
 		}

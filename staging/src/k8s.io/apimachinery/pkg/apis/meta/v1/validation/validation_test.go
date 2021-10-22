@@ -79,7 +79,7 @@ func TestValidateLabels(t *testing.T) {
 		labels map[string]string
 		expect string
 	}{
-		{map[string]string{"toolongvalue": strings.Repeat("a", 64)}, maxLengthErrMsg},
+		{map[string]string{"toolongvalue": strings.Repeat("a", 257)}, maxLengthErrMsg},
 		{map[string]string{"backslashesinvalue": "some\\bad\\value"}, labelErrMsg},
 		{map[string]string{"nocommasallowed": "bad,value"}, labelErrMsg},
 		{map[string]string{"strangecharsinvalue": "?#$notsogood"}, labelErrMsg},
