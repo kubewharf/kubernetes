@@ -254,7 +254,7 @@ func (tmc *tceMetricsClient) collectKeeping(quit chan error) {
 			start := time.Now()
 			err := tmc.collectMetric()
 			if err != nil {
-				klog.Warning("Failed to collect tce metrics, err %v", err)
+				klog.Warningf("Failed to collect tce metrics, err %v", err)
 			}
 			// Log if housekeeping took too long.
 			duration := time.Since(start)

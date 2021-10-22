@@ -29,6 +29,7 @@ import (
 
 func TestSchedulerDefaults(t *testing.T) {
 	enable := true
+	nodePackageResourceMatchFactor := float64(2)
 	tests := []struct {
 		name     string
 		config   *v1alpha2.KubeSchedulerConfiguration
@@ -60,11 +61,12 @@ func TestSchedulerDefaults(t *testing.T) {
 					Burst:       100,
 					ContentType: "application/vnd.kubernetes.protobuf",
 				},
-				DisablePreemption:        pointer.BoolPtr(false),
-				PercentageOfNodesToScore: pointer.Int32Ptr(0),
-				BindTimeoutSeconds:       pointer.Int64Ptr(600),
-				PodInitialBackoffSeconds: pointer.Int64Ptr(1),
-				PodMaxBackoffSeconds:     pointer.Int64Ptr(10),
+				DisablePreemption:              pointer.BoolPtr(false),
+				PercentageOfNodesToScore:       pointer.Int32Ptr(0),
+				NodePackageResourceMatchFactor: &nodePackageResourceMatchFactor,
+				BindTimeoutSeconds:             pointer.Int64Ptr(600),
+				PodInitialBackoffSeconds:       pointer.Int64Ptr(1),
+				PodMaxBackoffSeconds:           pointer.Int64Ptr(10),
 				Profiles: []v1alpha2.KubeSchedulerProfile{
 					{SchedulerName: pointer.StringPtr("default-scheduler")},
 				},
@@ -104,11 +106,12 @@ func TestSchedulerDefaults(t *testing.T) {
 					Burst:       100,
 					ContentType: "application/vnd.kubernetes.protobuf",
 				},
-				DisablePreemption:        pointer.BoolPtr(false),
-				PercentageOfNodesToScore: pointer.Int32Ptr(0),
-				BindTimeoutSeconds:       pointer.Int64Ptr(600),
-				PodInitialBackoffSeconds: pointer.Int64Ptr(1),
-				PodMaxBackoffSeconds:     pointer.Int64Ptr(10),
+				DisablePreemption:              pointer.BoolPtr(false),
+				PercentageOfNodesToScore:       pointer.Int32Ptr(0),
+				NodePackageResourceMatchFactor: &nodePackageResourceMatchFactor,
+				BindTimeoutSeconds:             pointer.Int64Ptr(600),
+				PodInitialBackoffSeconds:       pointer.Int64Ptr(1),
+				PodMaxBackoffSeconds:           pointer.Int64Ptr(10),
 				Profiles: []v1alpha2.KubeSchedulerProfile{
 					{
 						SchedulerName: pointer.StringPtr("default-scheduler"),
@@ -163,11 +166,12 @@ func TestSchedulerDefaults(t *testing.T) {
 					Burst:       100,
 					ContentType: "application/vnd.kubernetes.protobuf",
 				},
-				DisablePreemption:        pointer.BoolPtr(false),
-				PercentageOfNodesToScore: pointer.Int32Ptr(0),
-				BindTimeoutSeconds:       pointer.Int64Ptr(600),
-				PodInitialBackoffSeconds: pointer.Int64Ptr(1),
-				PodMaxBackoffSeconds:     pointer.Int64Ptr(10),
+				DisablePreemption:              pointer.BoolPtr(false),
+				PercentageOfNodesToScore:       pointer.Int32Ptr(0),
+				NodePackageResourceMatchFactor: &nodePackageResourceMatchFactor,
+				BindTimeoutSeconds:             pointer.Int64Ptr(600),
+				PodInitialBackoffSeconds:       pointer.Int64Ptr(1),
+				PodMaxBackoffSeconds:           pointer.Int64Ptr(10),
 				Profiles: []v1alpha2.KubeSchedulerProfile{
 					{
 						PluginConfig: []v1alpha2.PluginConfig{
@@ -216,11 +220,12 @@ func TestSchedulerDefaults(t *testing.T) {
 					Burst:       100,
 					ContentType: "application/vnd.kubernetes.protobuf",
 				},
-				DisablePreemption:        pointer.BoolPtr(false),
-				PercentageOfNodesToScore: pointer.Int32Ptr(0),
-				BindTimeoutSeconds:       pointer.Int64Ptr(600),
-				PodInitialBackoffSeconds: pointer.Int64Ptr(1),
-				PodMaxBackoffSeconds:     pointer.Int64Ptr(10),
+				DisablePreemption:              pointer.BoolPtr(false),
+				PercentageOfNodesToScore:       pointer.Int32Ptr(0),
+				NodePackageResourceMatchFactor: &nodePackageResourceMatchFactor,
+				BindTimeoutSeconds:             pointer.Int64Ptr(600),
+				PodInitialBackoffSeconds:       pointer.Int64Ptr(1),
+				PodMaxBackoffSeconds:           pointer.Int64Ptr(10),
 				Profiles: []v1alpha2.KubeSchedulerProfile{
 					{SchedulerName: pointer.StringPtr("default-scheduler")},
 				},
@@ -255,11 +260,12 @@ func TestSchedulerDefaults(t *testing.T) {
 					Burst:       100,
 					ContentType: "application/vnd.kubernetes.protobuf",
 				},
-				DisablePreemption:        pointer.BoolPtr(false),
-				PercentageOfNodesToScore: pointer.Int32Ptr(0),
-				BindTimeoutSeconds:       pointer.Int64Ptr(600),
-				PodInitialBackoffSeconds: pointer.Int64Ptr(1),
-				PodMaxBackoffSeconds:     pointer.Int64Ptr(10),
+				DisablePreemption:              pointer.BoolPtr(false),
+				PercentageOfNodesToScore:       pointer.Int32Ptr(0),
+				NodePackageResourceMatchFactor: &nodePackageResourceMatchFactor,
+				BindTimeoutSeconds:             pointer.Int64Ptr(600),
+				PodInitialBackoffSeconds:       pointer.Int64Ptr(1),
+				PodMaxBackoffSeconds:           pointer.Int64Ptr(10),
 				Profiles: []v1alpha2.KubeSchedulerProfile{
 					{SchedulerName: pointer.StringPtr("default-scheduler")},
 				},

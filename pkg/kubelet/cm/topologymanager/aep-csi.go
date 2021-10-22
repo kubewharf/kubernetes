@@ -75,14 +75,14 @@ func (aepCSIHintProvider *AepCSIHintProvider) GetTopologyHints(pod *v1.Pod, cont
 			}
 			if len(pvc.Spec.VolumeName) == 0 {
 				// pvc should be bounded when pod has been scheduled to node
-				klog.Error("pvc %s is not bounded to pv", pvc.Name)
+				klog.Errorf("pvc %s is not bounded to pv", pvc.Name)
 				return rejectedHints
 			}
 			klog.Infof("[aep-csi-hint-provider] pod %s container %s pvc name is %s, bounded pv is %s", pod.Name, container.Name, pvc.Name, pvc.Spec.VolumeName)
 			// get pv from apiserver
 			pv, err := aepCSIHintProvider.kubeClient.CoreV1().PersistentVolumes().Get(context.TODO(), pvc.Spec.VolumeName, metav1.GetOptions{})
 			if err != nil {
-				klog.Error("get pv %s for pvc %s failed, err is %s", pvc.Spec.VolumeName, pvc.Name, err.Error())
+				klog.Errorf("get pv %s for pvc %s failed, err is %s", pvc.Spec.VolumeName, pvc.Name, err.Error())
 				return rejectedHints
 			}
 			// if csi lvpath is empty, should allocate numa by topology manager
@@ -96,7 +96,7 @@ func (aepCSIHintProvider *AepCSIHintProvider) GetTopologyHints(pod *v1.Pod, cont
 					klog.Infof("[aep-csi-hint-provider] pv %s lv numa id already set %s", pv.Name, pv.Spec.CSI.VolumeAttributes[LVNUMA])
 					allocatedNumas.Insert(id)
 				} else {
-					klog.Error("pv %s for pvc %s allcoated numa id is %s, butmachine only has %d numas", pvc.Spec.VolumeName, pvc.Name, pv.Spec.CSI.VolumeAttributes[LVNUMA], len(aepCSIHintProvider.numaBits))
+					klog.Errorf("pv %s for pvc %s allcoated numa id is %s, butmachine only has %d numas", pvc.Spec.VolumeName, pvc.Name, pv.Spec.CSI.VolumeAttributes[LVNUMA], len(aepCSIHintProvider.numaBits))
 					return rejectedHints
 				}
 			}
@@ -110,7 +110,7 @@ func (aepCSIHintProvider *AepCSIHintProvider) GetTopologyHints(pod *v1.Pod, cont
 	}
 	// bit count in hint must be equatl to numa requirement in limit
 	if int64(requiredNuma) > socketLimit.Value() {
-		klog.Error("aep device number %d not equal to numa number %s", requiredNuma, socketLimit.Value())
+		klog.Errorf("aep device number %d not equal to numa number %d", requiredNuma, socketLimit.Value())
 		return rejectedHints
 	}
 	// some device allocated while others not
@@ -222,7 +222,7 @@ func (aepCSIHintProvider *AepCSIHintProvider) Allocate(pod *v1.Pod, container *v
 			return updateErr
 		})
 		if err != nil {
-			klog.Errorf("[aep-csi-hint-provider] update pv %s to  numa id %s failed, err is %s", pv.Name, affinity.GetBits()[i], err.Error())
+			klog.Errorf("[aep-csi-hint-provider] update pv %s to  numa id %d failed, err is %s", pv.Name, affinity.GetBits()[i], err.Error())
 			return err
 		}
 	}

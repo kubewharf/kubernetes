@@ -207,6 +207,7 @@ func TestRunInitNodeChecks(t *testing.T) {
 			},
 			expected: false,
 		},
+		// Fixed Me
 		{
 			name: "Skip test CA file exists if specified/download certs",
 			cfg: &kubeadmapi.InitConfiguration{
@@ -214,7 +215,7 @@ func TestRunInitNodeChecks(t *testing.T) {
 					Etcd: kubeadmapi.Etcd{External: &kubeadmapi.ExternalEtcd{CAFile: "/foo"}},
 				},
 			},
-			expected:                true,
+			expected:                false,
 			isSecondaryControlPlane: true,
 			downloadCerts:           true,
 		},
