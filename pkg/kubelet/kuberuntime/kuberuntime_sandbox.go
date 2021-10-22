@@ -278,7 +278,7 @@ func (m *kubeGenericRuntimeManager) getRootfsVolumeInfo(pod *v1.Pod, volumeName 
 		}
 		bytes, err := ioutil.ReadFile(filepath.Join(hostPath, "volume.json"))
 		if err != nil {
-			return "", errors.Wrapf(err, "read file failed for volume", volumeName)
+			return "", errors.Wrapf(err, "read file failed for volume %s", volumeName)
 		}
 		return string(bytes), nil
 	}
