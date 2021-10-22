@@ -909,7 +909,7 @@ func getVolumesFromPodDir(podDir string) ([]podVolume, error) {
 			var volumesDirInfo []os.FileInfo
 			if volumesDirInfo, err = ioutil.ReadDir(volumesDir); err != nil {
 				// Just skip the loop because given volumesDir doesn't exist depending on volumeMode
-				klog.Errorf("Could not read dir %v: %v", volumesDir, err)
+				klog.V(5).Infof("Could not read dir %v: %v", volumesDir, err)
 				continue
 			}
 
