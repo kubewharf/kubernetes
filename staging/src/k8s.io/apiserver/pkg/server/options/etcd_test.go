@@ -79,7 +79,7 @@ func TestEtcdOptionsValidate(t *testing.T) {
 				DefaultWatchCacheSize:   100,
 				EtcdServersOverrides:    []string{"/events#http://127.0.0.1:4002"},
 			},
-			expectErr: "--storage-backend invalid, allowed values: etcd3. If not specified, it will default to 'etcd3'",
+			expectErr: "--storage-backend invalid, allowed values: etcd3, kubebrain. If not specified, it will default to 'etcd3'",
 		},
 		{
 			name: "test when etcd-servers-overrides is invalid",
