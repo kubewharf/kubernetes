@@ -37,6 +37,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	featuregatetesting "k8s.io/component-base/featuregate/testing"
 	"k8s.io/kubernetes/pkg/features"
+	kubeletpod "k8s.io/kubernetes/pkg/kubelet/pod"
 	"k8s.io/kubernetes/pkg/kubelet/volumemanager/cache"
 	"k8s.io/kubernetes/pkg/volume"
 	volumetesting "k8s.io/kubernetes/pkg/volume/testing"
@@ -71,6 +72,7 @@ func Test_Run_Positive_DoNothing(t *testing.T) {
 	kubeClient := createTestClient()
 	fakeRecorder := &record.FakeRecorder{}
 	fakeHandler := volumetesting.NewBlockVolumePathHandler()
+	fakePodManager := kubeletpod.NewTestManager()
 	oex := operationexecutor.NewOperationExecutor(operationexecutor.NewOperationGenerator(
 		kubeClient,
 		volumePluginMgr,
@@ -86,6 +88,7 @@ func Test_Run_Positive_DoNothing(t *testing.T) {
 		nodeName,
 		dsw,
 		asw,
+		fakePodManager,
 		hasAddedPods,
 		oex,
 		mount.NewFakeMounter(nil),
@@ -117,6 +120,7 @@ func Test_Run_Positive_VolumeAttachAndMount(t *testing.T) {
 	kubeClient := createTestClient()
 	fakeRecorder := &record.FakeRecorder{}
 	fakeHandler := volumetesting.NewBlockVolumePathHandler()
+	fakePodManager := kubeletpod.NewTestManager()
 	oex := operationexecutor.NewOperationExecutor(operationexecutor.NewOperationGenerator(
 		kubeClient,
 		volumePluginMgr,
@@ -131,6 +135,7 @@ func Test_Run_Positive_VolumeAttachAndMount(t *testing.T) {
 		nodeName,
 		dsw,
 		asw,
+		fakePodManager,
 		hasAddedPods,
 		oex,
 		mount.NewFakeMounter(nil),
@@ -196,6 +201,7 @@ func Test_Run_Positive_VolumeMountControllerAttachEnabled(t *testing.T) {
 	kubeClient := createTestClient()
 	fakeRecorder := &record.FakeRecorder{}
 	fakeHandler := volumetesting.NewBlockVolumePathHandler()
+	fakePodManager := kubeletpod.NewTestManager()
 	oex := operationexecutor.NewOperationExecutor(operationexecutor.NewOperationGenerator(
 		kubeClient,
 		volumePluginMgr,
@@ -210,6 +216,7 @@ func Test_Run_Positive_VolumeMountControllerAttachEnabled(t *testing.T) {
 		nodeName,
 		dsw,
 		asw,
+		fakePodManager,
 		hasAddedPods,
 		oex,
 		mount.NewFakeMounter(nil),
@@ -276,6 +283,7 @@ func Test_Run_Positive_VolumeAttachMountUnmountDetach(t *testing.T) {
 	kubeClient := createTestClient()
 	fakeRecorder := &record.FakeRecorder{}
 	fakeHandler := volumetesting.NewBlockVolumePathHandler()
+	fakePodManager := kubeletpod.NewTestManager()
 	oex := operationexecutor.NewOperationExecutor(operationexecutor.NewOperationGenerator(
 		kubeClient,
 		volumePluginMgr,
@@ -290,6 +298,7 @@ func Test_Run_Positive_VolumeAttachMountUnmountDetach(t *testing.T) {
 		nodeName,
 		dsw,
 		asw,
+		fakePodManager,
 		hasAddedPods,
 		oex,
 		mount.NewFakeMounter(nil),
@@ -367,6 +376,7 @@ func Test_Run_Positive_VolumeUnmountControllerAttachEnabled(t *testing.T) {
 	kubeClient := createTestClient()
 	fakeRecorder := &record.FakeRecorder{}
 	fakeHandler := volumetesting.NewBlockVolumePathHandler()
+	fakePodManager := kubeletpod.NewTestManager()
 	oex := operationexecutor.NewOperationExecutor(operationexecutor.NewOperationGenerator(
 		kubeClient,
 		volumePluginMgr,
@@ -381,6 +391,7 @@ func Test_Run_Positive_VolumeUnmountControllerAttachEnabled(t *testing.T) {
 		nodeName,
 		dsw,
 		asw,
+		fakePodManager,
 		hasAddedPods,
 		oex,
 		mount.NewFakeMounter(nil),
@@ -492,6 +503,7 @@ func Test_Run_Positive_VolumeAttachAndMap(t *testing.T) {
 	kubeClient := createtestClientWithPVPVC(gcepv, gcepvc)
 	fakeRecorder := &record.FakeRecorder{}
 	fakeHandler := volumetesting.NewBlockVolumePathHandler()
+	fakePodManager := kubeletpod.NewTestManager()
 	oex := operationexecutor.NewOperationExecutor(operationexecutor.NewOperationGenerator(
 		kubeClient,
 		volumePluginMgr,
@@ -506,6 +518,7 @@ func Test_Run_Positive_VolumeAttachAndMap(t *testing.T) {
 		nodeName,
 		dsw,
 		asw,
+		fakePodManager,
 		hasAddedPods,
 		oex,
 		mount.NewFakeMounter(nil),
@@ -596,6 +609,7 @@ func Test_Run_Positive_BlockVolumeMapControllerAttachEnabled(t *testing.T) {
 	})
 	fakeRecorder := &record.FakeRecorder{}
 	fakeHandler := volumetesting.NewBlockVolumePathHandler()
+	fakePodManager := kubeletpod.NewTestManager()
 	oex := operationexecutor.NewOperationExecutor(operationexecutor.NewOperationGenerator(
 		kubeClient,
 		volumePluginMgr,
@@ -610,6 +624,7 @@ func Test_Run_Positive_BlockVolumeMapControllerAttachEnabled(t *testing.T) {
 		nodeName,
 		dsw,
 		asw,
+		fakePodManager,
 		hasAddedPods,
 		oex,
 		mount.NewFakeMounter(nil),
@@ -695,6 +710,7 @@ func Test_Run_Positive_BlockVolumeAttachMapUnmapDetach(t *testing.T) {
 	kubeClient := createtestClientWithPVPVC(gcepv, gcepvc)
 	fakeRecorder := &record.FakeRecorder{}
 	fakeHandler := volumetesting.NewBlockVolumePathHandler()
+	fakePodManager := kubeletpod.NewTestManager()
 	oex := operationexecutor.NewOperationExecutor(operationexecutor.NewOperationGenerator(
 		kubeClient,
 		volumePluginMgr,
@@ -709,6 +725,7 @@ func Test_Run_Positive_BlockVolumeAttachMapUnmapDetach(t *testing.T) {
 		nodeName,
 		dsw,
 		asw,
+		fakePodManager,
 		hasAddedPods,
 		oex,
 		mount.NewFakeMounter(nil),
@@ -807,6 +824,7 @@ func Test_Run_Positive_VolumeUnmapControllerAttachEnabled(t *testing.T) {
 	})
 	fakeRecorder := &record.FakeRecorder{}
 	fakeHandler := volumetesting.NewBlockVolumePathHandler()
+	fakePodManager := kubeletpod.NewTestManager()
 	oex := operationexecutor.NewOperationExecutor(operationexecutor.NewOperationGenerator(
 		kubeClient,
 		volumePluginMgr,
@@ -821,6 +839,7 @@ func Test_Run_Positive_VolumeUnmapControllerAttachEnabled(t *testing.T) {
 		nodeName,
 		dsw,
 		asw,
+		fakePodManager,
 		hasAddedPods,
 		oex,
 		mount.NewFakeMounter(nil),
@@ -1071,6 +1090,7 @@ func Test_Run_Positive_VolumeFSResizeControllerAttachEnabled(t *testing.T) {
 			kubeClient := createtestClientWithPVPVC(pv, pvc)
 			fakeRecorder := &record.FakeRecorder{}
 			fakeHandler := volumetesting.NewBlockVolumePathHandler()
+			fakePodManager := kubeletpod.NewTestManager()
 			oex := operationexecutor.NewOperationExecutor(operationexecutor.NewOperationGenerator(
 				kubeClient,
 				volumePluginMgr,
@@ -1086,6 +1106,7 @@ func Test_Run_Positive_VolumeFSResizeControllerAttachEnabled(t *testing.T) {
 				nodeName,
 				dsw,
 				asw,
+				fakePodManager,
 				hasAddedPods,
 				oex,
 				mount.NewFakeMounter(nil),
@@ -1234,6 +1255,7 @@ func Test_UncertainDeviceGlobalMounts(t *testing.T) {
 				})
 				fakeRecorder := &record.FakeRecorder{}
 				fakeHandler := volumetesting.NewBlockVolumePathHandler()
+				fakePodManager := kubeletpod.NewTestManager()
 				oex := operationexecutor.NewOperationExecutor(operationexecutor.NewOperationGenerator(
 					kubeClient,
 					volumePluginMgr,
@@ -1249,6 +1271,7 @@ func Test_UncertainDeviceGlobalMounts(t *testing.T) {
 					nodeName,
 					dsw,
 					asw,
+					fakePodManager,
 					hasAddedPods,
 					oex,
 					&mount.FakeMounter{},
@@ -1414,6 +1437,7 @@ func Test_UncertainVolumeMountState(t *testing.T) {
 				})
 				fakeRecorder := &record.FakeRecorder{}
 				fakeHandler := volumetesting.NewBlockVolumePathHandler()
+				fakePodManager := kubeletpod.NewTestManager()
 				oex := operationexecutor.NewOperationExecutor(operationexecutor.NewOperationGenerator(
 					kubeClient,
 					volumePluginMgr,
@@ -1429,6 +1453,7 @@ func Test_UncertainVolumeMountState(t *testing.T) {
 					nodeName,
 					dsw,
 					asw,
+					fakePodManager,
 					hasAddedPods,
 					oex,
 					&mount.FakeMounter{},
@@ -1681,6 +1706,7 @@ func Test_Run_Positive_VolumeMountControllerAttachEnabledRace(t *testing.T) {
 	kubeClient := createTestClient()
 	fakeRecorder := &record.FakeRecorder{}
 	fakeHandler := volumetesting.NewBlockVolumePathHandler()
+	fakePodManager := kubeletpod.NewTestManager()
 	oex := operationexecutor.NewOperationExecutor(operationexecutor.NewOperationGenerator(
 		kubeClient,
 		volumePluginMgr,
@@ -1695,6 +1721,7 @@ func Test_Run_Positive_VolumeMountControllerAttachEnabledRace(t *testing.T) {
 		nodeName,
 		dsw,
 		asw,
+		fakePodManager,
 		hasAddedPods,
 		oex,
 		mount.NewFakeMounter(nil),
