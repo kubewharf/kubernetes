@@ -12,7 +12,6 @@ jobs:
       - name: Run Unittest
         commands:
           - env
-          - make clean
           - make test
   e2e_job:
     name: K8S E2E
