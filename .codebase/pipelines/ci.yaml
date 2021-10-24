@@ -3,7 +3,7 @@ trigger: [change]
 jobs:
   unittest_job:
     name: K8S Unittest
-    image: hub.byted.org/tce/data-ci-debian:v0.5
+    image: hub.byted.org/codebase/ci_go_1_14:latest
     steps:
       - name: Clone
         uses: actions/checkout
@@ -13,6 +13,9 @@ jobs:
         commands:
           - env
           - export PATH=$PATH:/usr/local/go/bin
+          - mkdir -p /go/src/k8s.io
+          - cp -rf /home/code /go/src/k8s.io/kubernetes
+          - cd /go/src/k8s.io/kubernetes
           - make clean
           - make clean_generated
           - make test
