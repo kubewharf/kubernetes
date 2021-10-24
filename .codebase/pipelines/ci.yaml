@@ -13,9 +13,6 @@ jobs:
         commands:
           - env
           - export PATH=$PATH:/usr/local/go/bin
-          - mkdir -p /go/src/k8s.io
-          - cp -rf /home/code /go/src/k8s.io/kubernetes
-          - cd /go/src/k8s.io/kubernetes
           - make clean
           - make clean_generated
           - make test
