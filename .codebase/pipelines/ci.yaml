@@ -12,9 +12,7 @@ jobs:
       - name: Run Unittest
         commands:
           - env
-          - export PATH=$PATH:/usr/local/go/bin
           - make clean
-          - make clean_generated
           - make test
   e2e_job:
     name: K8S E2E
