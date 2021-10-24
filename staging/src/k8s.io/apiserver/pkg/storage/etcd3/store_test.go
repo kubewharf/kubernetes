@@ -990,7 +990,7 @@ func TestList(t *testing.T) {
 			expectContinue:             true,
 			expectedRemainingItemCount: utilpointer.Int64Ptr(1),
 		},
-		// Fixed Me(fandeliang), skip this case.
+		// Fix Me by TCEers.
 		//{
 		//	name:          "test List with limit when paging disabled",
 		//	disablePaging: true,

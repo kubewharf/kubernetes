@@ -292,7 +292,7 @@ func TestKMSEndpoint(t *testing.T) {
 				field.Invalid(endpointField, "https://www.foo.com", fmt.Sprintf(unsupportedSchemeErrFmt, "https")),
 			},
 		},
-		// skip this test, Fixed Me(fandeliang)
+		// Fix Me by TCEers.
 		//{
 		//	desc: "invalid url",
 		//	in:   &config.KMSConfiguration{Endpoint: "unix:///foo\n.socket"},

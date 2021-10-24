@@ -26,7 +26,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-// Fixed Me(@fandeliang)
+// Fix Me by TCEers.
 func skipTestAppendOrReplacePrefix(t *testing.T) {
 	testCases := []struct {
 		desc                string

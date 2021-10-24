@@ -150,7 +150,7 @@ func TestStoragePoolPredicate(t *testing.T) {
 			},
 			wantStatus: nil,
 		},
-		// skip this. Fix Me(fandeliang)
+		// Fix Me by TCEers.
 		//{
 		//	name:        "Negative fit when sc.vgName is defined, but CSIStoragePool do not has matching vgName",
 		//	poolConfigs: []csiStoragePoolConfig{{"sc1", "vg1", 300}},

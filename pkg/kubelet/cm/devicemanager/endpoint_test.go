@@ -164,7 +164,7 @@ func TestAllocate(t *testing.T) {
 	require.Equal(t, resp, respOut)
 }
 
-// Fix Me by some topology developers.
+// Fix Me by TCEers.
 func skipTestGetPreferredAllocation(t *testing.T) {
 	socket := path.Join("/tmp", esocketName)
 	callbackCount := 0
