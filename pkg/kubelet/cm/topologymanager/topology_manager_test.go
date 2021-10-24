@@ -34,7 +34,7 @@ func NewTestBitMask(sockets ...int) bitmask.BitMask {
 	return s
 }
 
-// Fixed Me by topology developers
+// Fix Me by TCEers.
 func skipTestNewManager(t *testing.T) {
 	tcases := []struct {
 		description    string

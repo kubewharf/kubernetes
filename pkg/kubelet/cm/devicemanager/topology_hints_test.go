@@ -585,7 +585,7 @@ func TestTopologyAlignedAllocation(t *testing.T) {
 			},
 			expectedAlignment: map[int]int{1: 2, 3: 2},
 		},
-		// Fix Me, by some topology developers.
+		// Fix Me by TCEers.
 		//{
 		//	description: "Request for 5, socket 0, preferred aligned accepted",
 		//	resource:    "resource",
@@ -792,7 +792,7 @@ func TestTopologyAlignedAllocation(t *testing.T) {
 	}
 }
 
-// Fix Me, by some device plugin developers.
+// Fix Me by TCEers
 func TestGetPreferredAllocationParameters(t *testing.T) {
 	tcases := []struct {
 		description         string

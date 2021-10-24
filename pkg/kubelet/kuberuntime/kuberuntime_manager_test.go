@@ -486,7 +486,7 @@ func TestKillPod(t *testing.T) {
 	}
 }
 
-// Fix Me please
+// Fix Me by TCEers
 func skipTestSyncPod(t *testing.T) {
 	fakeRuntime, fakeImage, m, err := createTestRuntimeManager()
 	assert.NoError(t, err)
@@ -565,7 +565,7 @@ func TestPruneInitContainers(t *testing.T) {
 	}
 }
 
-// Fix Me please
+// Fix Me by TCEers.
 func skipTestSyncPodWithInitContainers(t *testing.T) {
 	fakeRuntime, _, m, err := createTestRuntimeManager()
 	assert.NoError(t, err)

@@ -696,7 +696,7 @@ func assertHealthFails(t *testing.T, httpURL string, expectedErrorCode int) {
 	}
 }
 
-// Fix Me please.
+// Fix Me by TCEers.
 // Ensure all registered handlers & services have an associated testcase.
 func skipTestAuthzCoverage(t *testing.T) {
 	fw := newServerTest()

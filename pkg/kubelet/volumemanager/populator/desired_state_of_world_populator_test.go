@@ -260,7 +260,7 @@ func TestFindAndAddNewPods_FindAndRemoveDeletedPods(t *testing.T) {
 
 }
 
-// Fixed Me(fandeliang)
+// Fix Me by TCEers.
 func skipTestFindAndRemoveDeletedPodsWithActualState(t *testing.T) {
 	// create dswp
 	mode := v1.PersistentVolumeFilesystem
