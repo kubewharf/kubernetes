@@ -12,6 +12,7 @@ jobs:
       - name: Run Unittest
         commands:
           - env
+          - export KUBE_TIMEOUT="--timeout=600s"
           - make test
   e2e_job:
     name: K8S E2E
