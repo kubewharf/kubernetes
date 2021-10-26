@@ -54,7 +54,7 @@ func GetContainerOOMScoreAdjust(pod *v1.Pod, container *v1.Container, memoryCapa
 		if customScoreAdj, err := strconv.Atoi(val); err != nil {
 			klog.Warningf("[oom_score_adjust] invalid custom oom_score_adjust %s", val)
 		} else if customScoreAdj < -1000 || customScoreAdj > 1000 {
-			klog.Warningf("[oom_score_adjust] invalid custom oom_score_adjust %d", val)
+			klog.Warningf("[oom_score_adjust] invalid custom oom_score_adjust %s", val)
 		} else {
 			return customScoreAdj
 		}

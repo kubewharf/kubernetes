@@ -563,8 +563,6 @@ func generateCustomMetricSpec() []cadvisorapiv1.MetricSpec {
 				e.Type = cadvisorapiv1.MetricGauge
 			case 1:
 				e.Type = cadvisorapiv1.MetricCumulative
-			case 2:
-				e.Type = cadvisorapiv1.MetricDelta
 			}
 			switch c.Intn(2) {
 			case 0:

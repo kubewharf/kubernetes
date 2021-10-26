@@ -3,7 +3,7 @@ trigger: [change]
 jobs:
   unittest_job:
     name: K8S Unittest
-    image: hub.byted.org/tce/data-ci-debian:v0.5
+    image: hub.byted.org/codebase/ci_go_1_14:latest
     steps:
       - name: Clone
         uses: actions/checkout
@@ -12,9 +12,7 @@ jobs:
       - name: Run Unittest
         commands:
           - env
-          - export PATH=$PATH:/usr/local/go/bin
-          - make clean
-          - make clean_generated
+          - export KUBE_TIMEOUT="--timeout=600s"
           - make test
   e2e_job:
     name: K8S E2E

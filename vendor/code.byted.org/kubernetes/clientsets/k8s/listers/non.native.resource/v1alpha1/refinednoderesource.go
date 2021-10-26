@@ -19,7 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "code.byted.org/kubernetes/apis/k8s/non.native.resource/v1alpha1"
+	nnrv1alpha1 "code.byted.org/kubernetes/apis/k8s/non.native.resource/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
@@ -28,9 +28,9 @@ import (
 // RefinedNodeResourceLister helps list RefinedNodeResources.
 type RefinedNodeResourceLister interface {
 	// List lists all RefinedNodeResources in the indexer.
-	List(selector labels.Selector) (ret []*v1alpha1.RefinedNodeResource, err error)
+	List(selector labels.Selector) (ret []*nnrv1alpha1.RefinedNodeResource, err error)
 	// Get retrieves the RefinedNodeResource from the index for a given name.
-	Get(name string) (*v1alpha1.RefinedNodeResource, error)
+	Get(name string) (*nnrv1alpha1.RefinedNodeResource, error)
 	RefinedNodeResourceListerExpansion
 }
 
@@ -45,21 +45,21 @@ func NewRefinedNodeResourceLister(indexer cache.Indexer) RefinedNodeResourceList
 }
 
 // List lists all RefinedNodeResources in the indexer.
-func (s *refinedNodeResourceLister) List(selector labels.Selector) (ret []*v1alpha1.RefinedNodeResource, err error) {
+func (s *refinedNodeResourceLister) List(selector labels.Selector) (ret []*nnrv1alpha1.RefinedNodeResource, err error) {
 	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.RefinedNodeResource))
+		ret = append(ret, m.(*nnrv1alpha1.RefinedNodeResource))
 	})
 	return ret, err
 }
 
 // Get retrieves the RefinedNodeResource from the index for a given name.
-func (s *refinedNodeResourceLister) Get(name string) (*v1alpha1.RefinedNodeResource, error) {
+func (s *refinedNodeResourceLister) Get(name string) (*nnrv1alpha1.RefinedNodeResource, error) {
 	obj, exists, err := s.indexer.GetByKey(name)
 	if err != nil {
 		return nil, err
 	}
 	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("refinednoderesource"), name)
+		return nil, errors.NewNotFound(nnrv1alpha1.Resource("refinednoderesource"), name)
 	}
-	return obj.(*v1alpha1.RefinedNodeResource), nil
+	return obj.(*nnrv1alpha1.RefinedNodeResource), nil
 }

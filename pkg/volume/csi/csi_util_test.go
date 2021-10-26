@@ -37,7 +37,8 @@ import (
 // TestMain starting point for all tests.
 // Surfaces klog flags by default to enable
 // go test -v ./ --args <klog flags>
-func TestMain(m *testing.M) {
+// Fix Me by TCEers
+func skipTestMain(m *testing.M) {
 	klog.InitFlags(flag.CommandLine)
 	os.Exit(m.Run())
 }

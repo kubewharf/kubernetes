@@ -734,6 +734,30 @@ items:
     - get
     - update
   - apiGroups:
+    - non.native.resource.k8s.io
+    resources:
+    - refinednoderesources
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - csi.storage.k8s.io
+    resources:
+    - csistoragepools
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - scheduling.k8s.io
+    resources:
+    - priorityclasses
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
     - ""
     resources:
     - nodes
@@ -749,6 +773,7 @@ items:
     - delete
     - get
     - list
+    - update
     - watch
   - apiGroups:
     - ""
@@ -791,6 +816,14 @@ items:
     - list
     - watch
   - apiGroups:
+    - apps
+    resources:
+    - deployments
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
     - policy
     resources:
     - poddisruptionbudgets
@@ -827,6 +860,12 @@ items:
     - get
     - list
     - watch
+  - apiGroups:
+    - ""
+    resources:
+    - configmaps
+    verbs:
+    - get
 - apiVersion: rbac.authorization.k8s.io/v1
   kind: ClusterRole
   metadata:
@@ -1001,6 +1040,12 @@ items:
     verbs:
     - get
   - apiGroups:
+    - apps
+    resources:
+    - daemonsets
+    verbs:
+    - get
+  - apiGroups:
     - ""
     resources:
     - persistentvolumeclaims/status
@@ -1040,12 +1085,6 @@ items:
     - get
     - list
     - watch
-  - apiGroups:
-    - apps
-    resources:
-    - daemonsets
-    verbs:
-    - get
 - apiVersion: rbac.authorization.k8s.io/v1
   kind: ClusterRole
   metadata:

@@ -56,9 +56,10 @@ var (
 func init() {
 	// all features need to be set on all featuregates for the tests.  We set everything and then then the if's below override it.
 	relevantFeatures := map[featuregate.Feature]featuregate.FeatureSpec{
-		features.TokenRequest:            {Default: false},
-		features.CSINodeInfo:             {Default: false},
-		features.ExpandPersistentVolumes: {Default: false},
+		features.TokenRequest:                       {Default: false},
+		features.CSINodeInfo:                        {Default: false},
+		features.ExpandPersistentVolumes:            {Default: false},
+		features.NonNativeResourceSchedulingSupport: {Default: false},
 	}
 	utilruntime.Must(trEnabledFeature.Add(relevantFeatures))
 	utilruntime.Must(csiNodeInfoEnabledFeature.Add(relevantFeatures))

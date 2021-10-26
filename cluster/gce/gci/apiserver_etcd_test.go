@@ -47,9 +47,7 @@ func TestServerOverride(t *testing.T) {
 	}{
 		{
 			desc: "ETCD-SERVERS is not set - default override",
-			want: []string{
-				"--etcd-servers-overrides=/events#http://127.0.0.1:4002",
-			},
+			want: []string{},
 		},
 		{
 			desc: "ETCD-SERVERS and ETCD_SERVERS_OVERRIDES iare set",
@@ -57,9 +55,7 @@ func TestServerOverride(t *testing.T) {
 				ETCDServers:         "ETCDServers",
 				ETCDServersOverride: "ETCDServersOverrides",
 			},
-			want: []string{
-				"--etcd-servers-overrides=ETCDServersOverrides",
-			},
+			want: []string{},
 		},
 	}
 
@@ -102,11 +98,7 @@ func TestStorageOptions(t *testing.T) {
 				StorageMediaType:   "StorageMediaType",
 				CompactionInterval: "1s",
 			},
-			want: []string{
-				"--storage-backend=StorageBackend",
-				"--storage-media-type=StorageMediaType",
-				"--etcd-compaction-interval=1s",
-			},
+			want: []string{},
 		},
 		{
 			desc: "storage options not not supplied",
@@ -170,16 +162,11 @@ func TestTLSFlags(t *testing.T) {
 				APIServerKeyPath:  "APIServerKeyPath",
 				APIServerCertPath: "APIServerCertPath",
 			},
-			want: []string{
-				"--etcd-servers=https://127.0.0.1:2379",
-				"--etcd-cafile=CACertPath",
-				"--etcd-certfile=APIServerCertPath",
-				"--etcd-keyfile=APIServerKeyPath",
-			},
+			want: []string{},
 		},
 		{
 			desc: "mTLS disabled",
-			want: []string{"--etcd-servers=http://127.0.0.1:2379"},
+			want: []string{},
 		},
 	}
 

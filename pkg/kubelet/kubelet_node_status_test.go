@@ -882,6 +882,14 @@ func TestUpdateNodeStatusWithLease(t *testing.T) {
 					LastTransitionTime: now,
 				},
 				{
+					Type:               v1.NodeCPUPressure,
+					Status:             v1.ConditionFalse,
+					Reason:             "KubeletHasNoLoadPressure",
+					Message:            fmt.Sprintf("kubelet has no load pressure"),
+					LastHeartbeatTime:  now,
+					LastTransitionTime: now,
+				},
+				{
 					Type:               v1.NodeReady,
 					Status:             v1.ConditionTrue,
 					Reason:             "KubeletReady",

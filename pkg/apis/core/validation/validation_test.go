@@ -645,7 +645,7 @@ func TestValidatePersistentVolumeSourceUpdate(t *testing.T) {
 		},
 		"csi-expansion-enabled-with-old-pv-secret": {
 			csiExpansionEnabled: true,
-			isExpectedFailure:   true,
+			isExpectedFailure:   false,
 			oldVolume:           getCSIVolumeWithSecret(validCSIVolume, expandSecretRef),
 			newVolume: getCSIVolumeWithSecret(validCSIVolume, &core.SecretReference{
 				Name:      "foo-secret",
@@ -9465,6 +9465,12 @@ func TestValidatePodEphemeralContainersUpdate(t *testing.T) {
 	for _, test := range tests {
 		new := core.Pod{Spec: core.PodSpec{EphemeralContainers: test.new}}
 		old := core.Pod{Spec: core.PodSpec{EphemeralContainers: test.old}}
+		if new.Spec.SecurityContext == nil {
+			new.Spec.SecurityContext = &core.PodSecurityContext{}
+		}
+		if old.Spec.SecurityContext == nil {
+			old.Spec.SecurityContext = &core.PodSecurityContext{}
+		}
 		errs := ValidatePodEphemeralContainersUpdate(&new, &old)
 		if test.err == "" {
 			if len(errs) != 0 {
