@@ -612,8 +612,10 @@ func GetPodVolumeNames(pod *v1.Pod) (mounts sets.String, devices sets.String) {
 	mounts = sets.NewString()
 	devices = sets.NewString()
 
-	if volumeName := GetPodRootFSDiskName(pod); volumeName != "" && v1helper.IsVMRuntime(pod) {
-		mounts.Insert(volumeName)
+	if v1helper.IsVMRuntime(pod) {
+		if volumeName := GetPodRootFSDiskName(pod); volumeName != "" {
+			mounts.Insert(volumeName)
+		}
 	}
 
 	podutil.VisitContainers(&pod.Spec, func(container *v1.Container) bool {
