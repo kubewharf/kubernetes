@@ -45,7 +45,8 @@ func Test_Discover(t *testing.T) {
 		{
 			name: "OneSocketHT",
 			machineInfo: cadvisorapi.MachineInfo{
-				NumCores: 8,
+				NumCores:   8,
+				NumSockets: 1,
 				Topology: []cadvisorapi.Node{
 					{Id: 0,
 						Cores: []cadvisorapi.Core{
@@ -80,7 +81,8 @@ func Test_Discover(t *testing.T) {
 		{
 			name: "DualSocketNoHT",
 			machineInfo: cadvisorapi.MachineInfo{
-				NumCores: 4,
+				NumCores:   4,
+				NumSockets: 2,
 				Topology: []cadvisorapi.Node{
 					{Id: 0,
 						Cores: []cadvisorapi.Core{
@@ -116,7 +118,8 @@ func Test_Discover(t *testing.T) {
 		{
 			name: "DualSocketHT - non unique Core'ID's",
 			machineInfo: cadvisorapi.MachineInfo{
-				NumCores: 12,
+				NumCores:   12,
+				NumSockets: 2,
 				Topology: []cadvisorapi.Node{
 					{Id: 0,
 						Cores: []cadvisorapi.Core{
@@ -196,6 +199,57 @@ func Test_Discover(t *testing.T) {
 			numaNodeInfo: NUMANodeInfo{},
 			want:         &CPUTopology{},
 			wantErr:      true,
+		},
+		{
+			name: "DualSocketDualNumaHT - non unique Core'ID's",
+			machineInfo: cadvisorapi.MachineInfo{
+				NumCores:   8,
+				NumSockets: 2,
+				Topology: []cadvisorapi.Node{
+					{Id: 0,
+						Cores: []cadvisorapi.Core{
+							{SocketID: 0, Id: 0, Threads: []int{0, 4}},
+						},
+					},
+					{Id: 1,
+						Cores: []cadvisorapi.Core{
+							{SocketID: 0, Id: 1, Threads: []int{1, 5}},
+						},
+					},
+					{Id: 2,
+						Cores: []cadvisorapi.Core{
+							{SocketID: 1, Id: 2, Threads: []int{2, 6}},
+						},
+					},
+					{Id: 3,
+						Cores: []cadvisorapi.Core{
+							{SocketID: 1, Id: 3, Threads: []int{3, 7}},
+						},
+					},
+				},
+			},
+			numaNodeInfo: NUMANodeInfo{
+				0: cpuset.NewCPUSet(0, 4),
+				1: cpuset.NewCPUSet(1, 5),
+				2: cpuset.NewCPUSet(2, 6),
+				3: cpuset.NewCPUSet(3, 7),
+			},
+			want: &CPUTopology{
+				NumCPUs:    8,
+				NumSockets: 2,
+				NumCores:   4,
+				CPUDetails: map[int]CPUInfo{
+					0: {CoreID: 0, SocketID: 0, NUMANodeID: 0},
+					1: {CoreID: 1, SocketID: 0, NUMANodeID: 1},
+					2: {CoreID: 2, SocketID: 1, NUMANodeID: 2},
+					3: {CoreID: 3, SocketID: 1, NUMANodeID: 3},
+					4: {CoreID: 0, SocketID: 0, NUMANodeID: 0},
+					5: {CoreID: 1, SocketID: 0, NUMANodeID: 1},
+					6: {CoreID: 2, SocketID: 1, NUMANodeID: 2},
+					7: {CoreID: 3, SocketID: 1, NUMANodeID: 3},
+				},
+			},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
