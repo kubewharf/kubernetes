@@ -295,21 +295,15 @@ func Discover(machineInfo *cadvisorapi.MachineInfo, numaNodeInfo NUMANodeInfo) (
 	CPUDetails := CPUDetails{}
 	numPhysicalCores := 0
 
-	for _, socket := range machineInfo.Topology {
-		numPhysicalCores += len(socket.Cores)
-		for _, core := range socket.Cores {
+	for _, node := range machineInfo.Topology {
+		numPhysicalCores += len(node.Cores)
+		for _, core := range node.Cores {
 			if coreID, err := getUniqueCoreID(core.Threads); err == nil {
 				for _, cpu := range core.Threads {
-					numaNodeID := 0
-					for id, cset := range numaNodeInfo {
-						if cset.Contains(cpu) {
-							numaNodeID = id
-						}
-					}
 					CPUDetails[cpu] = CPUInfo{
 						CoreID:     coreID,
 						SocketID:   core.SocketID,
-						NUMANodeID: numaNodeID,
+						NUMANodeID: node.Id,
 					}
 				}
 			} else {
@@ -320,9 +314,12 @@ func Discover(machineInfo *cadvisorapi.MachineInfo, numaNodeInfo NUMANodeInfo) (
 		}
 	}
 
+	klog.Infof("discover cpu topology: NumCPUs: %d, NumSockets: %d, NumCores: %d, CPUDetails: %+v",
+		machineInfo.NumCores, machineInfo.NumSockets, numPhysicalCores, CPUDetails)
+
 	return &CPUTopology{
 		NumCPUs:    machineInfo.NumCores,
-		NumSockets: len(machineInfo.Topology),
+		NumSockets: machineInfo.NumSockets,
 		NumCores:   numPhysicalCores,
 		CPUDetails: CPUDetails,
 	}, nil
