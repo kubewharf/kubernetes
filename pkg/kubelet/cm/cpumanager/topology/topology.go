@@ -308,13 +308,13 @@ func Discover(machineInfo *cadvisorapi.MachineInfo, numaNodeInfo NUMANodeInfo) (
 					}
 					CPUDetails[cpu] = CPUInfo{
 						CoreID:     coreID,
-						SocketID:   socket.Id,
+						SocketID:   core.SocketID,
 						NUMANodeID: numaNodeID,
 					}
 				}
 			} else {
 				klog.Errorf("could not get unique coreID for socket: %d core %d threads: %v",
-					socket.Id, core.Id, core.Threads)
+					core.SocketID, core.Id, core.Threads)
 				return nil, err
 			}
 		}
