@@ -38,5 +38,8 @@ func AdmitForKubelet(pod *v1.Pod) bool {
 	if !utilpod.LauncherIsKubelet(pod.Annotations) {
 		return false
 	}
+	if utilpod.SkipYodelPodAdmit(pod.Annotations) {
+		return false
+	}
 	return true
 }

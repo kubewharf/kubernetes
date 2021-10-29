@@ -102,10 +102,10 @@ func (gcc *PodGCController) Run(stop <-chan struct{}) {
 	<-stop
 }
 
-func filterPodsLaunchedByNodeManger(pods []*v1.Pod) []*v1.Pod {
+func filterPodsManagedByYodel(pods []*v1.Pod) []*v1.Pod {
 	filtered := make([]*v1.Pod, 0)
 	for _, pod := range pods {
-		if pod == nil || utilpod.LauncherIsNodeManager(pod.Annotations) {
+		if pod == nil || utilpod.IsYodelPod(pod.Annotations) {
 			continue
 		}
 		filtered = append(filtered, pod)
@@ -119,7 +119,7 @@ func (gcc *PodGCController) gc() {
 		klog.Errorf("Error while listing all pods: %v", err)
 		return
 	}
-	pods = filterPodsLaunchedByNodeManger(pods)
+	pods = filterPodsManagedByYodel(pods)
 	nodes, err := gcc.nodeLister.List(labels.Everything())
 	if err != nil {
 		klog.Errorf("Error while listing all nodes: %v", err)
