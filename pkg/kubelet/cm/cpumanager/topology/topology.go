@@ -295,34 +295,31 @@ func Discover(machineInfo *cadvisorapi.MachineInfo, numaNodeInfo NUMANodeInfo) (
 	CPUDetails := CPUDetails{}
 	numPhysicalCores := 0
 
-	for _, socket := range machineInfo.Topology {
-		numPhysicalCores += len(socket.Cores)
-		for _, core := range socket.Cores {
+	for _, node := range machineInfo.Topology {
+		numPhysicalCores += len(node.Cores)
+		for _, core := range node.Cores {
 			if coreID, err := getUniqueCoreID(core.Threads); err == nil {
 				for _, cpu := range core.Threads {
-					numaNodeID := 0
-					for id, cset := range numaNodeInfo {
-						if cset.Contains(cpu) {
-							numaNodeID = id
-						}
-					}
 					CPUDetails[cpu] = CPUInfo{
 						CoreID:     coreID,
-						SocketID:   socket.Id,
-						NUMANodeID: numaNodeID,
+						SocketID:   core.SocketID,
+						NUMANodeID: node.Id,
 					}
 				}
 			} else {
 				klog.Errorf("could not get unique coreID for socket: %d core %d threads: %v",
-					socket.Id, core.Id, core.Threads)
+					core.SocketID, core.Id, core.Threads)
 				return nil, err
 			}
 		}
 	}
 
+	klog.Infof("discover cpu topology: NumCPUs: %d, NumSockets: %d, NumCores: %d, CPUDetails: %+v",
+		machineInfo.NumCores, machineInfo.NumSockets, numPhysicalCores, CPUDetails)
+
 	return &CPUTopology{
 		NumCPUs:    machineInfo.NumCores,
-		NumSockets: len(machineInfo.Topology),
+		NumSockets: machineInfo.NumSockets,
 		NumCores:   numPhysicalCores,
 		CPUDetails: CPUDetails,
 	}, nil
