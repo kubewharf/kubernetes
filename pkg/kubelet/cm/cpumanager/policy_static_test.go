@@ -653,6 +653,100 @@ func TestTopologyAwareAllocateCPUs(t *testing.T) {
 	}
 }
 
+func TestTopologyAwareAllocateCPUsWithReusable(t *testing.T) {
+	testCases := []struct {
+		description     string
+		topo            *topology.CPUTopology
+		stAssignments   state.ContainerCPUAssignments
+		stDefaultCPUSet cpuset.CPUSet
+		numRequested    int
+		socketMask      bitmask.BitMask
+		expCSet         cpuset.CPUSet
+	}{
+		{
+			description:     "Request 3 CPUs, No BitMask",
+			topo:            topoDualSocketHT,
+			stAssignments:   state.ContainerCPUAssignments{},
+			stDefaultCPUSet: cpuset.NewCPUSet(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11),
+			numRequested:    3,
+			socketMask:      nil,
+			expCSet:         cpuset.NewCPUSet(0, 6),
+		},
+	}
+	for _, tc := range testCases {
+		p, _ := NewStaticPolicy(tc.topo, 0, cpuset.NewCPUSet(), topologymanager.NewFakeManager())
+		policy := p.(*staticPolicy)
+		st := &mockState{
+			assignments:   tc.stAssignments,
+			defaultCPUSet: tc.stDefaultCPUSet,
+		}
+		err := policy.Start(st)
+		if err != nil {
+			t.Errorf("StaticPolicy Start() error (%v)", err)
+			continue
+		}
+
+		cset, err := policy.allocateCPUs(st, tc.numRequested, tc.socketMask, cpuset.NewCPUSet(0, 6))
+		if err != nil {
+			t.Errorf("StaticPolicy allocateCPUs() error (%v). expected CPUSet %v not error %v",
+				tc.description, tc.expCSet, err)
+			continue
+		}
+
+		if !tc.expCSet.IsSubsetOf(cset) {
+			t.Errorf("StaticPolicy allocateCPUs() error (%v). expected CPUSet %v not error %v",
+				tc.description, tc.expCSet, err)
+			continue
+		}
+	}
+
+	testCases = []struct {
+		description     string
+		topo            *topology.CPUTopology
+		stAssignments   state.ContainerCPUAssignments
+		stDefaultCPUSet cpuset.CPUSet
+		numRequested    int
+		socketMask      bitmask.BitMask
+		expCSet         cpuset.CPUSet
+	}{
+		{
+			description:     "Request 2 CPUs, No BitMask",
+			topo:            topoDualSocketHT,
+			stAssignments:   state.ContainerCPUAssignments{},
+			stDefaultCPUSet: cpuset.NewCPUSet(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11),
+			numRequested:    2,
+			socketMask:      nil,
+			expCSet:         cpuset.NewCPUSet(0, 6),
+		},
+	}
+	for _, tc := range testCases {
+		p, _ := NewStaticPolicy(tc.topo, 0, cpuset.NewCPUSet(), topologymanager.NewFakeManager())
+		policy := p.(*staticPolicy)
+		st := &mockState{
+			assignments:   tc.stAssignments,
+			defaultCPUSet: tc.stDefaultCPUSet,
+		}
+		err := policy.Start(st)
+		if err != nil {
+			t.Errorf("StaticPolicy Start() error (%v)", err)
+			continue
+		}
+
+		cset, err := policy.allocateCPUs(st, tc.numRequested, tc.socketMask, cpuset.NewCPUSet(0, 6))
+		if err != nil {
+			t.Errorf("StaticPolicy allocateCPUs() error (%v). expected CPUSet %v not error %v",
+				tc.description, tc.expCSet, err)
+			continue
+		}
+
+		if !reflect.DeepEqual(tc.expCSet, cset) {
+			t.Errorf("StaticPolicy allocateCPUs() error (%v). expected CPUSet %v not error %v",
+				tc.description, tc.expCSet, err)
+			continue
+		}
+	}
+}
+
 // above test cases are without kubelet --reserved-cpus cmd option
 // the following tests are with --reserved-cpus configured
 type staticPolicyTestWithResvList struct {
