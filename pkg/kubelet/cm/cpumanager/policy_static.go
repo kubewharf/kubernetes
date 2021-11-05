@@ -257,10 +257,21 @@ func (p *staticPolicy) RemoveContainer(s state.State, podUID string, containerNa
 func (p *staticPolicy) allocateCPUs(s state.State, numCPUs int, numaAffinity bitmask.BitMask, reusableCPUs cpuset.CPUSet) (cpuset.CPUSet, error) {
 	klog.Infof("[cpumanager] allocateCpus: (numCPUs: %d, socket: %v)", numCPUs, numaAffinity)
 
-	assignableCPUs := p.assignableCPUs(s).Union(reusableCPUs)
-
-	// If there are aligned CPUs in numaAffinity, attempt to take those first.
 	result := cpuset.NewCPUSet()
+	takeFromReusableCPUs := numCPUs
+	if reusableCPUs.Size() <= takeFromReusableCPUs {
+		takeFromReusableCPUs = reusableCPUs.Size()
+	}
+	// If there are reusable CPUs, attempt to take those first.
+	allocatedReusableCPUs, err := takeByTopology(p.topology, reusableCPUs, takeFromReusableCPUs)
+	if err != nil {
+		return cpuset.NewCPUSet(), err
+	}
+	result = result.Union(allocatedReusableCPUs)
+
+	assignableCPUs := p.assignableCPUs(s).Union(reusableCPUs).Difference(result)
+
+	// If there are aligned CPUs in numaAffinity, then attempt to take those.
 	if numaAffinity != nil {
 		alignedCPUs := cpuset.NewCPUSet()
 		for _, numaNodeID := range numaAffinity.GetBits() {
@@ -268,8 +279,8 @@ func (p *staticPolicy) allocateCPUs(s state.State, numCPUs int, numaAffinity bit
 		}
 
 		numAlignedToAlloc := alignedCPUs.Size()
-		if numCPUs < numAlignedToAlloc {
-			numAlignedToAlloc = numCPUs
+		if numCPUs-result.Size() < numAlignedToAlloc {
+			numAlignedToAlloc = numCPUs - result.Size()
 		}
 
 		alignedCPUs, err := takeByTopology(p.topology, alignedCPUs, numAlignedToAlloc)
