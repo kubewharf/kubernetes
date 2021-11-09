@@ -159,7 +159,8 @@ func (dc *DeploymentController) getNewReplicaSet(d *apps.Deployment, rsList, old
 		}
 
 		// Should use the revision in existingNewRS's annotation, since it set by before
-		needsUpdate := deploymentutil.SetDeploymentRevision(d, rsCopy.Annotations[deploymentutil.RevisionAnnotation])
+		needsUpdate := deploymentutil.SetDeploymentRevision(d, rsCopy.Annotations[deploymentutil.RevisionAnnotation]) ||
+			deploymentutil.SetNewReplicaSetAbstracts(d, rsCopy)
 		// If no other Progressing condition has been recorded and we need to estimate the progress
 		// of this deployment then it is likely that old users started caring about progress. In that
 		// case we need to take into account the first time we noticed their new replica set.
@@ -277,7 +278,8 @@ func (dc *DeploymentController) getNewReplicaSet(d *apps.Deployment, rsList, old
 		dc.eventRecorder.Eventf(d, v1.EventTypeNormal, "ScalingReplicaSet", "Scaled up replica set %s to %d", createdRS.Name, newReplicasCount)
 	}
 
-	needsUpdate := deploymentutil.SetDeploymentRevision(d, newRevision)
+	needsUpdate := deploymentutil.SetDeploymentRevision(d, newRevision) ||
+		deploymentutil.SetNewReplicaSetAbstracts(d, createdRS)
 	if !alreadyExists && deploymentutil.HasProgressDeadline(d) {
 		msg := fmt.Sprintf("Created new replica set %q", createdRS.Name)
 		condition := deploymentutil.NewDeploymentCondition(apps.DeploymentProgressing, v1.ConditionTrue, deploymentutil.NewReplicaSetReason, msg)

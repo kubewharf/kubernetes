@@ -59,6 +59,12 @@ const (
 	// TCEDaemonAnnotation indicates the deployment is used as a daemon.
 	TCEDaemonAnnotationKey   = "deployment.kubernetes.io/daemon-deployment"
 	TCEDaemonAnnotationValue = "true"
+	// NewReplicasetNameAnnotation indicates the name of the new replicaset for a deployment
+	NewReplicasetNameAnnotation = "deployment.tce.kubernetes.io/new-replicaset-name"
+	// NewReplicasetReplicasAnnotation indicates the status.Replicas of the new replicaset for a deployment
+	NewReplicasetReplicasAnnotation = "deployment.tce.kubernetes.io/new-replicaset-replicas"
+	// NewReplicasetAvailableReplicasAnnotation indicates the status.AvailableReplicas of the new replicaset for a deployment
+	NewReplicasetAvailableReplicasAnnotation = "deployment.tce.kubernetes.io/new-replicaset-available-replicas"
 
 	// RollbackRevisionNotFound is not found rollback event reason
 	RollbackRevisionNotFound = "DeploymentRollbackRevisionNotFound"
@@ -198,6 +204,31 @@ func SetDeploymentRevision(deployment *apps.Deployment, revision string) bool {
 	return updated
 }
 
+// SetNewReplicaSetAbstracts updates abstracts (name, replicas, availableReplicas) of newRS to deployment
+func SetNewReplicaSetAbstracts(deployment *apps.Deployment, newRS *apps.ReplicaSet) bool {
+	updated := false
+
+	if deployment.Annotations == nil {
+		deployment.Annotations = make(map[string]string)
+	}
+	if deployment.Annotations[NewReplicasetNameAnnotation] != newRS.Name {
+		deployment.Annotations[NewReplicasetNameAnnotation] = newRS.Name
+		updated = true
+	}
+	replicas := fmt.Sprintf("%d", newRS.Status.Replicas)
+	if deployment.Annotations[NewReplicasetReplicasAnnotation] != replicas {
+		deployment.Annotations[NewReplicasetReplicasAnnotation] = replicas
+		updated = true
+	}
+	availableReplicas := fmt.Sprintf("%d", newRS.Status.AvailableReplicas)
+	if deployment.Annotations[NewReplicasetAvailableReplicasAnnotation] != availableReplicas {
+		deployment.Annotations[NewReplicasetAvailableReplicasAnnotation] = availableReplicas
+		updated = true
+	}
+
+	return updated
+}
+
 // MaxRevision finds the highest revision in the replica sets
 func MaxRevision(allRSs []*apps.ReplicaSet) int64 {
 	max := int64(0)
@@ -307,12 +338,15 @@ func SetNewReplicaSetAnnotations(deployment *apps.Deployment, newRS *apps.Replic
 }
 
 var annotationsToSkip = map[string]bool{
-	v1.LastAppliedConfigAnnotation: true,
-	RevisionAnnotation:             true,
-	RevisionHistoryAnnotation:      true,
-	DesiredReplicasAnnotation:      true,
-	MaxReplicasAnnotation:          true,
-	apps.DeprecatedRollbackTo:      true,
+	v1.LastAppliedConfigAnnotation:           true,
+	RevisionAnnotation:                       true,
+	RevisionHistoryAnnotation:                true,
+	DesiredReplicasAnnotation:                true,
+	MaxReplicasAnnotation:                    true,
+	apps.DeprecatedRollbackTo:                true,
+	NewReplicasetNameAnnotation:              true,
+	NewReplicasetReplicasAnnotation:          true,
+	NewReplicasetAvailableReplicasAnnotation: true,
 }
 
 // skipCopyAnnotation returns true if we should skip copying the annotation with the given annotation key
