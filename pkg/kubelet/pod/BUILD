@@ -11,6 +11,7 @@ go_library(
     srcs = [
         "mirror_client.go",
         "pod_manager.go",
+        "pod_manager_fake.go",
     ],
     importpath = "k8s.io/kubernetes/pkg/kubelet/pod",
     deps = [
@@ -18,6 +19,7 @@ go_library(
         "//pkg/kubelet/checkpointmanager:go_default_library",
         "//pkg/kubelet/configmap:go_default_library",
         "//pkg/kubelet/container:go_default_library",
+        "//pkg/kubelet/pod/testing:go_default_library",
         "//pkg/kubelet/secret:go_default_library",
         "//pkg/kubelet/types:go_default_library",
         "//staging/src/k8s.io/api/core/v1:go_default_library",
@@ -37,10 +39,7 @@ go_test(
     ],
     embed = [":go_default_library"],
     deps = [
-        "//pkg/kubelet/configmap:go_default_library",
         "//pkg/kubelet/container:go_default_library",
-        "//pkg/kubelet/pod/testing:go_default_library",
-        "//pkg/kubelet/secret:go_default_library",
         "//pkg/kubelet/types:go_default_library",
         "//staging/src/k8s.io/api/core/v1:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",

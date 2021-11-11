@@ -43,6 +43,7 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//pkg/features:go_default_library",
+        "//pkg/kubelet/pod:go_default_library",
         "//pkg/kubelet/volumemanager/cache:go_default_library",
         "//pkg/volume:go_default_library",
         "//pkg/volume/testing:go_default_library",

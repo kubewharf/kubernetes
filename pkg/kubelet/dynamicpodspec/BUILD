@@ -3,10 +3,8 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
-        "fixed_ports.go",
         "interfaces.go",
         "ports.go",
-        "tools.go",
         "volumes.go",
     ],
     importpath = "k8s.io/kubernetes/pkg/kubelet/dynamicpodspec",
@@ -25,12 +23,8 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = [
-        "ports_test.go",
-        "tools_test.go",
-    ],
+    srcs = ["ports_test.go"],
     embed = [":go_default_library"],
-    deps = ["//staging/src/k8s.io/api/core/v1:go_default_library"],
 )
 
 filegroup(
