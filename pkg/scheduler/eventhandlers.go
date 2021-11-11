@@ -29,7 +29,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/informers"
-	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 	utilpod "k8s.io/kubernetes/pkg/api/pod"
@@ -372,11 +371,10 @@ func (sched *Scheduler) skipPodUpdate(pod *v1.Pod) bool {
 func addAllEventHandlers(
 	sched *Scheduler,
 	informerFactory informers.SharedInformerFactory,
-	podInformer coreinformers.PodInformer,
 	bytedinformerFactory bytedinformers.SharedInformerFactory,
 ) {
 	// scheduled pod cache
-	podInformer.Informer().AddEventHandler(
+	informerFactory.Core().V1().Pods().Informer().AddEventHandler(
 		cache.FilteringResourceEventHandler{
 			FilterFunc: func(obj interface{}) bool {
 				switch t := obj.(type) {
@@ -402,7 +400,7 @@ func addAllEventHandlers(
 	)
 
 	// unscheduled pod queue
-	podInformer.Informer().AddEventHandler(
+	informerFactory.Core().V1().Pods().Informer().AddEventHandler(
 		cache.FilteringResourceEventHandler{
 			FilterFunc: func(obj interface{}) bool {
 				switch t := obj.(type) {

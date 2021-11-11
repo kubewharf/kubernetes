@@ -20,7 +20,6 @@ import (
 	bytedinformers "code.byted.org/kubernetes/clientsets/k8s/informers"
 	apiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/client-go/informers"
-	coreinformers "k8s.io/client-go/informers/core/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/kubernetes/typed/events/v1beta1"
@@ -47,7 +46,6 @@ type Config struct {
 
 	Client          clientset.Interface
 	InformerFactory informers.SharedInformerFactory
-	PodInformer     coreinformers.PodInformer
 
 	// TODO: Remove the following after fully migrating to the new events api.
 	CoreEventClient v1core.EventsGetter

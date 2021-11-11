@@ -271,7 +271,6 @@ var defaultSchedulerOptions = schedulerOptions{
 func New(client clientset.Interface,
 	informerFactory informers.SharedInformerFactory,
 	bytedinformerFactory bytedinformers.SharedInformerFactory,
-	podInformer coreinformers.PodInformer,
 	recorderFactory profile.RecorderFactory,
 	stopCh <-chan struct{},
 	opts ...Option) (*Scheduler, error) {
@@ -309,7 +308,6 @@ func New(client clientset.Interface,
 		bytedinformerFactory:           bytedinformerFactory,
 		recorderFactory:                recorderFactory,
 		informerFactory:                informerFactory,
-		podInformer:                    podInformer,
 		volumeBinder:                   volumeBinder,
 		schedulerCache:                 schedulerCache,
 		StopEverything:                 stopEverything,
@@ -371,10 +369,10 @@ func New(client clientset.Interface,
 	sched.StopEverything = stopEverything
 	sched.podConditionUpdater = &podConditionUpdaterImpl{client}
 	sched.podPreemptor = &podPreemptorImpl{client}
-	sched.scheduledPodsHasSynced = podInformer.Informer().HasSynced
+	sched.scheduledPodsHasSynced = informerFactory.Core().V1().Pods().Informer().HasSynced
 	sched.podUpdater = &podUpdaterImpl{client}
 
-	addAllEventHandlers(sched, informerFactory, podInformer, bytedinformerFactory)
+	addAllEventHandlers(sched, informerFactory, bytedinformerFactory)
 	return sched, nil
 }
 
@@ -1158,4 +1156,21 @@ func (p *podPreemptorImpl) removeNominatedNodeName(pod *v1.Pod) error {
 func defaultAlgorithmSourceProviderName() *string {
 	provider := schedulerapi.SchedulerDefaultProviderName
 	return &provider
+}
+
+// NewInformerFactory creates a SharedInformerFactory and initializes a scheduler specific
+// in-place podInformer.
+func NewInformerFactory(cs clientset.Interface, resyncPeriod time.Duration) informers.SharedInformerFactory {
+	informerFactory := informers.NewSharedInformerFactory(cs, resyncPeriod)
+	informerFactory.InformerFor(&v1.Pod{}, newPodInformer)
+	return informerFactory
+}
+
+// newPodInformer creates a shared index informer that returns only non-terminal pods.
+func newPodInformer(cs clientset.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	selector := fmt.Sprintf("status.phase!=%v,status.phase!=%v", v1.PodSucceeded, v1.PodFailed)
+	tweakListOptions := func(options *metav1.ListOptions) {
+		options.FieldSelector = selector
+	}
+	return coreinformers.NewFilteredPodInformer(cs, metav1.NamespaceAll, resyncPeriod, nil, tweakListOptions)
 }
