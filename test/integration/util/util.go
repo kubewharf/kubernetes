@@ -88,7 +88,6 @@ func StartScheduler(clientSet clientset.Interface) (*scheduler.Scheduler, corein
 		clientSet,
 		informerFactory,
 		nil,
-		podInformer,
 		profile.NewRecorderFactory(evtBroadcaster),
 		ctx.Done())
 	if err != nil {
@@ -350,11 +349,10 @@ func WaitForSchedulerCacheCleanup(sched *scheduler.Scheduler, t *testing.T) {
 func InitTestScheduler(
 	t *testing.T,
 	testCtx *TestContext,
-	setPodInformer bool,
 	policy *schedulerapi.Policy,
 ) *TestContext {
 	// Pod preemption is enabled by default scheduler configuration.
-	return InitTestSchedulerWithOptions(t, testCtx, setPodInformer, policy, time.Second)
+	return InitTestSchedulerWithOptions(t, testCtx, policy, time.Second)
 }
 
 // InitTestSchedulerWithOptions initializes a test environment and creates a scheduler with default
@@ -362,7 +360,6 @@ func InitTestScheduler(
 func InitTestSchedulerWithOptions(
 	t *testing.T,
 	testCtx *TestContext,
-	setPodInformer bool,
 	policy *schedulerapi.Policy,
 	resyncPeriod time.Duration,
 	opts ...scheduler.Option,
@@ -370,14 +367,6 @@ func InitTestSchedulerWithOptions(
 	// 1. Create scheduler
 	testCtx.InformerFactory = informers.NewSharedInformerFactory(testCtx.ClientSet, resyncPeriod)
 
-	var podInformer coreinformers.PodInformer
-
-	// create independent pod informer if required
-	if setPodInformer {
-		podInformer = scheduler.NewPodInformer(testCtx.ClientSet, 12*time.Hour)
-	} else {
-		podInformer = testCtx.InformerFactory.Core().V1().Pods()
-	}
 	var err error
 	eventBroadcaster := events.NewBroadcaster(&events.EventSinkImpl{
 		Interface: testCtx.ClientSet.EventsV1beta1().Events(""),
@@ -391,7 +380,6 @@ func InitTestSchedulerWithOptions(
 		testCtx.ClientSet,
 		testCtx.InformerFactory,
 		nil,
-		podInformer,
 		profile.NewRecorderFactory(eventBroadcaster),
 		testCtx.Ctx.Done(),
 		opts...,
@@ -399,12 +387,6 @@ func InitTestSchedulerWithOptions(
 
 	if err != nil {
 		t.Fatalf("Couldn't create scheduler: %v", err)
-	}
-
-	// set setPodInformer if provided.
-	if setPodInformer {
-		go podInformer.Informer().Run(testCtx.Scheduler.StopEverything)
-		cache.WaitForNamedCacheSync("scheduler", testCtx.Scheduler.StopEverything, podInformer.Informer().HasSynced)
 	}
 
 	stopCh := make(chan struct{})

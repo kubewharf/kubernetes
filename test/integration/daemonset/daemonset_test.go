@@ -92,7 +92,6 @@ func setupScheduler(
 		cs,
 		informerFactory,
 		nil,
-		informerFactory.Core().V1().Pods(),
 		profile.NewRecorderFactory(eventBroadcaster),
 		ctx.Done(),
 	)

@@ -80,14 +80,14 @@ func initDisruptionController(t *testing.T, testCtx *testutils.TestContext) *dis
 // initTest initializes a test environment and creates master and scheduler with default
 // configuration.
 func initTest(t *testing.T, nsPrefix string, opts ...scheduler.Option) *testutils.TestContext {
-	return testutils.InitTestSchedulerWithOptions(t, testutils.InitTestMaster(t, nsPrefix, nil), true, nil, time.Second, opts...)
+	return testutils.InitTestSchedulerWithOptions(t, testutils.InitTestMaster(t, nsPrefix, nil), nil, time.Second, opts...)
 }
 
 // initTestDisablePreemption initializes a test environment and creates master and scheduler with default
 // configuration but with pod preemption disabled.
 func initTestDisablePreemption(t *testing.T, nsPrefix string) *testutils.TestContext {
 	return testutils.InitTestSchedulerWithOptions(
-		t, testutils.InitTestMaster(t, nsPrefix, nil), true, nil,
+		t, testutils.InitTestMaster(t, nsPrefix, nil), nil,
 		time.Second, scheduler.WithPreemptionDisabled(true))
 }
 

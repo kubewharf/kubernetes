@@ -271,7 +271,6 @@ priorities: []
 		sched, err := scheduler.New(clientSet,
 			informerFactory,
 			nil,
-			scheduler.NewPodInformer(clientSet, 0),
 			profile.NewRecorderFactory(eventBroadcaster),
 			nil,
 			scheduler.WithAlgorithmSource(kubeschedulerconfig.SchedulerAlgorithmSource{
@@ -318,7 +317,6 @@ func TestSchedulerCreationFromNonExistentConfigMap(t *testing.T) {
 	_, err := scheduler.New(clientSet,
 		informerFactory,
 		nil,
-		scheduler.NewPodInformer(clientSet, 0),
 		profile.NewRecorderFactory(eventBroadcaster),
 		nil,
 		scheduler.WithAlgorithmSource(kubeschedulerconfig.SchedulerAlgorithmSource{
@@ -540,7 +538,7 @@ func TestMultipleSchedulers(t *testing.T) {
 
 	// 5. create and start a scheduler with name "foo-scheduler"
 	fooProf := kubeschedulerconfig.KubeSchedulerProfile{SchedulerName: fooScheduler}
-	testCtx = testutils.InitTestSchedulerWithOptions(t, testCtx, true, nil, time.Second, scheduler.WithProfiles(fooProf))
+	testCtx = testutils.InitTestSchedulerWithOptions(t, testCtx, nil, time.Second, scheduler.WithProfiles(fooProf))
 
 	//	6. **check point-2**:
 	//		- testPodWithAnnotationFitsFoo should be scheduled

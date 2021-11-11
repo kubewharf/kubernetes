@@ -199,7 +199,7 @@ func skipTestSchedulerCreation(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			client := clientsetfake.NewSimpleClientset()
-			informerFactory := informers.NewSharedInformerFactory(client, 0)
+			informerFactory := NewInformerFactory(client, 0)
 
 			eventBroadcaster := events.NewBroadcaster(&events.EventSinkImpl{Interface: client.EventsV1beta1().Events("")})
 
@@ -208,7 +208,6 @@ func skipTestSchedulerCreation(t *testing.T) {
 			s, err := New(client,
 				informerFactory,
 				nil,
-				NewPodInformer(client, 0),
 				profile.NewRecorderFactory(eventBroadcaster),
 				stopCh,
 				tc.opts...,
@@ -448,7 +447,6 @@ func skipTestSchedulerMultipleProfilesScheduling(t *testing.T) {
 	sched, err := New(client,
 		informerFactory,
 		nil,
-		informerFactory.Core().V1().Pods(),
 		profile.NewRecorderFactory(broadcaster),
 		ctx.Done(),
 		WithProfiles(

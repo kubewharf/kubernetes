@@ -103,7 +103,6 @@ func initTestSchedulerWithOptions(
 	// 1. Create scheduler
 	testCtx.informerFactory = informers.NewSharedInformerFactory(testCtx.clientSet, resyncPeriod)
 
-	podInformer := testCtx.informerFactory.Core().V1().Pods()
 	eventBroadcaster := events.NewBroadcaster(&events.EventSinkImpl{
 		Interface: testCtx.clientSet.EventsV1beta1().Events(""),
 	})
@@ -113,7 +112,6 @@ func initTestSchedulerWithOptions(
 		testCtx.clientSet,
 		testCtx.informerFactory,
 		nil,
-		podInformer,
 		profile.NewRecorderFactory(eventBroadcaster),
 		testCtx.ctx.Done())
 
