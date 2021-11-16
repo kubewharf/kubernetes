@@ -23,6 +23,7 @@ import (
 	"io"
 	"math/rand"
 	"reflect"
+	"strconv"
 	"sync"
 	"time"
 
@@ -38,9 +39,12 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/tools/metrics"
 	"k8s.io/client-go/tools/pager"
 	"k8s.io/klog"
 	"k8s.io/utils/trace"
+
+	"k8s.io/apiserver/pkg/registry/rest"
 )
 
 const defaultExpectedTypeName = "<unspecified>"
@@ -482,6 +486,21 @@ loop:
 				// A `Bookmark` means watch has synced here, just update the resourceVersion
 			default:
 				utilruntime.HandleError(fmt.Errorf("%s: unable to understand watch event %#v", r.name, event))
+			}
+			// add watch lag metrics
+			switch event.Type {
+			case watch.Added, watch.Modified, watch.Deleted:
+				// ignore object already deleted
+				if meta.GetDeletionTimestamp() != nil {
+					break
+				}
+				// check last update annotation
+				if updateTimeStr, ok := meta.GetAnnotations()[rest.LastUpdateAnnotation]; ok {
+					lastUpdateTime, err := strconv.ParseInt(updateTimeStr, 0, 64)
+					if err == nil {
+						metrics.WatchLag.ObserveLag(r.expectedType.String(), r.name, time.Unix(0, lastUpdateTime))
+					}
+				}
 			}
 			*resourceVersion = newResourceVersion
 			r.setLastSyncResourceVersion(newResourceVersion)

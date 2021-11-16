@@ -132,7 +132,7 @@ func BeforeUpdate(strategy RESTUpdateStrategy, ctx context.Context, obj, old run
 	if oldMeta.GetDeletionGracePeriodSeconds() != nil && objectMeta.GetDeletionGracePeriodSeconds() == nil {
 		objectMeta.SetDeletionGracePeriodSeconds(oldMeta.GetDeletionGracePeriodSeconds())
 	}
-
+	FillObjectMetaLastUpdateAnnotation(objectMeta, kind)
 	// Ensure some common fields, like UID, are validated for all resources.
 	errs, err := validateCommonFields(obj, old, strategy)
 	if err != nil {
