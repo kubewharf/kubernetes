@@ -226,6 +226,7 @@ func (c *Configurator) create() (*Scheduler, error) {
 		VolumeBinder:       c.volumeBinder,
 		SchedulingQueue:    podQueue,
 		scheduledPodLister: assignedPodLister{c.informerFactory.Core().V1().Pods().Lister()},
+		client:             c.client,
 	}, nil
 }
 

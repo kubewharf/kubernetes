@@ -187,7 +187,7 @@ var (
 		&metrics.CounterOpts{
 			Subsystem: SchedulerSubsystem,
 			Name:      "total_preemption_success_counts",
-			Help:      "Total preemption success counts in the cluster till now",
+			Help:      "Total preemption attempts success counts in the cluster till now",
 		})
 	pendingPods = metrics.NewGaugeVec(
 		&metrics.GaugeOpts{
