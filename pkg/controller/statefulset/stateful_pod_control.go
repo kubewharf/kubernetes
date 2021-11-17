@@ -50,6 +50,9 @@ type StatefulPodControlInterface interface {
 	// DeleteStatefulPod deletes a Pod in a StatefulSet. The pods PVCs are not deleted. If the delete is successful,
 	// the returned error is nil.
 	DeleteStatefulPod(set *apps.StatefulSet, pod *v1.Pod) error
+	// CreatePersistentVolumeClaims creates all of the required PersistentVolumeClaims for pod,
+	// it creates PersistentVolumeClaims if it does not exsit.
+	CreatePersistentVolumeClaims(set *apps.StatefulSet, pod *v1.Pod) error
 }
 
 func NewRealStatefulPodControl(
@@ -74,7 +77,7 @@ type realStatefulPodControl struct {
 
 func (spc *realStatefulPodControl) CreateStatefulPod(set *apps.StatefulSet, pod *v1.Pod) error {
 	// Create the Pod's PVCs prior to creating the Pod
-	if err := spc.createPersistentVolumeClaims(set, pod); err != nil {
+	if err := spc.CreatePersistentVolumeClaims(set, pod); err != nil {
 		spc.recordPodEvent("create", set, pod, err)
 		return err
 	}
@@ -103,7 +106,7 @@ func (spc *realStatefulPodControl) UpdateStatefulPod(set *apps.StatefulSet, pod 
 		if !storageMatches(set, pod) {
 			updateStorage(set, pod)
 			consistent = false
-			if err := spc.createPersistentVolumeClaims(set, pod); err != nil {
+			if err := spc.CreatePersistentVolumeClaims(set, pod); err != nil {
 				spc.recordPodEvent("update", set, pod, err)
 				return err
 			}
@@ -174,11 +177,11 @@ func (spc *realStatefulPodControl) recordClaimEvent(verb string, set *apps.State
 	}
 }
 
-// createPersistentVolumeClaims creates all of the required PersistentVolumeClaims for pod, which must be a member of
+// CreatePersistentVolumeClaims creates all of the required PersistentVolumeClaims for pod, which must be a member of
 // set. If all of the claims for Pod are successfully created, the returned error is nil. If creation fails, this method
 // may be called again until no error is returned, indicating the PersistentVolumeClaims for pod are consistent with
 // set's Spec.
-func (spc *realStatefulPodControl) createPersistentVolumeClaims(set *apps.StatefulSet, pod *v1.Pod) error {
+func (spc *realStatefulPodControl) CreatePersistentVolumeClaims(set *apps.StatefulSet, pod *v1.Pod) error {
 	var errs []error
 	for _, claim := range getPersistentVolumeClaims(set, pod) {
 		pvc, err := spc.pvcLister.PersistentVolumeClaims(claim.Namespace).Get(claim.Name)
