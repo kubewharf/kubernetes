@@ -38,6 +38,14 @@ var (
 		[]string{"verb", "url"},
 	)
 
+	watchLag = k8smetrics.NewHistogramVec(
+		&k8smetrics.HistogramOpts{
+			Name:    "watch_lag_seconds",
+			Help:    "Watch lag in seconds. Broken down by resource and reflector name.",
+			Buckets: k8smetrics.ExponentialBuckets(0.01, 2, 10),
+		},
+		[]string{"resource", "name"},
+	)
 	rateLimiterLatency = k8smetrics.NewHistogramVec(
 		&k8smetrics.HistogramOpts{
 			Name:    "rest_client_rate_limiter_duration_seconds",
@@ -108,6 +116,7 @@ var (
 func init() {
 
 	legacyregistry.MustRegister(requestLatency)
+	legacyregistry.MustRegister(watchLag)
 	legacyregistry.MustRegister(requestResult)
 	legacyregistry.RawMustRegister(execPluginCertTTL)
 	legacyregistry.MustRegister(execPluginCertRotation)
@@ -115,6 +124,7 @@ func init() {
 		ClientCertExpiry:      execPluginCertTTLAdapter,
 		ClientCertRotationAge: &rotationAdapter{m: execPluginCertRotation},
 		RequestLatency:        &latencyAdapter{m: requestLatency},
+		WatchLag:              &lagAdapter{m: watchLag},
 		RateLimiterLatency:    &latencyAdapter{m: rateLimiterLatency},
 		RequestResult:         &resultAdapter{requestResult},
 	})
@@ -126,6 +136,14 @@ type latencyAdapter struct {
 
 func (l *latencyAdapter) Observe(verb string, u url.URL, latency time.Duration) {
 	l.m.WithLabelValues(verb, u.String()).Observe(latency.Seconds())
+}
+
+type lagAdapter struct {
+	m *k8smetrics.HistogramVec
+}
+
+func (l *lagAdapter) ObserveLag(resourceName string, reflectorName string, t time.Time) {
+	l.m.WithLabelValues(resourceName, reflectorName).Observe(time.Now().Sub(t).Seconds())
 }
 
 type resultAdapter struct {

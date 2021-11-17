@@ -41,6 +41,11 @@ type LatencyMetric interface {
 	Observe(verb string, u url.URL, latency time.Duration)
 }
 
+// LatencyMetric observes client latency partitioned by resource type and refector name.
+type LagMetric interface {
+	ObserveLag(resourceName string, name string, t time.Time)
+}
+
 // ResultMetric counts response codes partitioned by method and host.
 type ResultMetric interface {
 	Increment(code string, method string, host string)
@@ -53,6 +58,8 @@ var (
 	ClientCertRotationAge DurationMetric = noopDuration{}
 	// RequestLatency is the latency metric that rest clients will update.
 	RequestLatency LatencyMetric = noopLatency{}
+	// WatchLag is is the latency metric that watch clients will update.
+	WatchLag LagMetric = noopLatency{}
 	// RateLimiterLatency is the client side rate limiter latency metric.
 	RateLimiterLatency LatencyMetric = noopLatency{}
 	// RequestResult is the result metric that rest clients will update.
@@ -64,6 +71,7 @@ type RegisterOpts struct {
 	ClientCertExpiry      ExpiryMetric
 	ClientCertRotationAge DurationMetric
 	RequestLatency        LatencyMetric
+	WatchLag              LagMetric
 	RateLimiterLatency    LatencyMetric
 	RequestResult         ResultMetric
 }
@@ -80,6 +88,9 @@ func Register(opts RegisterOpts) {
 		}
 		if opts.RequestLatency != nil {
 			RequestLatency = opts.RequestLatency
+		}
+		if opts.WatchLag != nil {
+			WatchLag = opts.WatchLag
 		}
 		if opts.RateLimiterLatency != nil {
 			RateLimiterLatency = opts.RateLimiterLatency
@@ -101,6 +112,8 @@ func (noopExpiry) Set(*time.Time) {}
 type noopLatency struct{}
 
 func (noopLatency) Observe(string, url.URL, time.Duration) {}
+
+func (noopLatency) ObserveLag(resourceType string, reflectorName string, t time.Time) {}
 
 type noopResult struct{}
 

@@ -38,8 +38,11 @@ import (
 	appsclient "k8s.io/client-go/kubernetes/typed/apps/v1"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/klog"
+
 	"k8s.io/kubernetes/pkg/controller"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
+
+	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/utils/integer"
 )
 
@@ -347,6 +350,7 @@ var annotationsToSkip = map[string]bool{
 	NewReplicasetNameAnnotation:              true,
 	NewReplicasetReplicasAnnotation:          true,
 	NewReplicasetAvailableReplicasAnnotation: true,
+	rest.LastUpdateAnnotation:                true,
 }
 
 // skipCopyAnnotation returns true if we should skip copying the annotation with the given annotation key

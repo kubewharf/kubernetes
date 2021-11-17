@@ -18,11 +18,28 @@ package rest
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 )
+
+var (
+	LastUpdateAnnotation = "tce.kubernetes.io/lastUpdate"
+)
+
+func FillObjectMetaLastUpdateAnnotation(objectMeta metav1.Object, kind schema.GroupVersionKind) {
+	// add last update annotation
+	annotations := objectMeta.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	annotations[LastUpdateAnnotation] = fmt.Sprintf("%d", time.Now().UnixNano())
+	objectMeta.SetAnnotations(annotations)
+}
 
 // FillObjectMetaSystemFields populates fields that are managed by the system on ObjectMeta.
 func FillObjectMetaSystemFields(meta metav1.Object) {

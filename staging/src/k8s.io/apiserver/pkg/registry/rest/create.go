@@ -86,6 +86,7 @@ func BeforeCreate(strategy RESTCreateStrategy, ctx context.Context, obj runtime.
 	}
 	objectMeta.SetDeletionTimestamp(nil)
 	objectMeta.SetDeletionGracePeriodSeconds(nil)
+	FillObjectMetaLastUpdateAnnotation(objectMeta, kind)
 	strategy.PrepareForCreate(ctx, obj)
 	FillObjectMetaSystemFields(objectMeta)
 	if len(objectMeta.GetGenerateName()) > 0 && len(objectMeta.GetName()) == 0 {
