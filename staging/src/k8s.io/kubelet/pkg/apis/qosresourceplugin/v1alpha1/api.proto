@@ -1,10 +1,11 @@
 // To regenerate api.pb.go run hack/update-generated-resource-plugin.sh
 syntax = 'proto3';
 
-package v1beta1;
+package v1alpha1;
 
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 
+option go_package = "k8s.io/kubelet/pkg/apis/qosresourceplugin/v1alpha1";
 option (gogoproto.goproto_stringer_all) = false;
 option (gogoproto.stringer_all) =  true;
 option (gogoproto.goproto_getters_all) = true;
@@ -43,171 +44,164 @@ message RegisterRequest {
 	ResourcePluginOptions options = 4;
 }
 
+message ResourceRequest {
+	string pod_uid = 1;
+	string container_uid = 2;
+	string pod_name = 3;
+	string container_name = 4;
+	string pod_role = 5;
+    string pod_type = 6;
+    string resource_name = 7;
+    uint64 bit_mask = 8;
+    map<string,double> resource_requests = 9;
+}
+
+message ResourceHintsResponse {
+	string pod_uid = 1;
+	string container_uid = 2;
+	string pod_name = 3;
+	string container_name = 4;
+	string pod_role = 5;
+    string pod_type = 6;
+    string resource_name = 7;
+    map<string,ListOfTopologyHints> resource_hints = 8;
+}
+
+message ResourceAllocationResponse {
+	string pod_uid = 1;
+	string container_uid = 2;
+	string pod_name = 3;
+	string container_name = 4;
+	string pod_role = 5;
+    string pod_type = 6;
+    string resource_name = 7;
+    ResourceAllocationInfo allocatation_result = 8;
+}
+
+message ListOfTopologyHints {
+    repeated TopologyHint hints = 1;
+}
+
+message TopologyHint {
+    uint64 bit_mask = 1;
+    bool preferred = 2;
+}
+
 message Empty {
+	string pod_name = 1;
 }
 
-// ResourcePlugin is the service advertised by Resource Plugins
-service ResourcePlugin {
-	// GetResourcePluginOptions returns options to be communicated with Resource
-	// Manager
-	rpc GetResourcePluginOptions(Empty) returns (ResourcePluginOptions) {}
-
-	// ListAndWatch returns a stream of List of Resources
-	// Whenever a Resource state change or a Resource disappears, ListAndWatch
-	// returns the new list
-	rpc ListAndWatch(Empty) returns (stream ListAndWatchResponse) {}
-
-	// GetPreferredAllocation returns a preferred set of resources to allocate
-	// from a list of available ones. The resulting preferred allocation is not
-	// guaranteed to be the allocation ultimately performed by the
-	// resourcemanager. It is only designed to help the resourcemanager make a more
-	// informed allocation decision when possible.
-	rpc GetPreferredAllocation(PreferredAllocationRequest) returns (PreferredAllocationResponse) {}
-
-	// Allocate is called during container creation so that the Resource
-	// Plugin can run resource specific operations and instruct Kubelet
-	// of the steps to make the Resource available in the container
-	rpc Allocate(AllocateRequest) returns (AllocateResponse) {}
-
-	// PreStartContainer is called, if indicated by Resource Plugin during registeration phase,
-	// before each container start. Resource plugin can run resource specific operations
-	// such as resetting the resource before making resources available to the container
-	rpc PreStartContainer(PreStartContainerRequest) returns (PreStartContainerResponse) {}
+message RemovePodRequest {
+	string pod_name = 1;
+    string pod_namespace = 2;
 }
 
-// ListAndWatch returns a stream of List of Resources
-// Whenever a Resource state change or a Resource disappears, ListAndWatch
-// returns the new list
-message ListAndWatchResponse {
-	repeated Resource resources = 1;
+message RemovePodResponse {
 }
 
-message TopologyInfo {
-	repeated NUMANode nodes = 1;
+message GetResourcesAllocationRequest {
 }
 
-message NUMANode {
-	int64 ID = 1;
+message GetResourcesAllocationResponse {
+    map<string,ContainerResources> pod_resources = 1;
 }
 
-/* E.g:
-* struct Resource {
-*    ID: "GPU-fef8089b-4820-abfc-e83e-94318197576e",
-*    Health: "Healthy",
-*    Topology:
-*      Node:
-*        ID: 1
-*} */
-message Resource {
-	// A unique ID assigned by the resource plugin used
-	// to identify resources during the communication
-	// Max length of this field is 63 characters
-	string ID = 1;
-	// Health of the resource, can be healthy or unhealthy, see constants.go
-	string health = 2;
-	// Topology for resource
-	TopologyInfo topology = 3;
-	// Properties of this resource
-	map<string, string> properties = 101;
+message ContainerResources {
+    map<string,ResourceAllocation> container_resources = 1; 
+}
+
+message ResourceAllocation {
+    map<string,ResourceAllocationInfo> resource_allocation = 1;
+}
+
+message ResourceAllocationInfo {
+	string oci_property_name = 1;
+    string allocatation_result = 2;
+    map<string,string> envs = 3;
+    map<string,string> annotations = 4;
+}
+
+message GetTopologyAwareResourcesRequest {
+	string pod_uid = 1;
+	string container_name = 2;
+}
+
+message GetTopologyAwareResourcesResponse {
+    string pod_uid = 1;
+    string pod_name = 2;
+    string pod_namespace = 3;
+    repeated ContainerTopologyAwareResources container_topology_aware_resources = 4;
+}
+
+message ContainerTopologyAwareResources {
+    string container_name = 1;
+    TopologyAwareResources allocated_resources = 2;
+}
+
+message TopologyAwareResources {
+    map<string, ListOfTopologyAwareQuantity> topology_aware_resources = 1;
+}
+
+message ListOfTopologyAwareQuantity {
+    repeated TopologyAwareQuantity topology_aware_quantity_list = 1;
+}
+
+message TopologyAwareQuantity {
+    string resource_value = 1;
+    uint64 nodes = 2;
+}
+
+message GetTopologyAwareAllocatableResourcesRequest {
+}
+
+message GetTopologyAwareAllocatableResourcesResponse {
+    TopologyAwareResources allocatable_resources = 1;
 }
 
 // - PreStartContainer is expected to be called before each container start if indicated by plugin during registration phase.
 // - PreStartContainer allows kubelet to pass reinitialized resources to containers.
 // - PreStartContainer allows Resource Plugin to run resource specific operations on
-//   the Resources requested
+//   the resources requested
 message PreStartContainerRequest {
-	repeated string resourcesIDs = 1;
+	string pod_uid = 1;
+	string container_uid = 2;
+	string pod_name = 3;
+	string container_name = 4;
 }
 
 // PreStartContainerResponse will be send by plugin in response to PreStartContainerRequest
 message PreStartContainerResponse {
 }
 
-// PreferredAllocationRequest is passed via a call to GetPreferredAllocation()
-// at pod admission time. The resource plugin should take the list of
-// `available_resourceIDs` and calculate a preferred allocation of size
-// 'allocation_size' from them, making sure to include the set of resources
-// listed in 'must_include_resourceIDs'.
-message PreferredAllocationRequest {
-	repeated ContainerPreferredAllocationRequest container_requests = 1;
-}
+// ResourcePlugin is the service advertised by Resource Plugins
+service ResourcePlugin {
+	// GetTopologyHints returns hints of corresponding resources
+    rpc GetTopologyHints(ResourceRequest) returns (ResourceHintsResponse) 
 
-message ContainerPreferredAllocationRequest {
-	// List of available resourceIDs from which to choose a preferred allocation
-	repeated string available_resourceIDs = 1;
-	// List of resourceIDs that must be included in the preferred allocation
-	repeated string must_include_resourceIDs = 2;
-	// Number of resources to include in the preferred allocation
-	int32 allocation_size = 3;
-}
+	// Notify the resource plugin that the pod has beed deleted,
+    // and the plugin should do some clear-up work.
+    rpc RemovePod(RemovePodRequest) returns (RemovePodResponse)
 
-// PreferredAllocationResponse returns a preferred allocation,
-// resulting from a PreferredAllocationRequest.
-message PreferredAllocationResponse {
-	repeated ContainerPreferredAllocationResponse container_responses = 1;
-}
+    // GetResourcesAllocation returns allocation results of corresponding resources
+    rpc GetResourcesAllocation(GetResourcesAllocationRequest) returns (GetResourcesAllocationResponse)
 
-message ContainerPreferredAllocationResponse {
-	repeated string resourceIDs = 1;
-}
+    // GetTopologyAwareResources returns allocation results of corresponding resources as topology aware format
+    rpc GetTopologyAwareResources(GetTopologyAwareResourcesRequest) returns (GetTopologyAwareResourcesResponse)
 
-// - Allocate is expected to be called during pod creation since allocation
-//   failures for any container would result in pod startup failure.
-// - Allocate allows kubelet to exposes additional artifacts in a pod's
-//   environment as directed by the plugin.
-// - Allocate allows Resource Plugin to run resource specific operations on
-//   the Resources requested
-message AllocateRequest {
-	repeated ContainerAllocateRequest container_requests = 1;
-}
+    // GetTopologyAwareResources returns corresponding allocatable resources as topology aware format
+    rpc GetTopologyAwareAllocatableResources(GetTopologyAwareAllocatableResourcesRequest) returns (GetTopologyAwareAllocatableResourcesResponse)
 
-message ContainerAllocateRequest {
-	repeated string resourcesIDs = 1;
-}
+	// GetResourcePluginOptions returns options to be communicated with Resource
+	// Manager
+	rpc GetResourcePluginOptions(Empty) returns (ResourcePluginOptions) {}
 
-// AllocateResponse includes the artifacts that needs to be injected into
-// a container for accessing 'resourceIDs' that were mentioned as part of
-// 'AllocateRequest'.
-// Failure Handling:
-// if Kubelet sends an allocation request for dev1 and dev2.
-// Allocation on dev1 succeeds but allocation on dev2 fails.
-// The Resource plugin should send a ListAndWatch update and fail the
-// Allocation request
-message AllocateResponse {
-	repeated ContainerAllocateResponse container_responses = 1;
-}
+	// Allocate is called during pod admit so that the resource
+	// plugin can allocate corresponding resource for the container 
+    // according to resource request
+    rpc Allocate(ResourceRequest) returns (ResourceAllocationResponse) {}
 
-message ContainerAllocateResponse {
-	// List of environment variable to be set in the container to access one of more resources.
-	map<string, string> envs = 1;
-	// Mounts for the container.
-	repeated Mount mounts = 2;
-	// Resources for the container.
-	repeated ResourceSpec resources = 3;
-	// Container annotations to pass to the container runtime
-	map<string, string> annotations = 4;
-}
-
-// Mount specifies a host volume to mount into a container.
-// where resource library or tools are installed on host and container
-message Mount {
-	// Path of the mount within the container.
-	string container_path = 1;
-	// Path of the mount on the host.
-	string host_path = 2;
-	// If set, the mount is read-only.
-	bool read_only = 3;
-}
-
-// ResourceSpec specifies a host resource to mount into a container.
-message ResourceSpec {
-	// Path of the resource within the container.
-	string container_path = 1;
-	// Path of the resource on the host.
-	string host_path = 2;
-	// Cgroups permissions of the resource, candidates are one or more of
-	// * r - allows container to read from the specified resource.
-	// * w - allows container to write to the specified resource.
-	// * m - allows container to create resource files that do not yet exist.
-	string permissions = 3;
+	// PreStartContainer is called, if indicated by resource plugin during registeration phase,
+	// before each container start. Resource plugin can run resource specific operations
+	// such as resetting the resource before making resources available to the container
+	rpc PreStartContainer(PreStartContainerRequest) returns (PreStartContainerResponse) {}
 }
