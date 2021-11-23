@@ -212,7 +212,7 @@ func newLocalStoragePoolInfoList(classes []v1alpha1.CSIStorageByClass) localStor
 
 func (poolList localStoragePoolInfoList) choosePoolAndMinus(request pvcLocalStorageRequest) *localStoragePoolInfo {
 	// select minimum satisfy pool
-	var minSatisfiedPool  *localStoragePoolInfo = nil
+	var minSatisfiedPool *localStoragePoolInfo = nil
 	for _, pool := range poolList {
 		if pool.canSatisfy(request) {
 			if minSatisfiedPool == nil {
