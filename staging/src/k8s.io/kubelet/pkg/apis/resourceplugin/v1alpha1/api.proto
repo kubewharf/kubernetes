@@ -45,36 +45,33 @@ message RegisterRequest {
 
 message ResourceRequest {
 	string pod_uid = 1;
-	string container_uid = 2;
-	string pod_name = 3;
-	string container_name = 4;
-	string pod_role = 5;
-    string pod_type = 6;
-    string resource_name = 7;
-    uint64 bit_mask = 8;
-    map<string,double> resource_requests = 9;
+	string pod_name = 2;
+	string container_name = 3;
+	string pod_role = 4;
+    string pod_type = 5;
+    string resource_name = 6;
+    uint64 bit_mask = 7;
+    map<string,double> resource_requests = 8;
 }
 
 message ResourceHintsResponse {
 	string pod_uid = 1;
-	string container_uid = 2;
-	string pod_name = 3;
-	string container_name = 4;
-	string pod_role = 5;
-    string pod_type = 6;
-    string resource_name = 7;
-    map<string,ListOfTopologyHints> resource_hints = 8;
+	string pod_name = 2;
+	string container_name = 3;
+	string pod_role = 4;
+    string pod_type = 5;
+    string resource_name = 6;
+    map<string,ListOfTopologyHints> resource_hints = 7;
 }
 
 message ResourceAllocationResponse {
 	string pod_uid = 1;
-	string container_uid = 2;
-	string pod_name = 3;
-	string container_name = 4;
-	string pod_role = 5;
-    string pod_type = 6;
-    string resource_name = 7;
-    ResourceAllocationInfo allocatation_result = 8;
+	string pod_name = 2;
+	string container_name = 3;
+	string pod_role = 4;
+    string pod_type = 5;
+    string resource_name = 6;
+    ResourceAllocation allocatation_result = 7;
 }
 
 message ListOfTopologyHints {
@@ -115,9 +112,10 @@ message ResourceAllocation {
 
 message ResourceAllocationInfo {
 	string oci_property_name = 1;
-    string allocatation_result = 2;
-    map<string,string> envs = 3;
-    map<string,string> annotations = 4;
+	string merge_separator = 2;
+    repeated string allocatation_result = 3;
+    map<string,string> envs = 4;
+    map<string,string> annotations = 5;
 }
 
 message GetTopologyAwareResourcesRequest {
@@ -163,9 +161,8 @@ message GetTopologyAwareAllocatableResourcesResponse {
 //   the resources requested
 message PreStartContainerRequest {
 	string pod_uid = 1;
-	string container_uid = 2;
-	string pod_name = 3;
-	string container_name = 4;
+	string pod_name = 2;
+	string container_name = 3;
 }
 
 // PreStartContainerResponse will be send by plugin in response to PreStartContainerRequest
@@ -175,20 +172,20 @@ message PreStartContainerResponse {
 // ResourcePlugin is the service advertised by Resource Plugins
 service ResourcePlugin {
 	// GetTopologyHints returns hints of corresponding resources
-    rpc GetTopologyHints(ResourceRequest) returns (ResourceHintsResponse) 
+    rpc GetTopologyHints(ResourceRequest) returns (ResourceHintsResponse) {}
 
 	// Notify the resource plugin that the pod has beed deleted,
     // and the plugin should do some clear-up work.
-    rpc RemovePod(RemovePodRequest) returns (RemovePodResponse)
+    rpc RemovePod(RemovePodRequest) returns (RemovePodResponse) {}
 
     // GetResourcesAllocation returns allocation results of corresponding resources
-    rpc GetResourcesAllocation(GetResourcesAllocationRequest) returns (GetResourcesAllocationResponse)
+    rpc GetResourcesAllocation(GetResourcesAllocationRequest) returns (GetResourcesAllocationResponse) {}
 
     // GetTopologyAwareResources returns allocation results of corresponding resources as topology aware format
-    rpc GetTopologyAwareResources(GetTopologyAwareResourcesRequest) returns (GetTopologyAwareResourcesResponse)
+    rpc GetTopologyAwareResources(GetTopologyAwareResourcesRequest) returns (GetTopologyAwareResourcesResponse) {}
 
     // GetTopologyAwareResources returns corresponding allocatable resources as topology aware format
-    rpc GetTopologyAwareAllocatableResources(GetTopologyAwareAllocatableResourcesRequest) returns (GetTopologyAwareAllocatableResourcesResponse)
+    rpc GetTopologyAwareAllocatableResources(GetTopologyAwareAllocatableResourcesRequest) returns (GetTopologyAwareAllocatableResourcesResponse) {}
 
 	// GetResourcePluginOptions returns options to be communicated with Resource
 	// Manager
