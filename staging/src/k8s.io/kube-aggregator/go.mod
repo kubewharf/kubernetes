@@ -26,10 +26,12 @@ require (
 )
 
 replace (
+	github.com/BurntSushi/toml => github.com/BurntSushi/toml v0.3.1
 	github.com/golang/protobuf => github.com/golang/protobuf v1.3.2
 	github.com/google/go-cmp => github.com/google/go-cmp v0.3.0
 	github.com/kr/text => github.com/kr/text v0.1.0
 	github.com/matttproud/golang_protobuf_extensions => github.com/matttproud/golang_protobuf_extensions v1.0.1
+	github.com/pquerna/cachecontrol => github.com/pquerna/cachecontrol v0.0.0-20171018203845-0dec1b30a021
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.0.0
 	github.com/prometheus/common => github.com/prometheus/common v0.4.1
 	github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2

@@ -6,7 +6,7 @@ go 1.13
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
-	github.com/BurntSushi/toml v0.3.1 // indirect
+	github.com/BurntSushi/toml v0.4.1 // indirect
 	github.com/coreos/go-oidc v2.1.0+incompatible
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd v0.0.0-20190321100706-95778dfbb74e
@@ -30,7 +30,7 @@ require (
 	github.com/mailru/easyjson v0.7.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 	github.com/pkg/errors v0.9.1
-	github.com/pquerna/cachecontrol v0.0.0-20171018203845-0dec1b30a021 // indirect
+	github.com/pquerna/cachecontrol v0.1.0 // indirect
 	github.com/prometheus/client_golang v1.7.1
 	github.com/prometheus/client_model v0.2.0
 	github.com/sirupsen/logrus v1.6.0 // indirect
@@ -60,10 +60,12 @@ require (
 )
 
 replace (
+	github.com/BurntSushi/toml => github.com/BurntSushi/toml v0.3.1
 	github.com/golang/protobuf => github.com/golang/protobuf v1.3.2
 	github.com/google/go-cmp => github.com/google/go-cmp v0.3.0
 	github.com/kr/text => github.com/kr/text v0.1.0
 	github.com/matttproud/golang_protobuf_extensions => github.com/matttproud/golang_protobuf_extensions v1.0.1
+	github.com/pquerna/cachecontrol => github.com/pquerna/cachecontrol v0.0.0-20171018203845-0dec1b30a021
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.0.0
 	github.com/prometheus/common => github.com/prometheus/common v0.4.1
 	github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2

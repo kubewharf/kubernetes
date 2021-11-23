@@ -25,10 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
-)
-
-var (
-	LastUpdateAnnotation = "tce.kubernetes.io/lastUpdate"
+	"k8s.io/client-go/tools/cache"
 )
 
 func FillObjectMetaLastUpdateAnnotation(objectMeta metav1.Object, kind schema.GroupVersionKind) {
@@ -37,7 +34,7 @@ func FillObjectMetaLastUpdateAnnotation(objectMeta metav1.Object, kind schema.Gr
 	if annotations == nil {
 		annotations = make(map[string]string)
 	}
-	annotations[LastUpdateAnnotation] = fmt.Sprintf("%d", time.Now().UnixNano())
+	annotations[cache.LastUpdateAnnotation] = fmt.Sprintf("%d", time.Now().UnixNano())
 	objectMeta.SetAnnotations(annotations)
 }
 

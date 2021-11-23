@@ -43,8 +43,10 @@ import (
 	"k8s.io/client-go/tools/pager"
 	"k8s.io/klog"
 	"k8s.io/utils/trace"
+)
 
-	"k8s.io/apiserver/pkg/registry/rest"
+var (
+	LastUpdateAnnotation = "tce.kubernetes.io/lastUpdate"
 )
 
 const defaultExpectedTypeName = "<unspecified>"
@@ -495,7 +497,7 @@ loop:
 					break
 				}
 				// check last update annotation
-				if updateTimeStr, ok := meta.GetAnnotations()[rest.LastUpdateAnnotation]; ok {
+				if updateTimeStr, ok := meta.GetAnnotations()[LastUpdateAnnotation]; ok {
 					lastUpdateTime, err := strconv.ParseInt(updateTimeStr, 0, 64)
 					if err == nil {
 						metrics.WatchLag.ObserveLag(r.expectedType.String(), r.name, time.Unix(0, lastUpdateTime))
