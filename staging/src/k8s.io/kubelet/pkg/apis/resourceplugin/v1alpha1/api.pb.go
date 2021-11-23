@@ -178,14 +178,13 @@ func (m *RegisterRequest) GetOptions() *ResourcePluginOptions {
 
 type ResourceRequest struct {
 	PodUid               string             `protobuf:"bytes,1,opt,name=pod_uid,json=podUid,proto3" json:"pod_uid,omitempty"`
-	ContainerUid         string             `protobuf:"bytes,2,opt,name=container_uid,json=containerUid,proto3" json:"container_uid,omitempty"`
-	PodName              string             `protobuf:"bytes,3,opt,name=pod_name,json=podName,proto3" json:"pod_name,omitempty"`
-	ContainerName        string             `protobuf:"bytes,4,opt,name=container_name,json=containerName,proto3" json:"container_name,omitempty"`
-	PodRole              string             `protobuf:"bytes,5,opt,name=pod_role,json=podRole,proto3" json:"pod_role,omitempty"`
-	PodType              string             `protobuf:"bytes,6,opt,name=pod_type,json=podType,proto3" json:"pod_type,omitempty"`
-	ResourceName         string             `protobuf:"bytes,7,opt,name=resource_name,json=resourceName,proto3" json:"resource_name,omitempty"`
-	BitMask              uint64             `protobuf:"varint,8,opt,name=bit_mask,json=bitMask,proto3" json:"bit_mask,omitempty"`
-	ResourceRequests     map[string]float64 `protobuf:"bytes,9,rep,name=resource_requests,json=resourceRequests,proto3" json:"resource_requests,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"fixed64,2,opt,name=value,proto3"`
+	PodName              string             `protobuf:"bytes,2,opt,name=pod_name,json=podName,proto3" json:"pod_name,omitempty"`
+	ContainerName        string             `protobuf:"bytes,3,opt,name=container_name,json=containerName,proto3" json:"container_name,omitempty"`
+	PodRole              string             `protobuf:"bytes,4,opt,name=pod_role,json=podRole,proto3" json:"pod_role,omitempty"`
+	PodType              string             `protobuf:"bytes,5,opt,name=pod_type,json=podType,proto3" json:"pod_type,omitempty"`
+	ResourceName         string             `protobuf:"bytes,6,opt,name=resource_name,json=resourceName,proto3" json:"resource_name,omitempty"`
+	BitMask              uint64             `protobuf:"varint,7,opt,name=bit_mask,json=bitMask,proto3" json:"bit_mask,omitempty"`
+	ResourceRequests     map[string]float64 `protobuf:"bytes,8,rep,name=resource_requests,json=resourceRequests,proto3" json:"resource_requests,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"fixed64,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
 	XXX_sizecache        int32              `json:"-"`
 }
@@ -225,13 +224,6 @@ var xxx_messageInfo_ResourceRequest proto.InternalMessageInfo
 func (m *ResourceRequest) GetPodUid() string {
 	if m != nil {
 		return m.PodUid
-	}
-	return ""
-}
-
-func (m *ResourceRequest) GetContainerUid() string {
-	if m != nil {
-		return m.ContainerUid
 	}
 	return ""
 }
@@ -287,13 +279,12 @@ func (m *ResourceRequest) GetResourceRequests() map[string]float64 {
 
 type ResourceHintsResponse struct {
 	PodUid               string                          `protobuf:"bytes,1,opt,name=pod_uid,json=podUid,proto3" json:"pod_uid,omitempty"`
-	ContainerUid         string                          `protobuf:"bytes,2,opt,name=container_uid,json=containerUid,proto3" json:"container_uid,omitempty"`
-	PodName              string                          `protobuf:"bytes,3,opt,name=pod_name,json=podName,proto3" json:"pod_name,omitempty"`
-	ContainerName        string                          `protobuf:"bytes,4,opt,name=container_name,json=containerName,proto3" json:"container_name,omitempty"`
-	PodRole              string                          `protobuf:"bytes,5,opt,name=pod_role,json=podRole,proto3" json:"pod_role,omitempty"`
-	PodType              string                          `protobuf:"bytes,6,opt,name=pod_type,json=podType,proto3" json:"pod_type,omitempty"`
-	ResourceName         string                          `protobuf:"bytes,7,opt,name=resource_name,json=resourceName,proto3" json:"resource_name,omitempty"`
-	ResourceHints        map[string]*ListOfTopologyHints `protobuf:"bytes,8,rep,name=resource_hints,json=resourceHints,proto3" json:"resource_hints,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	PodName              string                          `protobuf:"bytes,2,opt,name=pod_name,json=podName,proto3" json:"pod_name,omitempty"`
+	ContainerName        string                          `protobuf:"bytes,3,opt,name=container_name,json=containerName,proto3" json:"container_name,omitempty"`
+	PodRole              string                          `protobuf:"bytes,4,opt,name=pod_role,json=podRole,proto3" json:"pod_role,omitempty"`
+	PodType              string                          `protobuf:"bytes,5,opt,name=pod_type,json=podType,proto3" json:"pod_type,omitempty"`
+	ResourceName         string                          `protobuf:"bytes,6,opt,name=resource_name,json=resourceName,proto3" json:"resource_name,omitempty"`
+	ResourceHints        map[string]*ListOfTopologyHints `protobuf:"bytes,7,rep,name=resource_hints,json=resourceHints,proto3" json:"resource_hints,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}                        `json:"-"`
 	XXX_sizecache        int32                           `json:"-"`
 }
@@ -333,13 +324,6 @@ var xxx_messageInfo_ResourceHintsResponse proto.InternalMessageInfo
 func (m *ResourceHintsResponse) GetPodUid() string {
 	if m != nil {
 		return m.PodUid
-	}
-	return ""
-}
-
-func (m *ResourceHintsResponse) GetContainerUid() string {
-	if m != nil {
-		return m.ContainerUid
 	}
 	return ""
 }
@@ -387,16 +371,15 @@ func (m *ResourceHintsResponse) GetResourceHints() map[string]*ListOfTopologyHin
 }
 
 type ResourceAllocationResponse struct {
-	PodUid               string                  `protobuf:"bytes,1,opt,name=pod_uid,json=podUid,proto3" json:"pod_uid,omitempty"`
-	ContainerUid         string                  `protobuf:"bytes,2,opt,name=container_uid,json=containerUid,proto3" json:"container_uid,omitempty"`
-	PodName              string                  `protobuf:"bytes,3,opt,name=pod_name,json=podName,proto3" json:"pod_name,omitempty"`
-	ContainerName        string                  `protobuf:"bytes,4,opt,name=container_name,json=containerName,proto3" json:"container_name,omitempty"`
-	PodRole              string                  `protobuf:"bytes,5,opt,name=pod_role,json=podRole,proto3" json:"pod_role,omitempty"`
-	PodType              string                  `protobuf:"bytes,6,opt,name=pod_type,json=podType,proto3" json:"pod_type,omitempty"`
-	ResourceName         string                  `protobuf:"bytes,7,opt,name=resource_name,json=resourceName,proto3" json:"resource_name,omitempty"`
-	AllocatationResult   *ResourceAllocationInfo `protobuf:"bytes,8,opt,name=allocatation_result,json=allocatationResult,proto3" json:"allocatation_result,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                `json:"-"`
-	XXX_sizecache        int32                   `json:"-"`
+	PodUid               string              `protobuf:"bytes,1,opt,name=pod_uid,json=podUid,proto3" json:"pod_uid,omitempty"`
+	PodName              string              `protobuf:"bytes,2,opt,name=pod_name,json=podName,proto3" json:"pod_name,omitempty"`
+	ContainerName        string              `protobuf:"bytes,3,opt,name=container_name,json=containerName,proto3" json:"container_name,omitempty"`
+	PodRole              string              `protobuf:"bytes,4,opt,name=pod_role,json=podRole,proto3" json:"pod_role,omitempty"`
+	PodType              string              `protobuf:"bytes,5,opt,name=pod_type,json=podType,proto3" json:"pod_type,omitempty"`
+	ResourceName         string              `protobuf:"bytes,6,opt,name=resource_name,json=resourceName,proto3" json:"resource_name,omitempty"`
+	AllocatationResult   *ResourceAllocation `protobuf:"bytes,7,opt,name=allocatation_result,json=allocatationResult,proto3" json:"allocatation_result,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
+	XXX_sizecache        int32               `json:"-"`
 }
 
 func (m *ResourceAllocationResponse) Reset()      { *m = ResourceAllocationResponse{} }
@@ -438,13 +421,6 @@ func (m *ResourceAllocationResponse) GetPodUid() string {
 	return ""
 }
 
-func (m *ResourceAllocationResponse) GetContainerUid() string {
-	if m != nil {
-		return m.ContainerUid
-	}
-	return ""
-}
-
 func (m *ResourceAllocationResponse) GetPodName() string {
 	if m != nil {
 		return m.PodName
@@ -480,7 +456,7 @@ func (m *ResourceAllocationResponse) GetResourceName() string {
 	return ""
 }
 
-func (m *ResourceAllocationResponse) GetAllocatationResult() *ResourceAllocationInfo {
+func (m *ResourceAllocationResponse) GetAllocatationResult() *ResourceAllocation {
 	if m != nil {
 		return m.AllocatationResult
 	}
@@ -894,9 +870,10 @@ func (m *ResourceAllocation) GetResourceAllocation() map[string]*ResourceAllocat
 
 type ResourceAllocationInfo struct {
 	OciPropertyName      string            `protobuf:"bytes,1,opt,name=oci_property_name,json=ociPropertyName,proto3" json:"oci_property_name,omitempty"`
-	AllocatationResult   string            `protobuf:"bytes,2,opt,name=allocatation_result,json=allocatationResult,proto3" json:"allocatation_result,omitempty"`
-	Envs                 map[string]string `protobuf:"bytes,3,rep,name=envs,proto3" json:"envs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	Annotations          map[string]string `protobuf:"bytes,4,rep,name=annotations,proto3" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	MergeSeparator       string            `protobuf:"bytes,2,opt,name=merge_separator,json=mergeSeparator,proto3" json:"merge_separator,omitempty"`
+	AllocatationResult   []string          `protobuf:"bytes,3,rep,name=allocatation_result,json=allocatationResult,proto3" json:"allocatation_result,omitempty"`
+	Envs                 map[string]string `protobuf:"bytes,4,rep,name=envs,proto3" json:"envs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Annotations          map[string]string `protobuf:"bytes,5,rep,name=annotations,proto3" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
 	XXX_sizecache        int32             `json:"-"`
 }
@@ -940,11 +917,18 @@ func (m *ResourceAllocationInfo) GetOciPropertyName() string {
 	return ""
 }
 
-func (m *ResourceAllocationInfo) GetAllocatationResult() string {
+func (m *ResourceAllocationInfo) GetMergeSeparator() string {
+	if m != nil {
+		return m.MergeSeparator
+	}
+	return ""
+}
+
+func (m *ResourceAllocationInfo) GetAllocatationResult() []string {
 	if m != nil {
 		return m.AllocatationResult
 	}
-	return ""
+	return nil
 }
 
 func (m *ResourceAllocationInfo) GetEnvs() map[string]string {
@@ -1371,9 +1355,8 @@ func (m *GetTopologyAwareAllocatableResourcesResponse) GetAllocatableResources()
 //   the resources requested
 type PreStartContainerRequest struct {
 	PodUid               string   `protobuf:"bytes,1,opt,name=pod_uid,json=podUid,proto3" json:"pod_uid,omitempty"`
-	ContainerUid         string   `protobuf:"bytes,2,opt,name=container_uid,json=containerUid,proto3" json:"container_uid,omitempty"`
-	PodName              string   `protobuf:"bytes,3,opt,name=pod_name,json=podName,proto3" json:"pod_name,omitempty"`
-	ContainerName        string   `protobuf:"bytes,4,opt,name=container_name,json=containerName,proto3" json:"container_name,omitempty"`
+	PodName              string   `protobuf:"bytes,2,opt,name=pod_name,json=podName,proto3" json:"pod_name,omitempty"`
+	ContainerName        string   `protobuf:"bytes,3,opt,name=container_name,json=containerName,proto3" json:"container_name,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
@@ -1413,13 +1396,6 @@ var xxx_messageInfo_PreStartContainerRequest proto.InternalMessageInfo
 func (m *PreStartContainerRequest) GetPodUid() string {
 	if m != nil {
 		return m.PodUid
-	}
-	return ""
-}
-
-func (m *PreStartContainerRequest) GetContainerUid() string {
-	if m != nil {
-		return m.ContainerUid
 	}
 	return ""
 }
@@ -1515,87 +1491,96 @@ func init() {
 func init() { proto.RegisterFile("api.proto", fileDescriptor_00212fb1f9d3bf1c) }
 
 var fileDescriptor_00212fb1f9d3bf1c = []byte{
-	// 1269 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe4, 0x58, 0x4d, 0x6f, 0x1b, 0xc5,
-	0x1b, 0xef, 0xd8, 0x49, 0x63, 0x3f, 0xc9, 0x3f, 0x71, 0x26, 0x4d, 0xb2, 0xd9, 0xa4, 0xb6, 0xff,
-	0x8b, 0x22, 0x85, 0x92, 0x3a, 0x8a, 0x8b, 0xa0, 0x14, 0x54, 0x29, 0x44, 0x51, 0x8a, 0x78, 0x69,
-	0xba, 0x4d, 0x91, 0x90, 0x40, 0xcb, 0xda, 0x9e, 0x38, 0xab, 0xac, 0x77, 0xb6, 0xb3, 0x63, 0x23,
-	0x9f, 0x40, 0x20, 0xee, 0x88, 0x23, 0x7c, 0x00, 0x24, 0x0e, 0x7c, 0x8e, 0x8a, 0x13, 0x47, 0x8e,
-	0x69, 0xe0, 0x23, 0xf0, 0x01, 0xd0, 0xce, 0xec, 0xab, 0x77, 0x6d, 0xb7, 0x37, 0x04, 0x37, 0xcf,
-	0xf3, 0xfc, 0x9e, 0xf7, 0x97, 0x19, 0x2f, 0x94, 0x4d, 0xd7, 0x6a, 0xb8, 0x8c, 0x72, 0x8a, 0x4b,
-	0x83, 0x7d, 0xd3, 0x76, 0xcf, 0xcd, 0x7d, 0xf5, 0x76, 0xd7, 0xe2, 0xe7, 0xfd, 0x56, 0xa3, 0x4d,
-	0x7b, 0x7b, 0x5d, 0xda, 0xa5, 0x7b, 0x02, 0xd0, 0xea, 0x9f, 0x89, 0x93, 0x38, 0x88, 0x5f, 0x52,
-	0x50, 0xfb, 0x1e, 0xc1, 0xaa, 0x4e, 0x3c, 0xda, 0x67, 0x6d, 0x72, 0x62, 0xf7, 0xbb, 0x96, 0xf3,
-	0xd0, 0xe5, 0x16, 0x75, 0x3c, 0xbc, 0x0b, 0xd8, 0x65, 0xc4, 0xf0, 0xb8, 0xc9, 0xb8, 0xc1, 0xc8,
-	0xd3, 0xbe, 0xc5, 0x48, 0x47, 0x41, 0x75, 0xb4, 0x53, 0xd2, 0x2b, 0x2e, 0x23, 0x8f, 0x7d, 0x86,
-	0x1e, 0xd0, 0xf1, 0xfb, 0xa0, 0x75, 0x09, 0x37, 0x5c, 0x46, 0xce, 0x08, 0x63, 0xa4, 0x63, 0x98,
-	0xb6, 0x4d, 0xdb, 0xa6, 0xaf, 0xca, 0x30, 0x07, 0xa6, 0x65, 0x9b, 0x2d, 0x9b, 0x28, 0x05, 0x21,
-	0x5d, 0xeb, 0x12, 0x7e, 0x12, 0x02, 0x0f, 0x22, 0xdc, 0x41, 0x08, 0xd3, 0x7e, 0x42, 0xb0, 0xa4,
-	0x93, 0xae, 0xe5, 0x71, 0xc2, 0x7c, 0x0b, 0xc4, 0xe3, 0x58, 0x81, 0xb9, 0x01, 0x61, 0x9e, 0x45,
-	0x1d, 0xe1, 0x43, 0x59, 0x0f, 0x8f, 0x58, 0x85, 0x12, 0x71, 0x3a, 0x2e, 0xb5, 0x1c, 0x2e, 0x0c,
-	0x94, 0xf5, 0xe8, 0x8c, 0x5f, 0x81, 0xff, 0xb1, 0x20, 0x3a, 0xc3, 0x31, 0x7b, 0x44, 0x29, 0x0a,
-	0xc0, 0x42, 0x48, 0xfc, 0xc8, 0xec, 0x11, 0xfc, 0x16, 0xcc, 0x51, 0x19, 0xb4, 0x32, 0x53, 0x47,
-	0x3b, 0xf3, 0xcd, 0x5a, 0x23, 0x4c, 0x67, 0x23, 0x37, 0x37, 0x7a, 0x88, 0xd7, 0x7e, 0x2e, 0xfa,
-	0x9e, 0x4a, 0x48, 0xe8, 0xe9, 0x3a, 0xcc, 0xb9, 0xb4, 0x63, 0xf4, 0xad, 0x4e, 0xe0, 0xe9, 0x75,
-	0x97, 0x76, 0x9e, 0x58, 0x1d, 0xdf, 0x99, 0x36, 0x75, 0xb8, 0x69, 0x39, 0x84, 0x09, 0xb6, 0xf4,
-	0x76, 0x21, 0x22, 0xfa, 0xa0, 0x0d, 0x28, 0xf9, 0xd2, 0x09, 0x67, 0x7d, 0x6d, 0xc2, 0xcf, 0x6d,
-	0x58, 0x8c, 0xe5, 0x05, 0x60, 0x46, 0x00, 0x62, 0xad, 0x02, 0x16, 0x68, 0x60, 0xd4, 0x26, 0xca,
-	0x6c, 0xa4, 0x41, 0xa7, 0x76, 0xc4, 0xe2, 0x43, 0x97, 0x28, 0xd7, 0x23, 0xd6, 0xe9, 0xd0, 0x25,
-	0xd9, 0x4c, 0xcd, 0xe5, 0x64, 0x6a, 0x03, 0x4a, 0x2d, 0x8b, 0x1b, 0x3d, 0xd3, 0xbb, 0x50, 0x4a,
-	0x75, 0xb4, 0x33, 0xa3, 0xcf, 0xb5, 0x2c, 0xfe, 0xa1, 0xe9, 0x5d, 0xe0, 0x4f, 0x61, 0x39, 0x92,
-	0x67, 0x32, 0x13, 0x9e, 0x52, 0xae, 0x17, 0x77, 0xe6, 0x9b, 0x7b, 0xd9, 0x74, 0x06, 0xb9, 0x1a,
-	0x3d, 0x7b, 0x47, 0x0e, 0x67, 0x43, 0xbd, 0xc2, 0x46, 0xc8, 0xea, 0x61, 0xdc, 0xa5, 0x29, 0x28,
-	0xae, 0x40, 0xf1, 0x82, 0x0c, 0x83, 0x44, 0xfb, 0x3f, 0xf1, 0x0d, 0x98, 0x1d, 0x98, 0x76, 0x5f,
-	0x36, 0x1b, 0xd2, 0xe5, 0xe1, 0x5e, 0xe1, 0x2e, 0xd2, 0x7e, 0x29, 0xc6, 0x5a, 0x1e, 0x58, 0x0e,
-	0xf7, 0x74, 0xe2, 0xb9, 0xd4, 0xf1, 0xc8, 0xbf, 0xb9, 0x64, 0x9f, 0xc0, 0x62, 0x04, 0x3a, 0xf7,
-	0x83, 0x56, 0x4a, 0xa2, 0x28, 0xcd, 0x6c, 0x51, 0x52, 0x39, 0x49, 0x53, 0x65, 0x5d, 0x22, 0x73,
-	0x82, 0xa6, 0x1a, 0x80, 0xb3, 0xa0, 0x9c, 0x8a, 0xdc, 0x49, 0x56, 0x64, 0xbe, 0x79, 0x33, 0xb6,
-	0xfc, 0x81, 0xe5, 0xf1, 0x87, 0x67, 0xa7, 0xd4, 0xa5, 0x36, 0xed, 0x0e, 0xa5, 0xfd, 0x44, 0xc1,
-	0x7e, 0x2d, 0x80, 0x1a, 0x5a, 0x88, 0xf7, 0xc4, 0x7f, 0xa1, 0x6a, 0x8f, 0x60, 0x25, 0x58, 0xa0,
-	0x72, 0x85, 0x32, 0xe2, 0xf5, 0x6d, 0x2e, 0x66, 0x6e, 0xbe, 0x59, 0xcf, 0x96, 0x2e, 0xce, 0xce,
-	0x7b, 0xce, 0x19, 0xd5, 0x71, 0x52, 0x58, 0x17, 0xb2, 0xda, 0x21, 0xac, 0xe4, 0xa4, 0x1b, 0xef,
-	0xc2, 0xac, 0x6c, 0x0b, 0x24, 0xda, 0x62, 0x2d, 0xd6, 0x9d, 0xc4, 0xe9, 0x12, 0xa4, 0x1d, 0xc3,
-	0x42, 0x92, 0x9c, 0x5a, 0x08, 0x28, 0xbd, 0x10, 0xb6, 0xa0, 0x1c, 0xdd, 0x06, 0xc1, 0xe2, 0x8f,
-	0x09, 0x9a, 0x06, 0xb3, 0x47, 0x3d, 0x97, 0x0f, 0x53, 0x65, 0x40, 0xa9, 0x32, 0x68, 0x3a, 0x54,
-	0x74, 0xd2, 0xa3, 0x03, 0x72, 0x42, 0x3b, 0xe1, 0x72, 0x1d, 0x0f, 0xf7, 0x13, 0x1b, 0xb2, 0x3c,
-	0xd7, 0x6c, 0x93, 0xb0, 0xea, 0x01, 0x5f, 0xd0, 0xb4, 0x15, 0x58, 0x4e, 0xe8, 0x94, 0x8d, 0xa4,
-	0xd5, 0xe0, 0xe6, 0x31, 0xe1, 0x61, 0x2e, 0xbd, 0x64, 0xab, 0x09, 0xab, 0xda, 0x25, 0x82, 0xea,
-	0x38, 0x44, 0xd0, 0x8c, 0x86, 0xb4, 0x1e, 0x56, 0x31, 0xcc, 0xe7, 0xbd, 0x38, 0x9f, 0x93, 0x15,
-	0x34, 0xa4, 0x43, 0x92, 0x2d, 0xc7, 0xcd, 0xf7, 0x3c, 0x22, 0xa9, 0x9f, 0xc1, 0x72, 0x06, 0x92,
-	0x33, 0x6c, 0xcd, 0xf4, 0xb0, 0x6d, 0xc5, 0xf6, 0x0f, 0xc3, 0xe6, 0x8d, 0x74, 0x24, 0x67, 0xed,
-	0x12, 0x01, 0xce, 0x22, 0x30, 0x81, 0x95, 0x78, 0x14, 0x46, 0x83, 0x7b, 0x7d, 0x92, 0xf2, 0x1c,
-	0x92, 0x0c, 0x0b, 0xb7, 0x33, 0x0c, 0xb5, 0x0d, 0xeb, 0x63, 0xe0, 0x2f, 0x15, 0x62, 0xce, 0xb2,
-	0x48, 0x84, 0xf8, 0x27, 0x8a, 0x17, 0x56, 0x8c, 0xf0, 0x43, 0x8c, 0x06, 0x32, 0x7e, 0xb5, 0x64,
-	0x43, 0xcc, 0x8a, 0xe6, 0x90, 0x82, 0x10, 0x59, 0x86, 0xa1, 0x76, 0x61, 0x7d, 0x0c, 0x3c, 0x27,
-	0xc4, 0x37, 0xd2, 0x21, 0x4e, 0x9f, 0xf8, 0x44, 0x98, 0xdf, 0x14, 0x61, 0x2d, 0x1f, 0x85, 0x6f,
-	0xc1, 0x32, 0x6d, 0x5b, 0x86, 0xcb, 0xa8, 0x4b, 0x18, 0x1f, 0x26, 0xc7, 0x68, 0x89, 0xb6, 0xad,
-	0x93, 0x80, 0x2e, 0xc6, 0x69, 0x2f, 0x7f, 0x05, 0xc9, 0xa1, 0xca, 0x59, 0x30, 0xf8, 0x3e, 0xcc,
-	0x10, 0x67, 0xe0, 0x29, 0x45, 0x91, 0xb8, 0x5b, 0xd3, 0x5c, 0x6e, 0x1c, 0x39, 0x83, 0xa0, 0x23,
-	0x84, 0x1c, 0x7e, 0x0c, 0xf3, 0xa6, 0xe3, 0x50, 0xa9, 0xd3, 0x7f, 0x8a, 0xf9, 0x6a, 0xf6, 0xa7,
-	0xaa, 0x39, 0x88, 0x65, 0xa4, 0xb6, 0xa4, 0x16, 0xf5, 0x4d, 0x28, 0x47, 0x76, 0xa6, 0x3d, 0x16,
-	0xca, 0x89, 0x2c, 0xaa, 0xf7, 0xa1, 0x32, 0xaa, 0xf9, 0x65, 0xe4, 0xb5, 0x16, 0xd4, 0x8f, 0x09,
-	0x0f, 0x97, 0xe5, 0xc1, 0x17, 0x26, 0x23, 0xf1, 0xdc, 0x4d, 0x7b, 0x29, 0x66, 0x2f, 0xa0, 0x42,
-	0xce, 0x05, 0xa4, 0xfd, 0x85, 0xe0, 0xff, 0x13, 0x8c, 0x4c, 0xbb, 0x26, 0x93, 0xbb, 0xb4, 0x30,
-	0x65, 0x97, 0x16, 0xb3, 0xbb, 0x14, 0x0f, 0x40, 0x8b, 0xbd, 0xe4, 0x81, 0x13, 0x86, 0xe9, 0x7b,
-	0x91, 0x58, 0x15, 0xb2, 0x8e, 0xaf, 0xe6, 0xac, 0x8a, 0x31, 0x7e, 0xd7, 0xda, 0x93, 0x01, 0xda,
-	0x8f, 0x08, 0x6a, 0x53, 0x94, 0xe4, 0x64, 0x10, 0xe5, 0x5d, 0xe1, 0xf1, 0x3d, 0x4b, 0x92, 0xbb,
-	0x3b, 0x33, 0x75, 0x63, 0x5c, 0xc5, 0x91, 0x70, 0xec, 0xdd, 0xd7, 0x05, 0x58, 0x1b, 0xe3, 0xd4,
-	0x00, 0x94, 0xb1, 0x69, 0x92, 0xeb, 0xe6, 0x9d, 0x69, 0x26, 0xc7, 0x90, 0x65, 0xe7, 0xaf, 0xf1,
-	0x5c, 0xa6, 0xea, 0xc2, 0xe6, 0x04, 0xb1, 0x9c, 0xb6, 0x7e, 0x3b, 0xbd, 0x7e, 0xb6, 0xc7, 0xbd,
-	0xd8, 0x84, 0xb6, 0x47, 0x7d, 0xd3, 0xe1, 0x16, 0x1f, 0x26, 0xbb, 0xff, 0x4b, 0xd8, 0x9c, 0x80,
-	0xc4, 0x9f, 0xc3, 0xd6, 0x48, 0x22, 0x9e, 0x06, 0x2c, 0xc3, 0xb6, 0x3c, 0x1e, 0x24, 0xa3, 0x36,
-	0x26, 0x19, 0x91, 0xc1, 0x0d, 0x9e, 0x47, 0xf6, 0x0d, 0x6b, 0xa7, 0xb0, 0x9a, 0x6f, 0x7a, 0x3b,
-	0xf1, 0x1e, 0x96, 0x31, 0x06, 0x8d, 0x11, 0x52, 0x3f, 0xf6, 0x89, 0xfe, 0x60, 0x3b, 0xb4, 0x13,
-	0xb4, 0xc2, 0x8c, 0x2e, 0x0f, 0xda, 0x6d, 0x78, 0x6d, 0x74, 0xde, 0x82, 0x6d, 0xe4, 0xff, 0x6f,
-	0x1d, 0x9d, 0x6f, 0xed, 0x5b, 0x04, 0xbb, 0x2f, 0x86, 0x0f, 0x46, 0xf5, 0x09, 0xac, 0x9a, 0x31,
-	0x3f, 0xd5, 0x1d, 0x2f, 0xd6, 0x90, 0x37, 0xcc, 0x1c, 0xf5, 0xda, 0x0f, 0x08, 0x94, 0x93, 0xe0,
-	0x1f, 0x7b, 0xe2, 0x9a, 0xfd, 0x47, 0xfc, 0x5d, 0xd5, 0x36, 0x61, 0x23, 0xc7, 0x37, 0x99, 0x90,
-	0xe6, 0x03, 0x58, 0x90, 0x1f, 0x02, 0x98, 0xbc, 0xab, 0xef, 0x42, 0x29, 0xfc, 0x30, 0x80, 0x37,
-	0x92, 0x57, 0x43, 0xea, 0x63, 0x81, 0xba, 0x14, 0xb3, 0xc4, 0x2b, 0x53, 0xbb, 0xd6, 0xac, 0xc0,
-	0x62, 0xfa, 0xbf, 0xfc, 0xbb, 0x5b, 0xcf, 0x9e, 0x57, 0xd1, 0xef, 0xcf, 0xab, 0xd7, 0xbe, 0xba,
-	0xaa, 0xa2, 0x67, 0x57, 0x55, 0xf4, 0xdb, 0x55, 0x15, 0x5d, 0x5e, 0x55, 0xd1, 0x77, 0x7f, 0x54,
-	0xaf, 0xb5, 0xae, 0x8b, 0xef, 0x23, 0x77, 0xfe, 0x0e, 0x00, 0x00, 0xff, 0xff, 0xc3, 0xe6, 0x35,
-	0xee, 0x65, 0x11, 0x00, 0x00,
+	// 1421 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xd4, 0x58, 0xcd, 0x6f, 0x1b, 0x45,
+	0x14, 0xcf, 0xc6, 0xf9, 0xb0, 0x5f, 0xd2, 0x7c, 0x4c, 0xda, 0xd4, 0xde, 0xa4, 0xb6, 0x99, 0xb6,
+	0x6a, 0xe8, 0x47, 0xa2, 0xba, 0x50, 0x4a, 0x41, 0x95, 0x42, 0x55, 0x5a, 0x04, 0x6d, 0xd3, 0x6d,
+	0x8b, 0x84, 0x04, 0x2c, 0x6b, 0x7b, 0xe2, 0xae, 0x6a, 0xef, 0x6c, 0x67, 0xc7, 0x46, 0x3e, 0x81,
+	0x90, 0x7a, 0xe0, 0x86, 0xb8, 0x70, 0xe0, 0xc4, 0x09, 0x09, 0xf1, 0x87, 0xf4, 0xc8, 0x91, 0x63,
+	0x1b, 0xf8, 0x13, 0xf8, 0x03, 0xd0, 0xce, 0xec, 0xc7, 0xac, 0x77, 0xd7, 0x4e, 0x84, 0x38, 0xf4,
+	0xe6, 0x7d, 0xf3, 0x9b, 0xf7, 0xf1, 0x9b, 0xf7, 0xde, 0xbc, 0x31, 0x94, 0x2c, 0xd7, 0xde, 0x76,
+	0x19, 0xe5, 0x14, 0x15, 0x07, 0x97, 0xad, 0xae, 0xfb, 0xc4, 0xba, 0xac, 0x5f, 0xea, 0xd8, 0xfc,
+	0x49, 0xbf, 0xb9, 0xdd, 0xa2, 0xbd, 0x9d, 0x0e, 0xed, 0xd0, 0x1d, 0x01, 0x68, 0xf6, 0xf7, 0xc5,
+	0x97, 0xf8, 0x10, 0xbf, 0xe4, 0x46, 0xfc, 0xa3, 0x06, 0x27, 0x0c, 0xe2, 0xd1, 0x3e, 0x6b, 0x91,
+	0xbd, 0x6e, 0xbf, 0x63, 0x3b, 0xf7, 0x5d, 0x6e, 0x53, 0xc7, 0x43, 0x17, 0x01, 0xb9, 0x8c, 0x98,
+	0x1e, 0xb7, 0x18, 0x37, 0x19, 0x79, 0xd6, 0xb7, 0x19, 0x69, 0x97, 0xb5, 0xba, 0xb6, 0x55, 0x34,
+	0x56, 0x5c, 0x46, 0x1e, 0xfa, 0x0b, 0x46, 0x20, 0x47, 0x1f, 0x03, 0xee, 0x10, 0x6e, 0xba, 0x8c,
+	0xec, 0x13, 0xc6, 0x48, 0xdb, 0xb4, 0xba, 0x5d, 0xda, 0xb2, 0x7c, 0x55, 0xa6, 0x35, 0xb0, 0xec,
+	0xae, 0xd5, 0xec, 0x92, 0xf2, 0xb4, 0xd8, 0x5d, 0xeb, 0x10, 0xbe, 0x17, 0x02, 0x77, 0x23, 0xdc,
+	0x6e, 0x08, 0xc3, 0xbf, 0x6a, 0xb0, 0x6c, 0x90, 0x8e, 0xed, 0x71, 0xc2, 0x7c, 0x0b, 0xc4, 0xe3,
+	0xa8, 0x0c, 0xf3, 0x03, 0xc2, 0x3c, 0x9b, 0x3a, 0xc2, 0x87, 0x92, 0x11, 0x7e, 0x22, 0x1d, 0x8a,
+	0xc4, 0x69, 0xbb, 0xd4, 0x76, 0xb8, 0x30, 0x50, 0x32, 0xa2, 0x6f, 0x74, 0x1a, 0x8e, 0xb1, 0x20,
+	0x3a, 0xd3, 0xb1, 0x7a, 0xa4, 0x5c, 0x10, 0x80, 0xc5, 0x50, 0x78, 0xcf, 0xea, 0x11, 0xf4, 0x2e,
+	0xcc, 0x53, 0x19, 0x74, 0x79, 0xa6, 0xae, 0x6d, 0x2d, 0x34, 0x6a, 0xdb, 0x21, 0x9d, 0xdb, 0x99,
+	0xdc, 0x18, 0x21, 0x1e, 0x3f, 0x2f, 0xf8, 0x9e, 0x4a, 0x48, 0xe8, 0xe9, 0x49, 0x98, 0x77, 0x69,
+	0xdb, 0xec, 0xdb, 0xed, 0xc0, 0xd3, 0x39, 0x97, 0xb6, 0x1f, 0xdb, 0x6d, 0x54, 0x81, 0xa2, 0xbf,
+	0x20, 0xfc, 0x90, 0x8e, 0xfa, 0x40, 0xe1, 0xc2, 0x59, 0x58, 0x6a, 0x51, 0x87, 0x5b, 0xb6, 0x43,
+	0x98, 0xea, 0xe8, 0xb1, 0x48, 0x2a, 0x60, 0x81, 0x06, 0x46, 0xbb, 0x44, 0xb8, 0x2a, 0x35, 0x18,
+	0xb4, 0x1b, 0x2d, 0xf1, 0xa1, 0x4b, 0xca, 0xb3, 0xd1, 0xd2, 0xa3, 0xa1, 0x4b, 0xd2, 0x24, 0xcc,
+	0x65, 0x90, 0x50, 0x81, 0x62, 0xd3, 0xe6, 0x66, 0xcf, 0xf2, 0x9e, 0x96, 0xe7, 0xeb, 0xda, 0xd6,
+	0x8c, 0x31, 0xdf, 0xb4, 0xf9, 0x5d, 0xcb, 0x7b, 0x8a, 0x3e, 0x87, 0xd5, 0x68, 0x3f, 0x93, 0x41,
+	0x7a, 0xe5, 0x62, 0xbd, 0xb0, 0xb5, 0xd0, 0xd8, 0x49, 0x33, 0x15, 0xd0, 0x30, 0xfa, 0xed, 0xdd,
+	0x72, 0x38, 0x1b, 0x1a, 0x2b, 0x6c, 0x44, 0xac, 0xdf, 0x8c, 0x13, 0x30, 0x01, 0x45, 0x2b, 0x50,
+	0x78, 0x4a, 0x86, 0x01, 0x87, 0xfe, 0x4f, 0x74, 0x1c, 0x66, 0x07, 0x56, 0xb7, 0x2f, 0xd9, 0xd3,
+	0x0c, 0xf9, 0x71, 0x7d, 0xfa, 0x9a, 0x86, 0xbf, 0x2f, 0xc4, 0x5a, 0xee, 0xd8, 0x0e, 0xf7, 0x0c,
+	0xe2, 0xb9, 0xd4, 0xf1, 0xc8, 0x6b, 0x7a, 0x1a, 0x9f, 0xc1, 0x52, 0x04, 0x7a, 0xe2, 0xc7, 0x53,
+	0x9e, 0x17, 0x7c, 0x37, 0xd2, 0x7c, 0x27, 0xc2, 0x4d, 0x4a, 0x25, 0xe5, 0x91, 0x39, 0x21, 0xd3,
+	0x4d, 0x40, 0x69, 0x50, 0x06, 0xd9, 0x57, 0x54, 0xb2, 0x17, 0x1a, 0xa7, 0x62, 0xcb, 0x9f, 0xd8,
+	0x1e, 0xbf, 0xbf, 0xff, 0x88, 0xba, 0xb4, 0x4b, 0x3b, 0x43, 0x69, 0x5f, 0x39, 0x8b, 0x5f, 0xa6,
+	0x41, 0x0f, 0x2d, 0xc4, 0xd5, 0xfd, 0x9a, 0x1f, 0xc8, 0x5d, 0x58, 0x0b, 0x3a, 0x9a, 0xec, 0x69,
+	0x8c, 0x78, 0xfd, 0x2e, 0x17, 0x95, 0xb2, 0xd0, 0xd8, 0x4c, 0x9f, 0x8a, 0x12, 0x38, 0x52, 0x37,
+	0x1a, 0x62, 0x1f, 0xbe, 0x09, 0x6b, 0x19, 0x2c, 0xa2, 0x8b, 0x30, 0x2b, 0x4f, 0x5b, 0x13, 0xa7,
+	0xbd, 0x1e, 0xeb, 0x55, 0x71, 0x86, 0x04, 0xe1, 0xdb, 0xb0, 0xa8, 0x8a, 0x13, 0x25, 0xac, 0x25,
+	0x4b, 0x78, 0x13, 0x4a, 0x51, 0x6b, 0x0e, 0xba, 0x70, 0x2c, 0xc0, 0x18, 0x66, 0x6f, 0xf5, 0x5c,
+	0x3e, 0x4c, 0x1c, 0x81, 0x96, 0x38, 0x02, 0x6c, 0xc0, 0x8a, 0x41, 0x7a, 0x74, 0x40, 0xf6, 0x68,
+	0x3b, 0xec, 0x74, 0xf9, 0x70, 0x9f, 0xd4, 0x70, 0xc9, 0x73, 0xad, 0x56, 0x78, 0xa2, 0x8b, 0xc1,
+	0xba, 0x90, 0xe1, 0x35, 0x58, 0x55, 0x74, 0xca, 0xfc, 0xc0, 0x35, 0x38, 0x75, 0x9b, 0xf0, 0x90,
+	0x47, 0x4f, 0xcd, 0x20, 0x61, 0x15, 0xbf, 0xd4, 0xa0, 0x9a, 0x87, 0x08, 0x72, 0xcc, 0x94, 0xd6,
+	0xc3, 0x13, 0x0c, 0xf9, 0xbc, 0x1e, 0xf3, 0x39, 0x5e, 0xc1, 0xb6, 0x74, 0x48, 0x2e, 0xcb, 0x2a,
+	0xf2, 0x3d, 0x8f, 0x44, 0xfa, 0x17, 0xb0, 0x9a, 0x82, 0x64, 0xd4, 0x50, 0x23, 0x59, 0x43, 0x4a,
+	0x9e, 0xdc, 0x0c, 0x13, 0x37, 0xd2, 0xa1, 0x96, 0xd0, 0x4b, 0x0d, 0x50, 0x1a, 0x81, 0x08, 0xac,
+	0xc5, 0x65, 0x30, 0x1a, 0xdc, 0x5b, 0xe3, 0x94, 0x67, 0x88, 0x64, 0x58, 0xa8, 0x95, 0x5a, 0xd0,
+	0x5b, 0x70, 0x32, 0x07, 0x7e, 0xa4, 0x10, 0x33, 0x4a, 0x41, 0x09, 0xf1, 0x6f, 0x2d, 0xee, 0x43,
+	0x31, 0xc2, 0x0f, 0x31, 0x2a, 0xc6, 0x78, 0x84, 0x48, 0x87, 0x98, 0xde, 0x9a, 0x21, 0x0a, 0x42,
+	0x64, 0xa9, 0x05, 0xbd, 0x03, 0x27, 0x73, 0xe0, 0x19, 0x21, 0x5e, 0x4d, 0x86, 0x58, 0x1f, 0xe7,
+	0xc5, 0x47, 0xce, 0x3e, 0x55, 0xc3, 0xfc, 0xbd, 0x00, 0xeb, 0xd9, 0x28, 0x74, 0x1e, 0x56, 0x69,
+	0xcb, 0x36, 0x5d, 0x46, 0x5d, 0xc2, 0xf8, 0x50, 0x2d, 0xa3, 0x65, 0xda, 0xb2, 0xf7, 0x02, 0xb9,
+	0x28, 0xa7, 0x73, 0xb0, 0xdc, 0x23, 0xac, 0x43, 0x4c, 0x8f, 0xb8, 0x16, 0xb3, 0x38, 0x65, 0x41,
+	0x41, 0x2d, 0x09, 0xf1, 0xc3, 0x50, 0x8a, 0x76, 0xb2, 0xfb, 0x54, 0xa1, 0x5e, 0xd8, 0x2a, 0x65,
+	0x75, 0x22, 0x74, 0x03, 0x66, 0x88, 0x33, 0xf0, 0x27, 0x1f, 0x9f, 0xe1, 0xf3, 0x93, 0x62, 0xdb,
+	0xbe, 0xe5, 0x0c, 0x82, 0xd4, 0x11, 0xfb, 0xd0, 0x43, 0x58, 0xb0, 0x1c, 0x87, 0x4a, 0x9d, 0x5e,
+	0x79, 0x56, 0xa8, 0xb9, 0x3c, 0x51, 0xcd, 0x6e, 0xbc, 0x47, 0x6a, 0x53, 0xb5, 0xe8, 0xef, 0x40,
+	0x29, 0xb2, 0x33, 0x69, 0x0e, 0x28, 0x29, 0x74, 0xeb, 0x37, 0x60, 0x65, 0x54, 0xf3, 0x51, 0xf6,
+	0xe3, 0x26, 0xd4, 0x6f, 0x13, 0x1e, 0x76, 0xd5, 0xdd, 0xaf, 0x2d, 0x46, 0xe2, 0x02, 0x9d, 0x34,
+	0xdf, 0xa5, 0x6f, 0xa9, 0xe9, 0x8c, 0x5b, 0x0a, 0xff, 0xa3, 0xc1, 0x1b, 0x63, 0x8c, 0xfc, 0x87,
+	0x6b, 0x32, 0xd5, 0x74, 0x0b, 0xe9, 0xa6, 0x8b, 0x06, 0x80, 0x63, 0x2f, 0x79, 0xe0, 0x84, 0x69,
+	0xf9, 0x5e, 0x28, 0x3d, 0x45, 0xa6, 0xc3, 0x9b, 0x19, 0x3d, 0x25, 0xc7, 0xef, 0x5a, 0x6b, 0x3c,
+	0x00, 0xff, 0xac, 0x41, 0x6d, 0x82, 0x92, 0x0c, 0x06, 0xb5, 0xac, 0x7b, 0xfe, 0x41, 0x94, 0xe4,
+	0x44, 0x6d, 0xf2, 0xa9, 0xf2, 0xcc, 0x71, 0x15, 0x45, 0x9b, 0x63, 0xef, 0xbe, 0x9b, 0x86, 0xf5,
+	0x1c, 0xa7, 0x06, 0x50, 0xce, 0xa5, 0x49, 0xf6, 0xa5, 0xf7, 0x27, 0x99, 0xcc, 0x11, 0xcb, 0xcc,
+	0x5f, 0xe7, 0x99, 0x8b, 0xba, 0x0b, 0x1b, 0x63, 0xb6, 0x65, 0xa4, 0xf5, 0x7b, 0xc9, 0x3e, 0x75,
+	0x36, 0x6f, 0x62, 0x13, 0xda, 0x1e, 0xf4, 0x2d, 0x87, 0xdb, 0x7c, 0xa8, 0x66, 0xff, 0x37, 0xb0,
+	0x31, 0x06, 0x89, 0xbe, 0x82, 0xcd, 0x11, 0x22, 0x9e, 0x05, 0x4b, 0x66, 0xd7, 0xf6, 0x78, 0x40,
+	0x46, 0x2d, 0x87, 0x8c, 0xc8, 0x60, 0x85, 0x67, 0x89, 0x7d, 0xc3, 0xf8, 0x11, 0x9c, 0xc8, 0x36,
+	0x7d, 0x56, 0x99, 0x87, 0x65, 0x8c, 0x41, 0x62, 0x84, 0xd2, 0x4f, 0x7d, 0xa1, 0x5f, 0xd8, 0x0e,
+	0x6d, 0x07, 0xa9, 0x30, 0x63, 0xc8, 0x0f, 0x7c, 0x09, 0x2e, 0x8c, 0xd6, 0x5b, 0xd0, 0x8d, 0xfc,
+	0xd7, 0xe6, 0x68, 0x7d, 0xe3, 0xe7, 0x1a, 0x5c, 0x3c, 0x1c, 0x3e, 0x28, 0xd5, 0xc7, 0x70, 0xc2,
+	0x8a, 0xd7, 0x13, 0xd9, 0x71, 0xb8, 0x84, 0x3c, 0x6e, 0x65, 0xa8, 0xc7, 0x7d, 0x28, 0xef, 0x05,
+	0xcf, 0x6c, 0xe5, 0x3a, 0xfe, 0xbf, 0xdf, 0x98, 0x78, 0x03, 0x2a, 0x19, 0x66, 0x65, 0xa8, 0x8d,
+	0x3b, 0xb0, 0x28, 0x1f, 0xe6, 0x4c, 0x5e, 0xd7, 0xd7, 0xa0, 0x18, 0x3e, 0xd4, 0x51, 0x45, 0x6d,
+	0xfa, 0x89, 0xc7, 0xbb, 0xbe, 0x1c, 0x2f, 0x89, 0x41, 0x13, 0x4f, 0x35, 0x7e, 0x9b, 0x83, 0xa5,
+	0xe4, 0xe3, 0x1a, 0xed, 0xc1, 0x8a, 0xc2, 0xbb, 0x9c, 0x88, 0x2b, 0xb9, 0x0f, 0x4c, 0xbd, 0x36,
+	0xe1, 0x2d, 0x84, 0xa7, 0xd0, 0x87, 0x50, 0x8a, 0x06, 0x4c, 0xa4, 0xab, 0xf8, 0xe4, 0x24, 0xab,
+	0x6f, 0x64, 0xae, 0x45, 0x7a, 0x7a, 0xb0, 0x9e, 0x3d, 0x30, 0xa2, 0x73, 0x93, 0x47, 0x4a, 0x69,
+	0x61, 0xeb, 0xb0, 0xb3, 0x27, 0x9e, 0x42, 0x03, 0xa8, 0xe4, 0x5e, 0x10, 0xe8, 0x7c, 0x42, 0xd1,
+	0xd8, 0xab, 0x4a, 0xbf, 0x70, 0x28, 0x6c, 0x64, 0xf7, 0x27, 0x0d, 0xce, 0x1c, 0x26, 0xf3, 0xd1,
+	0xdb, 0xf9, 0x7a, 0xc7, 0x54, 0x96, 0x7e, 0xf5, 0xa8, 0xdb, 0x22, 0xcf, 0xee, 0x41, 0x59, 0x61,
+	0x2d, 0xf9, 0x47, 0xd5, 0x68, 0x72, 0xe9, 0x93, 0xfe, 0xbe, 0xc1, 0x53, 0xe8, 0x2e, 0x14, 0x03,
+	0x8b, 0x64, 0x5c, 0x8a, 0x9d, 0x19, 0x3b, 0xcd, 0xc6, 0xee, 0x7d, 0x09, 0xab, 0xa9, 0x9a, 0x41,
+	0x38, 0xde, 0x9c, 0x57, 0xc7, 0xfa, 0xe9, 0xb1, 0x98, 0x50, 0xff, 0x07, 0x9b, 0x2f, 0x5e, 0x55,
+	0xb5, 0x3f, 0x5f, 0x55, 0xa7, 0xbe, 0x3d, 0xa8, 0x6a, 0x2f, 0x0e, 0xaa, 0xda, 0x1f, 0x07, 0x55,
+	0xed, 0xe5, 0x41, 0x55, 0xfb, 0xe1, 0xaf, 0xea, 0x54, 0x73, 0x4e, 0xfc, 0x95, 0x77, 0xe5, 0xdf,
+	0x00, 0x00, 0x00, 0xff, 0xff, 0x6f, 0x0c, 0x3a, 0x81, 0x10, 0x14, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -1682,6 +1667,28 @@ var _Registration_serviceDesc = grpc.ServiceDesc{
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ResourcePluginClient interface {
+	// GetTopologyHints returns hints of corresponding resources
+	GetTopologyHints(ctx context.Context, in *ResourceRequest, opts ...grpc.CallOption) (*ResourceHintsResponse, error)
+	// Notify the resource plugin that the pod has beed deleted,
+	// and the plugin should do some clear-up work.
+	RemovePod(ctx context.Context, in *RemovePodRequest, opts ...grpc.CallOption) (*RemovePodResponse, error)
+	// GetResourcesAllocation returns allocation results of corresponding resources
+	GetResourcesAllocation(ctx context.Context, in *GetResourcesAllocationRequest, opts ...grpc.CallOption) (*GetResourcesAllocationResponse, error)
+	// GetTopologyAwareResources returns allocation results of corresponding resources as topology aware format
+	GetTopologyAwareResources(ctx context.Context, in *GetTopologyAwareResourcesRequest, opts ...grpc.CallOption) (*GetTopologyAwareResourcesResponse, error)
+	// GetTopologyAwareResources returns corresponding allocatable resources as topology aware format
+	GetTopologyAwareAllocatableResources(ctx context.Context, in *GetTopologyAwareAllocatableResourcesRequest, opts ...grpc.CallOption) (*GetTopologyAwareAllocatableResourcesResponse, error)
+	// GetResourcePluginOptions returns options to be communicated with Resource
+	// Manager
+	GetResourcePluginOptions(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ResourcePluginOptions, error)
+	// Allocate is called during pod admit so that the resource
+	// plugin can allocate corresponding resource for the container
+	// according to resource request
+	Allocate(ctx context.Context, in *ResourceRequest, opts ...grpc.CallOption) (*ResourceAllocationResponse, error)
+	// PreStartContainer is called, if indicated by resource plugin during registeration phase,
+	// before each container start. Resource plugin can run resource specific operations
+	// such as resetting the resource before making resources available to the container
+	PreStartContainer(ctx context.Context, in *PreStartContainerRequest, opts ...grpc.CallOption) (*PreStartContainerResponse, error)
 }
 
 type resourcePluginClient struct {
@@ -1692,24 +1699,320 @@ func NewResourcePluginClient(cc *grpc.ClientConn) ResourcePluginClient {
 	return &resourcePluginClient{cc}
 }
 
+func (c *resourcePluginClient) GetTopologyHints(ctx context.Context, in *ResourceRequest, opts ...grpc.CallOption) (*ResourceHintsResponse, error) {
+	out := new(ResourceHintsResponse)
+	err := c.cc.Invoke(ctx, "/v1alpha1.ResourcePlugin/GetTopologyHints", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *resourcePluginClient) RemovePod(ctx context.Context, in *RemovePodRequest, opts ...grpc.CallOption) (*RemovePodResponse, error) {
+	out := new(RemovePodResponse)
+	err := c.cc.Invoke(ctx, "/v1alpha1.ResourcePlugin/RemovePod", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *resourcePluginClient) GetResourcesAllocation(ctx context.Context, in *GetResourcesAllocationRequest, opts ...grpc.CallOption) (*GetResourcesAllocationResponse, error) {
+	out := new(GetResourcesAllocationResponse)
+	err := c.cc.Invoke(ctx, "/v1alpha1.ResourcePlugin/GetResourcesAllocation", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *resourcePluginClient) GetTopologyAwareResources(ctx context.Context, in *GetTopologyAwareResourcesRequest, opts ...grpc.CallOption) (*GetTopologyAwareResourcesResponse, error) {
+	out := new(GetTopologyAwareResourcesResponse)
+	err := c.cc.Invoke(ctx, "/v1alpha1.ResourcePlugin/GetTopologyAwareResources", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *resourcePluginClient) GetTopologyAwareAllocatableResources(ctx context.Context, in *GetTopologyAwareAllocatableResourcesRequest, opts ...grpc.CallOption) (*GetTopologyAwareAllocatableResourcesResponse, error) {
+	out := new(GetTopologyAwareAllocatableResourcesResponse)
+	err := c.cc.Invoke(ctx, "/v1alpha1.ResourcePlugin/GetTopologyAwareAllocatableResources", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *resourcePluginClient) GetResourcePluginOptions(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ResourcePluginOptions, error) {
+	out := new(ResourcePluginOptions)
+	err := c.cc.Invoke(ctx, "/v1alpha1.ResourcePlugin/GetResourcePluginOptions", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *resourcePluginClient) Allocate(ctx context.Context, in *ResourceRequest, opts ...grpc.CallOption) (*ResourceAllocationResponse, error) {
+	out := new(ResourceAllocationResponse)
+	err := c.cc.Invoke(ctx, "/v1alpha1.ResourcePlugin/Allocate", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *resourcePluginClient) PreStartContainer(ctx context.Context, in *PreStartContainerRequest, opts ...grpc.CallOption) (*PreStartContainerResponse, error) {
+	out := new(PreStartContainerResponse)
+	err := c.cc.Invoke(ctx, "/v1alpha1.ResourcePlugin/PreStartContainer", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ResourcePluginServer is the server API for ResourcePlugin service.
 type ResourcePluginServer interface {
+	// GetTopologyHints returns hints of corresponding resources
+	GetTopologyHints(context.Context, *ResourceRequest) (*ResourceHintsResponse, error)
+	// Notify the resource plugin that the pod has beed deleted,
+	// and the plugin should do some clear-up work.
+	RemovePod(context.Context, *RemovePodRequest) (*RemovePodResponse, error)
+	// GetResourcesAllocation returns allocation results of corresponding resources
+	GetResourcesAllocation(context.Context, *GetResourcesAllocationRequest) (*GetResourcesAllocationResponse, error)
+	// GetTopologyAwareResources returns allocation results of corresponding resources as topology aware format
+	GetTopologyAwareResources(context.Context, *GetTopologyAwareResourcesRequest) (*GetTopologyAwareResourcesResponse, error)
+	// GetTopologyAwareResources returns corresponding allocatable resources as topology aware format
+	GetTopologyAwareAllocatableResources(context.Context, *GetTopologyAwareAllocatableResourcesRequest) (*GetTopologyAwareAllocatableResourcesResponse, error)
+	// GetResourcePluginOptions returns options to be communicated with Resource
+	// Manager
+	GetResourcePluginOptions(context.Context, *Empty) (*ResourcePluginOptions, error)
+	// Allocate is called during pod admit so that the resource
+	// plugin can allocate corresponding resource for the container
+	// according to resource request
+	Allocate(context.Context, *ResourceRequest) (*ResourceAllocationResponse, error)
+	// PreStartContainer is called, if indicated by resource plugin during registeration phase,
+	// before each container start. Resource plugin can run resource specific operations
+	// such as resetting the resource before making resources available to the container
+	PreStartContainer(context.Context, *PreStartContainerRequest) (*PreStartContainerResponse, error)
 }
 
 // UnimplementedResourcePluginServer can be embedded to have forward compatible implementations.
 type UnimplementedResourcePluginServer struct {
 }
 
+func (*UnimplementedResourcePluginServer) GetTopologyHints(ctx context.Context, req *ResourceRequest) (*ResourceHintsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTopologyHints not implemented")
+}
+func (*UnimplementedResourcePluginServer) RemovePod(ctx context.Context, req *RemovePodRequest) (*RemovePodResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemovePod not implemented")
+}
+func (*UnimplementedResourcePluginServer) GetResourcesAllocation(ctx context.Context, req *GetResourcesAllocationRequest) (*GetResourcesAllocationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetResourcesAllocation not implemented")
+}
+func (*UnimplementedResourcePluginServer) GetTopologyAwareResources(ctx context.Context, req *GetTopologyAwareResourcesRequest) (*GetTopologyAwareResourcesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTopologyAwareResources not implemented")
+}
+func (*UnimplementedResourcePluginServer) GetTopologyAwareAllocatableResources(ctx context.Context, req *GetTopologyAwareAllocatableResourcesRequest) (*GetTopologyAwareAllocatableResourcesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTopologyAwareAllocatableResources not implemented")
+}
+func (*UnimplementedResourcePluginServer) GetResourcePluginOptions(ctx context.Context, req *Empty) (*ResourcePluginOptions, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetResourcePluginOptions not implemented")
+}
+func (*UnimplementedResourcePluginServer) Allocate(ctx context.Context, req *ResourceRequest) (*ResourceAllocationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Allocate not implemented")
+}
+func (*UnimplementedResourcePluginServer) PreStartContainer(ctx context.Context, req *PreStartContainerRequest) (*PreStartContainerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PreStartContainer not implemented")
+}
+
 func RegisterResourcePluginServer(s *grpc.Server, srv ResourcePluginServer) {
 	s.RegisterService(&_ResourcePlugin_serviceDesc, srv)
+}
+
+func _ResourcePlugin_GetTopologyHints_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResourceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ResourcePluginServer).GetTopologyHints(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/v1alpha1.ResourcePlugin/GetTopologyHints",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ResourcePluginServer).GetTopologyHints(ctx, req.(*ResourceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ResourcePlugin_RemovePod_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemovePodRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ResourcePluginServer).RemovePod(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/v1alpha1.ResourcePlugin/RemovePod",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ResourcePluginServer).RemovePod(ctx, req.(*RemovePodRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ResourcePlugin_GetResourcesAllocation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetResourcesAllocationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ResourcePluginServer).GetResourcesAllocation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/v1alpha1.ResourcePlugin/GetResourcesAllocation",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ResourcePluginServer).GetResourcesAllocation(ctx, req.(*GetResourcesAllocationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ResourcePlugin_GetTopologyAwareResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTopologyAwareResourcesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ResourcePluginServer).GetTopologyAwareResources(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/v1alpha1.ResourcePlugin/GetTopologyAwareResources",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ResourcePluginServer).GetTopologyAwareResources(ctx, req.(*GetTopologyAwareResourcesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ResourcePlugin_GetTopologyAwareAllocatableResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTopologyAwareAllocatableResourcesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ResourcePluginServer).GetTopologyAwareAllocatableResources(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/v1alpha1.ResourcePlugin/GetTopologyAwareAllocatableResources",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ResourcePluginServer).GetTopologyAwareAllocatableResources(ctx, req.(*GetTopologyAwareAllocatableResourcesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ResourcePlugin_GetResourcePluginOptions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ResourcePluginServer).GetResourcePluginOptions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/v1alpha1.ResourcePlugin/GetResourcePluginOptions",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ResourcePluginServer).GetResourcePluginOptions(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ResourcePlugin_Allocate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResourceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ResourcePluginServer).Allocate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/v1alpha1.ResourcePlugin/Allocate",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ResourcePluginServer).Allocate(ctx, req.(*ResourceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ResourcePlugin_PreStartContainer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PreStartContainerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ResourcePluginServer).PreStartContainer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/v1alpha1.ResourcePlugin/PreStartContainer",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ResourcePluginServer).PreStartContainer(ctx, req.(*PreStartContainerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 var _ResourcePlugin_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "v1alpha1.ResourcePlugin",
 	HandlerType: (*ResourcePluginServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams:     []grpc.StreamDesc{},
-	Metadata:    "api.proto",
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetTopologyHints",
+			Handler:    _ResourcePlugin_GetTopologyHints_Handler,
+		},
+		{
+			MethodName: "RemovePod",
+			Handler:    _ResourcePlugin_RemovePod_Handler,
+		},
+		{
+			MethodName: "GetResourcesAllocation",
+			Handler:    _ResourcePlugin_GetResourcesAllocation_Handler,
+		},
+		{
+			MethodName: "GetTopologyAwareResources",
+			Handler:    _ResourcePlugin_GetTopologyAwareResources_Handler,
+		},
+		{
+			MethodName: "GetTopologyAwareAllocatableResources",
+			Handler:    _ResourcePlugin_GetTopologyAwareAllocatableResources_Handler,
+		},
+		{
+			MethodName: "GetResourcePluginOptions",
+			Handler:    _ResourcePlugin_GetResourcePluginOptions_Handler,
+		},
+		{
+			MethodName: "Allocate",
+			Handler:    _ResourcePlugin_Allocate_Handler,
+		},
+		{
+			MethodName: "PreStartContainer",
+			Handler:    _ResourcePlugin_PreStartContainer_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "api.proto",
 }
 
 func (m *ResourcePluginOptions) Marshal() (dAtA []byte, err error) {
@@ -1846,53 +2149,46 @@ func (m *ResourceRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			dAtA[i] = 0xa
 			i = encodeVarintApi(dAtA, i, uint64(baseI-i))
 			i--
-			dAtA[i] = 0x4a
+			dAtA[i] = 0x42
 		}
 	}
 	if m.BitMask != 0 {
 		i = encodeVarintApi(dAtA, i, uint64(m.BitMask))
 		i--
-		dAtA[i] = 0x40
+		dAtA[i] = 0x38
 	}
 	if len(m.ResourceName) > 0 {
 		i -= len(m.ResourceName)
 		copy(dAtA[i:], m.ResourceName)
 		i = encodeVarintApi(dAtA, i, uint64(len(m.ResourceName)))
 		i--
-		dAtA[i] = 0x3a
+		dAtA[i] = 0x32
 	}
 	if len(m.PodType) > 0 {
 		i -= len(m.PodType)
 		copy(dAtA[i:], m.PodType)
 		i = encodeVarintApi(dAtA, i, uint64(len(m.PodType)))
 		i--
-		dAtA[i] = 0x32
+		dAtA[i] = 0x2a
 	}
 	if len(m.PodRole) > 0 {
 		i -= len(m.PodRole)
 		copy(dAtA[i:], m.PodRole)
 		i = encodeVarintApi(dAtA, i, uint64(len(m.PodRole)))
 		i--
-		dAtA[i] = 0x2a
+		dAtA[i] = 0x22
 	}
 	if len(m.ContainerName) > 0 {
 		i -= len(m.ContainerName)
 		copy(dAtA[i:], m.ContainerName)
 		i = encodeVarintApi(dAtA, i, uint64(len(m.ContainerName)))
 		i--
-		dAtA[i] = 0x22
+		dAtA[i] = 0x1a
 	}
 	if len(m.PodName) > 0 {
 		i -= len(m.PodName)
 		copy(dAtA[i:], m.PodName)
 		i = encodeVarintApi(dAtA, i, uint64(len(m.PodName)))
-		i--
-		dAtA[i] = 0x1a
-	}
-	if len(m.ContainerUid) > 0 {
-		i -= len(m.ContainerUid)
-		copy(dAtA[i:], m.ContainerUid)
-		i = encodeVarintApi(dAtA, i, uint64(len(m.ContainerUid)))
 		i--
 		dAtA[i] = 0x12
 	}
@@ -1949,7 +2245,7 @@ func (m *ResourceHintsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			dAtA[i] = 0xa
 			i = encodeVarintApi(dAtA, i, uint64(baseI-i))
 			i--
-			dAtA[i] = 0x42
+			dAtA[i] = 0x3a
 		}
 	}
 	if len(m.ResourceName) > 0 {
@@ -1957,40 +2253,33 @@ func (m *ResourceHintsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		copy(dAtA[i:], m.ResourceName)
 		i = encodeVarintApi(dAtA, i, uint64(len(m.ResourceName)))
 		i--
-		dAtA[i] = 0x3a
+		dAtA[i] = 0x32
 	}
 	if len(m.PodType) > 0 {
 		i -= len(m.PodType)
 		copy(dAtA[i:], m.PodType)
 		i = encodeVarintApi(dAtA, i, uint64(len(m.PodType)))
 		i--
-		dAtA[i] = 0x32
+		dAtA[i] = 0x2a
 	}
 	if len(m.PodRole) > 0 {
 		i -= len(m.PodRole)
 		copy(dAtA[i:], m.PodRole)
 		i = encodeVarintApi(dAtA, i, uint64(len(m.PodRole)))
 		i--
-		dAtA[i] = 0x2a
+		dAtA[i] = 0x22
 	}
 	if len(m.ContainerName) > 0 {
 		i -= len(m.ContainerName)
 		copy(dAtA[i:], m.ContainerName)
 		i = encodeVarintApi(dAtA, i, uint64(len(m.ContainerName)))
 		i--
-		dAtA[i] = 0x22
+		dAtA[i] = 0x1a
 	}
 	if len(m.PodName) > 0 {
 		i -= len(m.PodName)
 		copy(dAtA[i:], m.PodName)
 		i = encodeVarintApi(dAtA, i, uint64(len(m.PodName)))
-		i--
-		dAtA[i] = 0x1a
-	}
-	if len(m.ContainerUid) > 0 {
-		i -= len(m.ContainerUid)
-		copy(dAtA[i:], m.ContainerUid)
-		i = encodeVarintApi(dAtA, i, uint64(len(m.ContainerUid)))
 		i--
 		dAtA[i] = 0x12
 	}
@@ -2034,47 +2323,40 @@ func (m *ResourceAllocationResponse) MarshalToSizedBuffer(dAtA []byte) (int, err
 			i = encodeVarintApi(dAtA, i, uint64(size))
 		}
 		i--
-		dAtA[i] = 0x42
+		dAtA[i] = 0x3a
 	}
 	if len(m.ResourceName) > 0 {
 		i -= len(m.ResourceName)
 		copy(dAtA[i:], m.ResourceName)
 		i = encodeVarintApi(dAtA, i, uint64(len(m.ResourceName)))
 		i--
-		dAtA[i] = 0x3a
+		dAtA[i] = 0x32
 	}
 	if len(m.PodType) > 0 {
 		i -= len(m.PodType)
 		copy(dAtA[i:], m.PodType)
 		i = encodeVarintApi(dAtA, i, uint64(len(m.PodType)))
 		i--
-		dAtA[i] = 0x32
+		dAtA[i] = 0x2a
 	}
 	if len(m.PodRole) > 0 {
 		i -= len(m.PodRole)
 		copy(dAtA[i:], m.PodRole)
 		i = encodeVarintApi(dAtA, i, uint64(len(m.PodRole)))
 		i--
-		dAtA[i] = 0x2a
+		dAtA[i] = 0x22
 	}
 	if len(m.ContainerName) > 0 {
 		i -= len(m.ContainerName)
 		copy(dAtA[i:], m.ContainerName)
 		i = encodeVarintApi(dAtA, i, uint64(len(m.ContainerName)))
 		i--
-		dAtA[i] = 0x22
+		dAtA[i] = 0x1a
 	}
 	if len(m.PodName) > 0 {
 		i -= len(m.PodName)
 		copy(dAtA[i:], m.PodName)
 		i = encodeVarintApi(dAtA, i, uint64(len(m.PodName)))
-		i--
-		dAtA[i] = 0x1a
-	}
-	if len(m.ContainerUid) > 0 {
-		i -= len(m.ContainerUid)
-		copy(dAtA[i:], m.ContainerUid)
-		i = encodeVarintApi(dAtA, i, uint64(len(m.ContainerUid)))
 		i--
 		dAtA[i] = 0x12
 	}
@@ -2459,7 +2741,7 @@ func (m *ResourceAllocationInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) 
 			dAtA[i] = 0xa
 			i = encodeVarintApi(dAtA, i, uint64(baseI-i))
 			i--
-			dAtA[i] = 0x22
+			dAtA[i] = 0x2a
 		}
 	}
 	if len(m.Envs) > 0 {
@@ -2478,13 +2760,22 @@ func (m *ResourceAllocationInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) 
 			dAtA[i] = 0xa
 			i = encodeVarintApi(dAtA, i, uint64(baseI-i))
 			i--
-			dAtA[i] = 0x1a
+			dAtA[i] = 0x22
 		}
 	}
 	if len(m.AllocatationResult) > 0 {
-		i -= len(m.AllocatationResult)
-		copy(dAtA[i:], m.AllocatationResult)
-		i = encodeVarintApi(dAtA, i, uint64(len(m.AllocatationResult)))
+		for iNdEx := len(m.AllocatationResult) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.AllocatationResult[iNdEx])
+			copy(dAtA[i:], m.AllocatationResult[iNdEx])
+			i = encodeVarintApi(dAtA, i, uint64(len(m.AllocatationResult[iNdEx])))
+			i--
+			dAtA[i] = 0x1a
+		}
+	}
+	if len(m.MergeSeparator) > 0 {
+		i -= len(m.MergeSeparator)
+		copy(dAtA[i:], m.MergeSeparator)
+		i = encodeVarintApi(dAtA, i, uint64(len(m.MergeSeparator)))
 		i--
 		dAtA[i] = 0x12
 	}
@@ -2839,19 +3130,12 @@ func (m *PreStartContainerRequest) MarshalToSizedBuffer(dAtA []byte) (int, error
 		copy(dAtA[i:], m.ContainerName)
 		i = encodeVarintApi(dAtA, i, uint64(len(m.ContainerName)))
 		i--
-		dAtA[i] = 0x22
+		dAtA[i] = 0x1a
 	}
 	if len(m.PodName) > 0 {
 		i -= len(m.PodName)
 		copy(dAtA[i:], m.PodName)
 		i = encodeVarintApi(dAtA, i, uint64(len(m.PodName)))
-		i--
-		dAtA[i] = 0x1a
-	}
-	if len(m.ContainerUid) > 0 {
-		i -= len(m.ContainerUid)
-		copy(dAtA[i:], m.ContainerUid)
-		i = encodeVarintApi(dAtA, i, uint64(len(m.ContainerUid)))
 		i--
 		dAtA[i] = 0x12
 	}
@@ -2949,10 +3233,6 @@ func (m *ResourceRequest) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovApi(uint64(l))
 	}
-	l = len(m.ContainerUid)
-	if l > 0 {
-		n += 1 + l + sovApi(uint64(l))
-	}
 	l = len(m.PodName)
 	if l > 0 {
 		n += 1 + l + sovApi(uint64(l))
@@ -2994,10 +3274,6 @@ func (m *ResourceHintsResponse) Size() (n int) {
 	var l int
 	_ = l
 	l = len(m.PodUid)
-	if l > 0 {
-		n += 1 + l + sovApi(uint64(l))
-	}
-	l = len(m.ContainerUid)
 	if l > 0 {
 		n += 1 + l + sovApi(uint64(l))
 	}
@@ -3044,10 +3320,6 @@ func (m *ResourceAllocationResponse) Size() (n int) {
 	var l int
 	_ = l
 	l = len(m.PodUid)
-	if l > 0 {
-		n += 1 + l + sovApi(uint64(l))
-	}
-	l = len(m.ContainerUid)
 	if l > 0 {
 		n += 1 + l + sovApi(uint64(l))
 	}
@@ -3232,9 +3504,15 @@ func (m *ResourceAllocationInfo) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovApi(uint64(l))
 	}
-	l = len(m.AllocatationResult)
+	l = len(m.MergeSeparator)
 	if l > 0 {
 		n += 1 + l + sovApi(uint64(l))
+	}
+	if len(m.AllocatationResult) > 0 {
+		for _, s := range m.AllocatationResult {
+			l = len(s)
+			n += 1 + l + sovApi(uint64(l))
+		}
 	}
 	if len(m.Envs) > 0 {
 		for k, v := range m.Envs {
@@ -3401,10 +3679,6 @@ func (m *PreStartContainerRequest) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovApi(uint64(l))
 	}
-	l = len(m.ContainerUid)
-	if l > 0 {
-		n += 1 + l + sovApi(uint64(l))
-	}
 	l = len(m.PodName)
 	if l > 0 {
 		n += 1 + l + sovApi(uint64(l))
@@ -3471,7 +3745,6 @@ func (this *ResourceRequest) String() string {
 	mapStringForResourceRequests += "}"
 	s := strings.Join([]string{`&ResourceRequest{`,
 		`PodUid:` + fmt.Sprintf("%v", this.PodUid) + `,`,
-		`ContainerUid:` + fmt.Sprintf("%v", this.ContainerUid) + `,`,
 		`PodName:` + fmt.Sprintf("%v", this.PodName) + `,`,
 		`ContainerName:` + fmt.Sprintf("%v", this.ContainerName) + `,`,
 		`PodRole:` + fmt.Sprintf("%v", this.PodRole) + `,`,
@@ -3499,7 +3772,6 @@ func (this *ResourceHintsResponse) String() string {
 	mapStringForResourceHints += "}"
 	s := strings.Join([]string{`&ResourceHintsResponse{`,
 		`PodUid:` + fmt.Sprintf("%v", this.PodUid) + `,`,
-		`ContainerUid:` + fmt.Sprintf("%v", this.ContainerUid) + `,`,
 		`PodName:` + fmt.Sprintf("%v", this.PodName) + `,`,
 		`ContainerName:` + fmt.Sprintf("%v", this.ContainerName) + `,`,
 		`PodRole:` + fmt.Sprintf("%v", this.PodRole) + `,`,
@@ -3516,13 +3788,12 @@ func (this *ResourceAllocationResponse) String() string {
 	}
 	s := strings.Join([]string{`&ResourceAllocationResponse{`,
 		`PodUid:` + fmt.Sprintf("%v", this.PodUid) + `,`,
-		`ContainerUid:` + fmt.Sprintf("%v", this.ContainerUid) + `,`,
 		`PodName:` + fmt.Sprintf("%v", this.PodName) + `,`,
 		`ContainerName:` + fmt.Sprintf("%v", this.ContainerName) + `,`,
 		`PodRole:` + fmt.Sprintf("%v", this.PodRole) + `,`,
 		`PodType:` + fmt.Sprintf("%v", this.PodType) + `,`,
 		`ResourceName:` + fmt.Sprintf("%v", this.ResourceName) + `,`,
-		`AllocatationResult:` + strings.Replace(this.AllocatationResult.String(), "ResourceAllocationInfo", "ResourceAllocationInfo", 1) + `,`,
+		`AllocatationResult:` + strings.Replace(this.AllocatationResult.String(), "ResourceAllocation", "ResourceAllocation", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3678,6 +3949,7 @@ func (this *ResourceAllocationInfo) String() string {
 	mapStringForAnnotations += "}"
 	s := strings.Join([]string{`&ResourceAllocationInfo{`,
 		`OciPropertyName:` + fmt.Sprintf("%v", this.OciPropertyName) + `,`,
+		`MergeSeparator:` + fmt.Sprintf("%v", this.MergeSeparator) + `,`,
 		`AllocatationResult:` + fmt.Sprintf("%v", this.AllocatationResult) + `,`,
 		`Envs:` + mapStringForEnvs + `,`,
 		`Annotations:` + mapStringForAnnotations + `,`,
@@ -3796,7 +4068,6 @@ func (this *PreStartContainerRequest) String() string {
 	}
 	s := strings.Join([]string{`&PreStartContainerRequest{`,
 		`PodUid:` + fmt.Sprintf("%v", this.PodUid) + `,`,
-		`ContainerUid:` + fmt.Sprintf("%v", this.ContainerUid) + `,`,
 		`PodName:` + fmt.Sprintf("%v", this.PodName) + `,`,
 		`ContainerName:` + fmt.Sprintf("%v", this.ContainerName) + `,`,
 		`}`,
@@ -4161,38 +4432,6 @@ func (m *ResourceRequest) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ContainerUid", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowApi
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthApi
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthApi
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.ContainerUid = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field PodName", wireType)
 			}
 			var stringLen uint64
@@ -4223,7 +4462,7 @@ func (m *ResourceRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.PodName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 4:
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ContainerName", wireType)
 			}
@@ -4255,7 +4494,7 @@ func (m *ResourceRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.ContainerName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 5:
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field PodRole", wireType)
 			}
@@ -4287,7 +4526,7 @@ func (m *ResourceRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.PodRole = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 6:
+		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field PodType", wireType)
 			}
@@ -4319,7 +4558,7 @@ func (m *ResourceRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.PodType = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 7:
+		case 6:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ResourceName", wireType)
 			}
@@ -4351,7 +4590,7 @@ func (m *ResourceRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.ResourceName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 8:
+		case 7:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field BitMask", wireType)
 			}
@@ -4370,7 +4609,7 @@ func (m *ResourceRequest) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 9:
+		case 8:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ResourceRequests", wireType)
 			}
@@ -4563,38 +4802,6 @@ func (m *ResourceHintsResponse) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ContainerUid", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowApi
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthApi
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthApi
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.ContainerUid = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field PodName", wireType)
 			}
 			var stringLen uint64
@@ -4625,7 +4832,7 @@ func (m *ResourceHintsResponse) Unmarshal(dAtA []byte) error {
 			}
 			m.PodName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 4:
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ContainerName", wireType)
 			}
@@ -4657,7 +4864,7 @@ func (m *ResourceHintsResponse) Unmarshal(dAtA []byte) error {
 			}
 			m.ContainerName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 5:
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field PodRole", wireType)
 			}
@@ -4689,7 +4896,7 @@ func (m *ResourceHintsResponse) Unmarshal(dAtA []byte) error {
 			}
 			m.PodRole = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 6:
+		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field PodType", wireType)
 			}
@@ -4721,7 +4928,7 @@ func (m *ResourceHintsResponse) Unmarshal(dAtA []byte) error {
 			}
 			m.PodType = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 7:
+		case 6:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ResourceName", wireType)
 			}
@@ -4753,7 +4960,7 @@ func (m *ResourceHintsResponse) Unmarshal(dAtA []byte) error {
 			}
 			m.ResourceName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 8:
+		case 7:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ResourceHints", wireType)
 			}
@@ -4969,38 +5176,6 @@ func (m *ResourceAllocationResponse) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ContainerUid", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowApi
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthApi
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthApi
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.ContainerUid = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field PodName", wireType)
 			}
 			var stringLen uint64
@@ -5031,7 +5206,7 @@ func (m *ResourceAllocationResponse) Unmarshal(dAtA []byte) error {
 			}
 			m.PodName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 4:
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ContainerName", wireType)
 			}
@@ -5063,7 +5238,7 @@ func (m *ResourceAllocationResponse) Unmarshal(dAtA []byte) error {
 			}
 			m.ContainerName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 5:
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field PodRole", wireType)
 			}
@@ -5095,7 +5270,7 @@ func (m *ResourceAllocationResponse) Unmarshal(dAtA []byte) error {
 			}
 			m.PodRole = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 6:
+		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field PodType", wireType)
 			}
@@ -5127,7 +5302,7 @@ func (m *ResourceAllocationResponse) Unmarshal(dAtA []byte) error {
 			}
 			m.PodType = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 7:
+		case 6:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ResourceName", wireType)
 			}
@@ -5159,7 +5334,7 @@ func (m *ResourceAllocationResponse) Unmarshal(dAtA []byte) error {
 			}
 			m.ResourceName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 8:
+		case 7:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field AllocatationResult", wireType)
 			}
@@ -5189,7 +5364,7 @@ func (m *ResourceAllocationResponse) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.AllocatationResult == nil {
-				m.AllocatationResult = &ResourceAllocationInfo{}
+				m.AllocatationResult = &ResourceAllocation{}
 			}
 			if err := m.AllocatationResult.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
@@ -6315,6 +6490,38 @@ func (m *ResourceAllocationInfo) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MergeSeparator", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.MergeSeparator = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field AllocatationResult", wireType)
 			}
 			var stringLen uint64
@@ -6343,9 +6550,9 @@ func (m *ResourceAllocationInfo) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.AllocatationResult = string(dAtA[iNdEx:postIndex])
+			m.AllocatationResult = append(m.AllocatationResult, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
-		case 3:
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Envs", wireType)
 			}
@@ -6472,7 +6679,7 @@ func (m *ResourceAllocationInfo) Unmarshal(dAtA []byte) error {
 			}
 			m.Envs[mapkey] = mapvalue
 			iNdEx = postIndex
-		case 4:
+		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Annotations", wireType)
 			}
@@ -7622,38 +7829,6 @@ func (m *PreStartContainerRequest) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ContainerUid", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowApi
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthApi
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthApi
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.ContainerUid = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field PodName", wireType)
 			}
 			var stringLen uint64
@@ -7684,7 +7859,7 @@ func (m *PreStartContainerRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.PodName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 4:
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ContainerName", wireType)
 			}
