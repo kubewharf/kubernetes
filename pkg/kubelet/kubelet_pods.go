@@ -2056,3 +2056,9 @@ func (kl *Kubelet) hasHostMountPVC(pod *v1.Pod) bool {
 	}
 	return false
 }
+
+// GenerateRunContainerOptions generates the RunContainerOptions of resources allocated by QoSResourceManager, which can be used by
+// the container runtime to set parameters for launching a container.
+func (kl *Kubelet) GenerateResourceRunContainerOptions(pod *v1.Pod, container *v1.Container) (*kubecontainer.ResourceRunContainerOptions, error) {
+	return kl.containerManager.GetResourceRunContainerOptions(pod, container)
+}

@@ -882,6 +882,12 @@ const (
 	//
 	// Enables support for time zones in CronJobs.
 	CronJobTimeZone featuregate.Feature = "CronJobTimeZone"
+
+	// owner: @sunjianyu
+	// alpha: v1.18
+	//
+	// Enable qos resource managers to make NUMA aligned decisions for resources which aren't devices
+	QoSResourceManager featuregate.Feature = "QoSResourceManager"
 )
 
 func init() {
@@ -1009,6 +1015,7 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 	MaxUnavailableStatefulSet:                      {Default: false, PreRelease: featuregate.Alpha},
 	NetworkPolicyStatus:                            {Default: false, PreRelease: featuregate.Alpha},
 	CronJobTimeZone:                                {Default: false, PreRelease: featuregate.Alpha},
+	QoSResourceManager:                             {Default: false, PreRelease: featuregate.Alpha},
 
 	// inherited features from generic apiserver, relisted here to get a conflict if it is changed
 	// unintentionally on either side:

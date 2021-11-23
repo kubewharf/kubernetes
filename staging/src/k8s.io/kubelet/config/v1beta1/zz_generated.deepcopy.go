@@ -260,6 +260,7 @@ func (in *KubeletConfiguration) DeepCopyInto(out *KubeletConfiguration) {
 		}
 	}
 	out.CPUManagerReconcilePeriod = in.CPUManagerReconcilePeriod
+	out.QoSResourceManagerReconcilePeriod = in.QoSResourceManagerReconcilePeriod
 	if in.QOSReserved != nil {
 		in, out := &in.QOSReserved, &out.QOSReserved
 		*out = make(map[string]string, len(*in))

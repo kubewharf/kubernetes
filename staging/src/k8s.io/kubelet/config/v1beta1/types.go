@@ -371,6 +371,13 @@ type KubeletConfiguration struct {
 	// Default: "none"
 	// +optional
 	TopologyManagerPolicy string `json:"topologyManagerPolicy,omitempty"`
+	// QoS Resource Manager reconciliation period.
+	// Requires the QoSResourceManager feature gate to be enabled.
+	// Dynamic Kubelet Config (beta): If dynamically updating this field, consider that
+	// shortening the period may carry a performance impact.
+	// Default: "3s"
+	// +optional
+	QoSResourceManagerReconcilePeriod metav1.Duration `json:"qosResourceManagerReconcilePeriod,omitempty"`
 	// topologyManagerScope represents the scope of topology hint generation
 	// that topology manager requests and hint providers generate. Valid values include:
 	//
