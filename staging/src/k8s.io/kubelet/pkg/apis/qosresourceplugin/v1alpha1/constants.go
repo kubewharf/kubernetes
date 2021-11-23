@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1
+package v1alpha1
 
 const (
 	// Healthy means that the resource is healthy
@@ -23,7 +23,7 @@ const (
 	Unhealthy = "Unhealthy"
 
 	// Current version of the API supported by kubelet
-	Version = "v1beta1"
+	Version = "v1alpha1"
 	// ResourcePluginPath is the folder the Resource Plugin is expecting sockets to be on
 	// Only privileged pods have access to this path
 	// Note: Placeholder until we find a "standard path"
@@ -34,4 +34,4 @@ const (
 	KubeletPreStartContainerRPCTimeoutInSecs = 30
 )
 
-var SupportedVersions = [...]string{"v1beta1"}
+var SupportedVersions = [...]string{"v1alpha1"}
