@@ -47,6 +47,7 @@ type HandlerRunner interface {
 type RuntimeHelper interface {
 	GenerateCreatePodResourceOptions(pod *v1.Pod, container *v1.Container) (contOpts *RunContainerOptions, err error)
 	GenerateRunContainerOptions(pod *v1.Pod, container *v1.Container, podIP string, podIPs []string) (contOpts *RunContainerOptions, cleanupAction func(), err error)
+	GenerateResourceRunContainerOptions(pod *v1.Pod, container *v1.Container) (*ResourceRunContainerOptions, error)
 	GetPodDNS(pod *v1.Pod) (dnsConfig *runtimeapi.DNSConfig, err error)
 	// GetPodCgroupParent returns the CgroupName identifier, and its literal cgroupfs form on the host
 	// of a pod.

@@ -1,0 +1,65 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "endpoint.go",
+        "manager.go",
+        "manager_stub.go",
+        "pod_resources.go",
+        "resource_plugin_stub.go",
+        "topology_hints.go",
+        "types.go",
+        "utils.go",
+    ],
+    importpath = "k8s.io/kubernetes/pkg/kubelet/cm/qosresourcemanager",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/features:go_default_library",
+        "//pkg/kubelet/checkpointmanager:go_default_library",
+        "//pkg/kubelet/checkpointmanager/errors:go_default_library",
+        "//pkg/kubelet/cm/cpumanager/topology:go_default_library",
+        "//pkg/kubelet/cm/qosresourcemanager/checkpoint:go_default_library",
+        "//pkg/kubelet/cm/topologymanager:go_default_library",
+        "//pkg/kubelet/cm/topologymanager/bitmask:go_default_library",
+        "//pkg/kubelet/config:go_default_library",
+        "//pkg/kubelet/container:go_default_library",
+        "//pkg/kubelet/lifecycle:go_default_library",
+        "//pkg/kubelet/metrics:go_default_library",
+        "//pkg/kubelet/pluginmanager/cache:go_default_library",
+        "//pkg/kubelet/status:go_default_library",
+        "//pkg/scheduler/nodeinfo:go_default_library",
+        "//pkg/util/selinux:go_default_library",
+        "//staging/src/k8s.io/api/core/v1:go_default_library",
+        "//staging/src/k8s.io/apimachinery/pkg/api/resource:go_default_library",
+        "//staging/src/k8s.io/apimachinery/pkg/util/errors:go_default_library",
+        "//staging/src/k8s.io/apimachinery/pkg/util/sets:go_default_library",
+        "//staging/src/k8s.io/apimachinery/pkg/util/wait:go_default_library",
+        "//staging/src/k8s.io/apiserver/pkg/util/feature:go_default_library",
+        "//staging/src/k8s.io/cri-api/pkg/apis/runtime/v1alpha2:go_default_library",
+        "//staging/src/k8s.io/kubelet/pkg/apis/pluginregistration/v1:go_default_library",
+        "//staging/src/k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1:go_default_library",
+        "//vendor/github.com/golang/protobuf/proto:go_default_library",
+        "//vendor/google.golang.org/grpc:go_default_library",
+        "//vendor/google.golang.org/grpc/metadata:go_default_library",
+        "//vendor/k8s.io/klog:go_default_library",
+    ],
+)
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [
+        ":package-srcs",
+        "//pkg/kubelet/cm/qosresourcemanager/checkpoint:all-srcs",
+        "//pkg/kubelet/cm/qosresourcemanager/tmp:all-srcs",
+    ],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)

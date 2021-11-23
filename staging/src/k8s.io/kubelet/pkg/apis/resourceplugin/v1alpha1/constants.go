@@ -31,7 +31,23 @@ const (
 	// KubeletSocket is the path of the Kubelet registry socket
 	KubeletSocket = ResourcePluginPath + "kubelet.sock"
 	// Timeout duration in secs for PreStartContainer RPC
-	KubeletPreStartContainerRPCTimeoutInSecs = 30
+	KubeletResourcePluginPreStartContainerRPCTimeoutInSecs = 30
+	// Timeout duration in secs for Allocate RPC
+	KubeletResourcePluginAllocateRPCTimeoutInSecs = 10
+	// Timeout duration in secs for GetTopologyHints RPC
+	KubeletResourcePluginGetTopologyHintsRPCTimeoutInSecs = 10
+	// Timeout duration in secs for RemovePod RPC
+	KubeletResourcePluginRemovePodRPCTimeoutInSecs = 10
+	// Timeout duration in secs for GetResourcesAllocation RPC
+	KubeletResourcePluginGetResourcesAllocationRPCTimeoutInSecs = 10
+	// Timeout duration in secs for GetTopologyAwareResources RPC
+	KubeletResourcePluginGetTopologyAwareResourcesRPCTimeoutInSecs = 10
+	// Timeout duration in secs for GetTopologyAwareAllocatableResources RPC
+	KubeletResourcePluginGetTopologyAwareAllocatableResourcesRPCTimeoutInSecs = 10
+	// [TODO](sunjianyu) make role, type identifiers more general
+	// label to identity pod role
+	PodRoleLabelKey       = "bytedance.com/pod-role"
+	PodTypeAnnoatationKey = "godel.bytedance.com/pod-resource-type"
 )
 
 var SupportedVersions = [...]string{"v1alpha1"}

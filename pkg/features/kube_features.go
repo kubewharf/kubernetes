@@ -667,6 +667,12 @@ const (
 	//
 	// Enable POD resources API to return allocatable resources
 	KubeletPodResourcesGetAllocatable featuregate.Feature = "KubeletPodResourcesGetAllocatable"
+
+	// owner: @sunjianyu
+	// alpha: v1.18
+	//
+	// Enable qos resource managers to make NUMA aligned decisions for resources which aren't devices
+	QoSResourceManager featuregate.Feature = "QoSResourceManager"
 )
 
 func init() {
@@ -771,6 +777,7 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 	GPUSidecarVisibleDevice:                        {Default: false, PreRelease: featuregate.Alpha},
 	AutoNICNumaAffinity:                            {Default: false, PreRelease: featuregate.Alpha},
 	KubeletPodResourcesGetAllocatable:              {Default: false, PreRelease: featuregate.Alpha},
+	QoSResourceManager:                             {Default: false, PreRelease: featuregate.Alpha},
 
 	// inherited features from generic apiserver, relisted here to get a conflict if it is changed
 	// unintentionally on either side:

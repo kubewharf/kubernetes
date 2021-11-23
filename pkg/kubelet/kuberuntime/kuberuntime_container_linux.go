@@ -19,6 +19,7 @@ limitations under the License.
 package kuberuntime
 
 import (
+	"fmt"
 	"time"
 
 	cgroupfs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
@@ -36,14 +37,52 @@ import (
 
 // applyPlatformSpecificContainerConfig applies platform specific configurations to runtimeapi.ContainerConfig.
 func (m *kubeGenericRuntimeManager) applyPlatformSpecificContainerConfig(config *runtimeapi.ContainerConfig, container *v1.Container, pod *v1.Pod, uid *int64, username string, nsTarget *kubecontainer.ContainerID) error {
-	config.Linux = m.generateLinuxContainerConfig(container, pod, uid, username, nsTarget, config.Annotations)
+	if config == nil {
+		return fmt.Errorf("applyPlatformSpecificContainerConfig met nil input config")
+	}
+
+	var opts *kubecontainer.ResourceRunContainerOptions
+	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.QoSResourceManager) {
+		var err error
+		opts, err = m.runtimeHelper.GenerateResourceRunContainerOptions(pod, container)
+
+		if err != nil {
+			klog.Errorf("[applyPlatformSpecificContainerConfig] pod: %s/%s, containerName: %s GenerateResourceRunContainerOptions failed with error: %v", err)
+			return fmt.Errorf("GenerateResourceRunContainerOptions failed with error: %v", err)
+		}
+
+		if config.Annotations == nil {
+			config.Annotations = make(map[string]string)
+		}
+
+		for _, anno := range opts.Annotations {
+			config.Annotations[anno.Name] = anno.Value
+		}
+
+		for _, env := range opts.Envs {
+			config.Envs = append(config.Envs, &runtimeapi.KeyValue{
+				Key:   env.Name,
+				Value: env.Value,
+			})
+		}
+	}
+
+	config.Linux = m.generateLinuxContainerConfig(container, pod, uid, username, nsTarget, opts, config.Annotations)
 	return nil
 }
 
 // generateLinuxContainerConfig generates linux container config for kubelet runtime v1.
-func (m *kubeGenericRuntimeManager) generateLinuxContainerConfig(container *v1.Container, pod *v1.Pod, uid *int64, username string, nsTarget *kubecontainer.ContainerID, configAnnotations map[string]string) *runtimeapi.LinuxContainerConfig {
+func (m *kubeGenericRuntimeManager) generateLinuxContainerConfig(container *v1.Container, pod *v1.Pod, uid *int64, username string, nsTarget *kubecontainer.ContainerID, opts *kubecontainer.ResourceRunContainerOptions, configAnnotations map[string]string) *runtimeapi.LinuxContainerConfig {
+
+	resourceConfig := &runtimeapi.LinuxContainerResources{}
+
+	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.QoSResourceManager) && opts != nil && opts.Resources != nil {
+		resourceConfig = opts.Resources
+	}
+
+	// TODO(sunjianyu): consider if we should make results from qos resource manager override native action results?
 	lc := &runtimeapi.LinuxContainerConfig{
-		Resources:       &runtimeapi.LinuxContainerResources{},
+		Resources:       resourceConfig,
 		SecurityContext: m.determineEffectiveSecurityContext(pod, container, uid, username),
 	}
 

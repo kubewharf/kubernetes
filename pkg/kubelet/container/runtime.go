@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/client-go/util/flowcontrol"
@@ -400,6 +400,16 @@ type DeviceInfo struct {
 	PathInContainer string
 	// Cgroup permissions
 	Permissions string
+}
+
+// ResourceRunContainerOptions contains the combined container runtime settings to consume its allocated resources.
+type ResourceRunContainerOptions struct {
+	// The environment variables list.
+	Envs []EnvVar
+	// The Annotations for the container
+	Annotations []Annotation
+	// OCI Linux container resources to applied for containers
+	Resources *runtimeapi.LinuxContainerResources
 }
 
 // RunContainerOptions specify the options which are necessary for running containers
