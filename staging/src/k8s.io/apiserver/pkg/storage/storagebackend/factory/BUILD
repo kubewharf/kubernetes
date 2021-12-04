@@ -30,6 +30,7 @@ go_library(
     srcs = [
         "etcd3.go",
         "factory.go",
+        "kubebrain.go",
     ],
     importmap = "k8s.io/kubernetes/vendor/k8s.io/apiserver/pkg/storage/storagebackend/factory",
     importpath = "k8s.io/apiserver/pkg/storage/storagebackend/factory",
@@ -40,12 +41,16 @@ go_library(
         "//staging/src/k8s.io/apiserver/pkg/storage:go_default_library",
         "//staging/src/k8s.io/apiserver/pkg/storage/etcd3:go_default_library",
         "//staging/src/k8s.io/apiserver/pkg/storage/storagebackend:go_default_library",
+        "//staging/src/k8s.io/apiserver/pkg/storage/storagebackend/db:go_default_library",
+        "//staging/src/k8s.io/apiserver/pkg/storage/storagebackend/db/client:go_default_library",
+        "//staging/src/k8s.io/apiserver/pkg/storage/storagebackend/db/client/kubebrain:go_default_library",
         "//staging/src/k8s.io/apiserver/pkg/storage/value:go_default_library",
         "//staging/src/k8s.io/component-base/metrics/legacyregistry:go_default_library",
         "//vendor/github.com/grpc-ecosystem/go-grpc-prometheus:go_default_library",
         "//vendor/go.etcd.io/etcd/clientv3:go_default_library",
         "//vendor/go.etcd.io/etcd/pkg/transport:go_default_library",
         "//vendor/google.golang.org/grpc:go_default_library",
+        "//vendor/k8s.io/klog:go_default_library",
     ],
 )
 

@@ -20,6 +20,12 @@ code.byted.org/kubernetes/clientsets/k8s/listers/csi/v1alpha1
 code.byted.org/kubernetes/clientsets/k8s/listers/non.native.resource/v1alpha1
 # code.byted.org/tce/kube-tracing v0.2.3 => code.byted.org/tce/kube-tracing v0.2.3
 code.byted.org/tce/kube-tracing
+# code.byted.org/tce/kubebrain-client v0.0.0-20220318102255-77371ee8b20c => code.byted.org/tce/kubebrain-client v0.0.0-20220318102255-77371ee8b20c
+code.byted.org/tce/kubebrain-client/api/v2rpc
+code.byted.org/tce/kubebrain-client/client
+code.byted.org/tce/kubebrain-client/client/balancer/picker
+code.byted.org/tce/kubebrain-client/client/balancer/resolver
+code.byted.org/tce/kubebrain-client/errors
 # github.com/Azure/azure-sdk-for-go v35.0.0+incompatible => github.com/Azure/azure-sdk-for-go v35.0.0+incompatible
 github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-07-01/compute
 github.com/Azure/azure-sdk-for-go/services/containerregistry/mgmt/2019-05-01/containerregistry
@@ -327,6 +333,8 @@ github.com/go-ozzo/ozzo-validation/is
 github.com/go-stack/stack
 # github.com/godbus/dbus/v5 v5.0.3 => github.com/godbus/dbus/v5 v5.0.3
 github.com/godbus/dbus/v5
+# github.com/gogo/googleapis v1.4.0 => github.com/gogo/googleapis v1.4.0
+github.com/gogo/googleapis/google/api
 # github.com/gogo/protobuf v1.3.1 => github.com/gogo/protobuf v1.3.1
 github.com/gogo/protobuf/gogoproto
 github.com/gogo/protobuf/plugin/compare
@@ -1416,6 +1424,12 @@ k8s.io/apiserver/pkg/storage/etcd3/metrics
 k8s.io/apiserver/pkg/storage/etcd3/preflight
 k8s.io/apiserver/pkg/storage/etcd3/testing
 k8s.io/apiserver/pkg/storage/etcd3/testing/testingcert
+k8s.io/apiserver/pkg/storage/kubebrain
+k8s.io/apiserver/pkg/storage/kubebrain/api
+k8s.io/apiserver/pkg/storage/kubebrain/client
+k8s.io/apiserver/pkg/storage/kubebrain/client/common
+k8s.io/apiserver/pkg/storage/kubebrain/client/kubebrain
+k8s.io/apiserver/pkg/storage/kubebrain/metrics
 k8s.io/apiserver/pkg/storage/names
 k8s.io/apiserver/pkg/storage/storagebackend
 k8s.io/apiserver/pkg/storage/storagebackend/factory

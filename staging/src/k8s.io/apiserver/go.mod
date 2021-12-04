@@ -5,6 +5,7 @@ module k8s.io/apiserver
 go 1.13
 
 require (
+	code.byted.org/tce/kubebrain-client v0.0.0-20220318102255-77371ee8b20c
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/BurntSushi/toml v0.4.1 // indirect
 	github.com/coreos/go-oidc v2.1.0+incompatible
@@ -19,7 +20,6 @@ require (
 	github.com/go-openapi/jsonreference v0.19.3 // indirect
 	github.com/go-openapi/spec v0.19.3
 	github.com/gogo/protobuf v1.3.1
-	github.com/golang/mock v1.3.1 // indirect
 	github.com/google/go-cmp v0.5.2
 	github.com/google/gofuzz v1.1.0
 	github.com/google/uuid v1.1.1

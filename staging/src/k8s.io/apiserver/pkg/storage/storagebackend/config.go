@@ -25,10 +25,10 @@ import (
 )
 
 const (
-	StorageTypeUnset     = ""
-	StorageTypeETCD3     = "etcd3"
-	StorageTypeKubeBrain = "kubebrain"
-
+	StorageTypeUnset       = ""
+	StorageTypeETCD3       = "etcd3"
+	StorageTypeKubeBrain   = "kubebrain"
+	StorageTypeKubeBrainV2 = "kubebrainv2"
 	DefaultCompactInterval = 5 * time.Minute
 	DefaultETCDMaxSise     = 10000
 )

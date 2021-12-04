@@ -64,6 +64,7 @@ type EtcdOptions struct {
 var storageTypes = sets.NewString(
 	storagebackend.StorageTypeETCD3,
 	storagebackend.StorageTypeKubeBrain,
+	storagebackend.StorageTypeKubeBrainV2,
 )
 
 func NewEtcdOptions(backendConfig *storagebackend.Config) *EtcdOptions {
