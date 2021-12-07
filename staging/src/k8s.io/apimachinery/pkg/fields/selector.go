@@ -77,6 +77,56 @@ func Everything() Selector {
 	return andTerm{}
 }
 
+type hasPrefix struct {
+	field, prefix string
+}
+
+var _ Selector = &hasPrefix{}
+
+func (t *hasPrefix) Matches(ls Fields) bool {
+	return strings.HasPrefix(ls.Get(t.field), t.prefix)
+}
+
+func (t *hasPrefix) Empty() bool {
+	return false
+}
+
+func (t *hasPrefix) RequiresExactMatch(field string) (value string, found bool) {
+	return "", false
+}
+
+func (t *hasPrefix) Transform(fn TransformFunc) (Selector, error) {
+	field, prefix, err := fn(t.field, t.prefix)
+	if err != nil {
+		return nil, err
+	}
+	if len(field) == 0 && len(prefix) == 0 {
+		return Everything(), nil
+	}
+	return &hasPrefix{field, prefix}, nil
+}
+
+func (t *hasPrefix) Requirements() Requirements {
+	return []Requirement{{
+		Field:    t.field,
+		Operator: selection.HasPrefix,
+		Value:    t.prefix,
+	}}
+}
+
+func (t *hasPrefix) String() string {
+	return fmt.Sprintf("%v hasprfx %v", t.field, EscapeValue(t.prefix))
+}
+
+func (t *hasPrefix) DeepCopySelector() Selector {
+	if t == nil {
+		return nil
+	}
+	out := new(hasPrefix)
+	*out = *t
+	return out
+}
+
 type hasTerm struct {
 	field, value string
 }
@@ -402,6 +452,7 @@ func splitTerms(fieldSelector string) []string {
 }
 
 const (
+	hasPrefixOperator   = "~"
 	notEqualOperator    = "!="
 	doubleEqualOperator = "=="
 	equalOperator       = "="
@@ -410,7 +461,7 @@ const (
 // termOperators holds the recognized operators supported in fieldSelectors.
 // doubleEqualOperator and equal are equivalent, but doubleEqualOperator is checked first
 // to avoid leaving a leading = character on the rhs value.
-var termOperators = []string{notEqualOperator, doubleEqualOperator, equalOperator}
+var termOperators = []string{hasPrefixOperator, notEqualOperator, doubleEqualOperator, equalOperator}
 
 // splitTerm returns the lhs, operator, and rhs parsed from the given term, along with an indicator of whether the parse was successful.
 // no escaping of special characters is supported in the lhs value, so the first occurrence of a recognized operator is used as the split point.
@@ -444,6 +495,8 @@ func parseSelector(selector string, fn TransformFunc) (Selector, error) {
 			return nil, err
 		}
 		switch op {
+		case hasPrefixOperator:
+			items = append(items, &hasPrefix{field: lhs, prefix: unescapedRHS})
 		case notEqualOperator:
 			items = append(items, &notHasTerm{field: lhs, value: unescapedRHS})
 		case doubleEqualOperator:

@@ -24,6 +24,7 @@ const (
 	DoesNotExist Operator = "!"
 	Equals       Operator = "="
 	DoubleEquals Operator = "=="
+	HasPrefix    Operator = "~"
 	In           Operator = "in"
 	NotEquals    Operator = "!="
 	NotIn        Operator = "notin"
