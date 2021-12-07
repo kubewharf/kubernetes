@@ -44,6 +44,7 @@ import (
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"k8s.io/klog"
+	utilpod "k8s.io/kubernetes/pkg/api/pod"
 
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/pkg/api/v1/resource"
@@ -59,6 +60,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/eviction"
 	"k8s.io/kubernetes/pkg/kubelet/externals/hostdualstackip"
 	"k8s.io/kubernetes/pkg/kubelet/images"
+	"k8s.io/kubernetes/pkg/kubelet/metrics"
 	"k8s.io/kubernetes/pkg/kubelet/server/portforward"
 	remotecommandserver "k8s.io/kubernetes/pkg/kubelet/server/remotecommand"
 	"k8s.io/kubernetes/pkg/kubelet/status"
@@ -951,6 +953,13 @@ func containerResourceRuntimeValue(fs *v1.ResourceFieldSelector, pod *v1.Pod, co
 // One of the following arguments must be non-nil: runningPod, status.
 // TODO: Modify containerRuntime.KillPod() to accept the right arguments.
 func (kl *Kubelet) killPod(pod *v1.Pod, runningPod *kubecontainer.Pod, status *kubecontainer.PodStatus, gracePeriodOverride *int64) error {
+	if pod != nil && utilpod.EnablePodExplicitDeletion(pod.Annotations) && !podDeleteExplicitly(pod) {
+		metrics.ExplicitDeletionErrors.WithLabelValues(pod.Namespace+"/"+pod.Name, "killPod").Inc()
+		err := fmt.Errorf("pod %s/%s needs explicit deletion, but not marked as delete explicitly", pod.Namespace, pod.Name)
+		klog.V(2).Info(err)
+		return err
+	}
+
 	var span opentracing.Span
 	if pod != nil {
 		span = kubetracing.Trace(nil, kubetracing.TraceStart, "Kubelet.syncPod"+"_"+string(pod.GetUID()), "Kubelet.killPod", "Kubelet.killPod"+"_"+string(pod.GetUID()))
@@ -1189,10 +1198,6 @@ func (kl *Kubelet) HandlePodCleanups() error {
 	for _, pod := range activePods {
 		desiredPods[pod.UID] = sets.Empty{}
 	}
-	// Stop the workers for no-longer existing pods.
-	// TODO: is here the best place to forget pod workers?
-	kl.podWorkers.ForgetNonExistingPodWorkers(desiredPods)
-	kl.probeManager.CleanupPods(desiredPods)
 
 	runningPods, err := kl.runtimeCache.GetPods()
 	if err != nil {
@@ -1200,10 +1205,33 @@ func (kl *Kubelet) HandlePodCleanups() error {
 		return err
 	}
 	for _, pod := range runningPods {
-		if _, found := desiredPods[pod.ID]; !found {
+		// if pod is already deleted by APIServer, don't construct it by runtime cache
+		if existing, found := kl.podManager.GetPodByName(pod.Namespace, pod.Name); found && podDeleteExplicitly(existing) {
+			continue
+		}
+
+		if _, desired := desiredPods[pod.ID]; !desired {
+			if pod.ExplicitDeletion {
+				metrics.ExplicitDeletionErrors.WithLabelValues(pod.Namespace+"/"+pod.Name, "cleanup").Inc()
+				klog.V(2).Infof("pod %s/%s (uid %v) needs explicit deletion, can't be cleaned up",
+					pod.Namespace, pod.Name, pod.ID)
+
+				allPods = append(allPods, pod.ToAPIPod())
+				if !kl.podIsTerminated(pod.ToAPIPod()) {
+					desiredPods[pod.ID] = sets.Empty{}
+					activePods = append(activePods, pod.ToAPIPod())
+				}
+
+				continue
+			}
 			kl.podKillingCh <- &kubecontainer.PodPair{APIPod: nil, RunningPod: pod}
 		}
 	}
+
+	// Stop the workers for no-longer existing pods.
+	// TODO: is here the best place to forget pod workers?
+	kl.podWorkers.ForgetNonExistingPodWorkers(desiredPods)
+	kl.probeManager.CleanupPods(desiredPods)
 
 	kl.removeOrphanedPodStatuses(allPods, mirrorPods)
 	// Note that we just killed the unwanted pods. This may not have reflected
