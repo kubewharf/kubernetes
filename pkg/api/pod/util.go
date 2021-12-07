@@ -90,6 +90,7 @@ const (
 	TCEDaemonPodAnnotationKey         = "pod.tce.kubernetes.io/tce-daemon"
 	PodOrphanAnnotation               = "pod.tce.kubernetes.io/orphan"
 	PodRootFSVolumeNameAnnotation     = "pod.tce.kubernetes.io/rootfs-volume-name"
+	PodExplicitDeletionAnnotation     = "pod.kubernetes.io/explicit.deletion"
 )
 
 // Visitor is called with each object name, and returns true if visiting should continue
@@ -739,5 +740,15 @@ func multiplePodIPsInUse(podStatus *api.PodStatus) bool {
 	if len(podStatus.PodIPs) > 1 {
 		return true
 	}
+	return false
+}
+
+// EnablePodExplicitDeletion returns true if pod is marked with explicit deletion
+func EnablePodExplicitDeletion(annotations map[string]string) bool {
+	if utilfeature.DefaultFeatureGate.Enabled(features.PodExplicitDeletion) &&
+		annotations[PodExplicitDeletionAnnotation] == "true" {
+		return true
+	}
+
 	return false
 }

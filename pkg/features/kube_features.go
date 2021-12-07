@@ -655,6 +655,12 @@ const (
 	//
 	// if enabled, nic (with numa affinity) info will be injected in container
 	AutoNICNumaAffinity featuregate.Feature = "AutoNICNumaAffinity"
+
+	// owner: @shaowei.wayne, @chenyixiang
+	// alpha: v1.18
+	//
+	// if PodExplicitDeletion enabled, pod deletionTimestamp must be set before kubelet stops containers.
+	PodExplicitDeletion featuregate.Feature = "PodExplicitDeletion"
 )
 
 func init() {
@@ -669,6 +675,7 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 	DynamicKubeletConfig:               {Default: true, PreRelease: featuregate.Beta},
 	NonNativeResourceSchedulingSupport: {Default: false, PreRelease: featuregate.Alpha},
 	CSIStoragePool:                     {Default: false, PreRelease: featuregate.Alpha},
+	PodExplicitDeletion:                {Default: false, PreRelease: featuregate.Alpha},
 	ExperimentalHostUserNamespaceDefaultingGate: {Default: false, PreRelease: featuregate.Beta},
 	DevicePlugins:                  {Default: true, PreRelease: featuregate.Beta},
 	TaintBasedEvictions:            {Default: true, PreRelease: featuregate.GA, LockToDefault: true}, // remove in 1.19

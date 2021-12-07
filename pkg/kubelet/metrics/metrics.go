@@ -76,6 +76,9 @@ const (
 	// Metrics keys for RuntimeClass
 	RunPodSandboxDurationKey = "run_podsandbox_duration_seconds"
 	RunPodSandboxErrorsKey   = "run_podsandbox_errors_total"
+
+	// Metrics for KubeGuardian
+	ExplicitDeletionErrorsKey = "explicit_deletion_errors_total"
 )
 
 var (
@@ -364,6 +367,16 @@ var (
 		},
 		[]string{"container_state"},
 	)
+	// ExplicitDeletionErrors is a Counter that tracks the cumulative number of Explicit Deletioin errors.
+	ExplicitDeletionErrors = metrics.NewCounterVec(
+		&metrics.CounterOpts{
+			Subsystem:      KubeletSubsystem,
+			Name:           ExplicitDeletionErrorsKey,
+			Help:           "Cumulative number of the explicit_deletion errors.",
+			StabilityLevel: metrics.STABLE,
+		},
+		[]string{"pod", "type"},
+	)
 )
 
 var registerMetrics sync.Once
@@ -399,6 +412,9 @@ func Register(containerCache kubecontainer.RuntimeCache, collectors ...metrics.S
 			legacyregistry.MustRegister(ActiveConfig)
 			legacyregistry.MustRegister(LastKnownGoodConfig)
 			legacyregistry.MustRegister(ConfigError)
+		}
+		if utilfeature.DefaultFeatureGate.Enabled(features.PodExplicitDeletion) {
+			legacyregistry.MustRegister(ExplicitDeletionErrors)
 		}
 		for _, collector := range collectors {
 			legacyregistry.CustomMustRegister(collector)

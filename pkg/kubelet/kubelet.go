@@ -1858,6 +1858,14 @@ func (kl *Kubelet) deletePod(pod *v1.Pod) error {
 // rejectPod records an event about the pod with the given reason and message,
 // and updates the pod to the failed phase in the status manage.
 func (kl *Kubelet) rejectPod(pod *v1.Pod, reason, message string) {
+	if utilpod.EnablePodExplicitDeletion(pod.Annotations) {
+		containersTerminal, podTerminal := kl.podAndContainersAreTerminal(pod)
+		if !containersTerminal && !podTerminal {
+			metrics.ExplicitDeletionErrors.WithLabelValues(pod.Namespace+"/"+pod.Name, reason).Inc()
+			klog.V(2).Infof("pod %s/%s needs explicit deletion and still running, skip reject by %s", pod.Namespace, pod.Name, reason)
+			return
+		}
+	}
 	kl.recorder.Eventf(pod, v1.EventTypeWarning, reason, message)
 	kl.statusManager.SetPodStatus(pod, v1.PodStatus{
 		Phase:   v1.PodFailed,
@@ -1871,6 +1879,17 @@ func (kl *Kubelet) rejectPod(pod *v1.Pod, reason, message string) {
 // can be admitted, a brief single-word reason and a message explaining why
 // the pod cannot be admitted.
 func (kl *Kubelet) canAdmitPod(pods []*v1.Pod, pod *v1.Pod) (bool, string, string) {
+	// todo, actually, foe some admit check (eg. eviction manager), skip check m
+	//  ay not be a proper strategy, we may should add white list in the future
+	if utilpod.EnablePodExplicitDeletion(pod.Annotations) {
+		containersTerminal, podTerminal := kl.podAndContainersAreTerminal(pod)
+		if !containersTerminal && !podTerminal {
+			metrics.ExplicitDeletionErrors.WithLabelValues(pod.Namespace+"/"+pod.Name, "admit").Inc()
+			klog.V(2).Infof("pod %s/%s needs explicit deletion and still running, skip admit check", pod.Namespace, pod.Name)
+			return true, "", ""
+		}
+	}
+
 	// the kubelet will invoke each pod admit handler in sequence
 	// if any handler rejects, the pod is rejected.
 	// TODO: move out of disk check into a pod admitter
@@ -1886,6 +1905,16 @@ func (kl *Kubelet) canAdmitPod(pods []*v1.Pod, pod *v1.Pod) (bool, string, strin
 }
 
 func (kl *Kubelet) canRunPod(pod *v1.Pod) lifecycle.PodAdmitResult {
+	if utilpod.EnablePodExplicitDeletion(pod.Annotations) {
+		containersTerminal, podTerminal := kl.podAndContainersAreTerminal(pod)
+		if !containersTerminal && !podTerminal {
+			if klog.V(6) {
+				klog.V(6).Infof("pod %s/%s needs explicit deletion and still running, skip runnable check", pod.Namespace, pod.Name)
+			}
+			return lifecycle.PodAdmitResult{Admit: true}
+		}
+	}
+
 	attrs := &lifecycle.PodAdmitAttributes{Pod: pod}
 	// Get "OtherPods". Rejected pods are failed, so only include admitted pods that are alive.
 	attrs.OtherPods = kl.filterOutTerminatedPods(kl.podManager.GetPods())
@@ -2196,7 +2225,6 @@ func (kl *Kubelet) HandlePodAdditions(pods []*v1.Pod) {
 func (kl *Kubelet) HandlePodUpdates(pods []*v1.Pod) {
 	start := kl.clock.Now()
 	for _, pod := range pods {
-
 		span := kubetracing.Trace(nil, kubetracing.TraceStart, nil, "Kubelet.HandlePodUpdates", "Kubelet.HandlePod"+"_"+string(pod.GetUID()))
 		span = kubetracing.Trace(span, kubetracing.TraceTag, nil, "", "action", "HandlePodUpdates")
 		span = kubetracing.Trace(span, kubetracing.TraceTag, nil, "", "podName", pod.GetName())
@@ -2224,6 +2252,13 @@ func (kl *Kubelet) HandlePodUpdates(pods []*v1.Pod) {
 func (kl *Kubelet) HandlePodRemoves(pods []*v1.Pod) {
 	start := kl.clock.Now()
 	for _, pod := range pods {
+		// if skip, pod will still exist in local cache
+		if utilpod.EnablePodExplicitDeletion(pod.Annotations) && !podDeleteExplicitly(pod) {
+			metrics.ExplicitDeletionErrors.WithLabelValues(pod.Namespace+"/"+pod.Name, "removePod").Inc()
+			klog.V(2).Infof("pod %s/%s needs explicit deletion, but not marked as deleteExplicitly, skip remove action", pod.Namespace, pod.Name)
+			continue
+		}
+
 		kl.podManager.DeletePod(pod)
 		if kubetypes.IsMirrorPod(pod) {
 			kl.handleMirrorPod(pod, start)
@@ -2481,4 +2516,13 @@ func patchDualStackIPAddressInPodAnnotations(kl *Kubelet, pod *v1.Pod) error {
 	patchContents, _ := json.Marshal(newMap)
 	_, err = kl.kubeClient.CoreV1().Pods(pod.Namespace).Patch(context.Background(), pod.Name, types.StrategicMergePatchType, patchContents, metav1.PatchOptions{})
 	return err
+}
+
+// podDeleteExplicitly checks if pod has been deleted explicitly; use deletionTimestamp for
+// now, but we may change to use some specified annotation in the future.
+func podDeleteExplicitly(pod *v1.Pod) bool {
+	if pod == nil {
+		return true
+	}
+	return pod.DeletionTimestamp != nil
 }

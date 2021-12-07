@@ -40,6 +40,7 @@ import (
 	internalapi "k8s.io/cri-api/pkg/apis"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
+	podutil "k8s.io/kubernetes/pkg/api/pod"
 	"k8s.io/kubernetes/pkg/credentialprovider"
 	"k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/kubelet/cm"
@@ -332,6 +333,7 @@ func (m *kubeGenericRuntimeManager) GetPods(all bool) ([]*kubecontainer.Pod, err
 			klog.V(4).Infof("Sandbox does not have metadata: %+v", s)
 			continue
 		}
+
 		podUID := kubetypes.UID(s.Metadata.Uid)
 		if _, ok := pods[podUID]; !ok {
 			pods[podUID] = &kubecontainer.Pod{
@@ -341,6 +343,9 @@ func (m *kubeGenericRuntimeManager) GetPods(all bool) ([]*kubecontainer.Pod, err
 			}
 		}
 		p := pods[podUID]
+
+		p.ExplicitDeletion = podutil.EnablePodExplicitDeletion(s.Annotations)
+
 		converted, err := m.sandboxToKubeContainer(s)
 		if err != nil {
 			klog.V(4).Infof("Convert %q sandbox %v of pod %q failed: %v", m.runtimeName, s, podUID, err)
