@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"k8s.io/klog"
@@ -571,17 +572,111 @@ func (m *ManagerImpl) addEndpoint(r *pluginapi.RegisterRequest, success chan<- b
 	success <- true
 }
 
-// [TODO](sunjianyu) implement GetTopologyAwareResources
 func (m *ManagerImpl) GetTopologyAwareResources(podUID, containerName string) (*pluginapi.GetTopologyAwareResourcesResponse, error) {
-	// [TODO](sunjianyu)
-	// typedef
-	// iterate all endpoints call GetTopologyAwareResources
-	return nil, nil
+	var resp *pluginapi.GetTopologyAwareResourcesResponse
+
+	m.mutex.Lock()
+	for resourceName, eI := range m.endpoints {
+		if eI.e.stopGracePeriodExpired() {
+			klog.Warningf("[qosresourcemanager] skip GetTopologyAwareResources of resource: %s for pod: %s container: %s, because plugin stopped",
+				resourceName, podUID, containerName)
+
+			continue
+		}
+
+		ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(nil))
+		m.mutex.Unlock()
+		curResp, err := eI.e.getTopologyAwareResources(ctx, &pluginapi.GetTopologyAwareResourcesRequest{
+			PodUid:        podUID,
+			ContainerName: containerName,
+		})
+		m.mutex.Lock()
+
+		if err != nil {
+			//[TODO](sunjianyu): to discuss if we should return err if only one resource plugin gets error?
+			return nil, fmt.Errorf("getTopologyAwareResources for resource: %s failed with error: %v", resourceName, err)
+		} else if curResp == nil {
+			klog.Warningf("[qosresourcemanager] getTopologyAwareResources of resource: %s for pod: %s container: %s, got nil response but without error",
+				resourceName, podUID, containerName)
+			continue
+		}
+
+		if resp == nil {
+			resp = curResp
+
+			if resp.ContainerTopologyAwareResources == nil {
+				resp.ContainerTopologyAwareResources = &pluginapi.ContainerTopologyAwareResources{
+					ContainerName: containerName,
+				}
+			}
+
+			if resp.ContainerTopologyAwareResources.AllocatedResources == nil {
+				resp.ContainerTopologyAwareResources.AllocatedResources = &pluginapi.TopologyAwareResources{}
+			}
+
+			if resp.ContainerTopologyAwareResources.AllocatedResources.TopologyAwareResources == nil {
+				resp.ContainerTopologyAwareResources.AllocatedResources.TopologyAwareResources = make(map[string]*pluginapi.TopologyAwareResource)
+			}
+		} else if curResp.ContainerTopologyAwareResources != nil && curResp.ContainerTopologyAwareResources.AllocatedResources != nil {
+			for resourceName, topologyAwareResource := range curResp.ContainerTopologyAwareResources.AllocatedResources.TopologyAwareResources {
+				if topologyAwareResource != nil {
+					resp.ContainerTopologyAwareResources.AllocatedResources.TopologyAwareResources[resourceName] = proto.Clone(topologyAwareResource).(*pluginapi.TopologyAwareResource)
+				}
+			}
+		} else {
+			klog.Warningf("[qosresourcemanager] getTopologyAwareResources of resource: %s for pod: %s container: %s, get nil resp or nil topologyAwareResources in resp",
+				resourceName, podUID, containerName)
+		}
+	}
+	m.mutex.Unlock()
+	return resp, nil
 }
 
-// [TODO](sunjianyu) implementGetTopologyAwareAllocatableResources
 func (m *ManagerImpl) GetTopologyAwareAllocatableResources() (*pluginapi.GetTopologyAwareAllocatableResourcesResponse, error) {
-	return nil, nil
+	var resp *pluginapi.GetTopologyAwareAllocatableResourcesResponse
+
+	m.mutex.Lock()
+	for resourceName, eI := range m.endpoints {
+		if eI.e.stopGracePeriodExpired() {
+			klog.Warningf("[qosresourcemanager] skip GetTopologyAwareAllocatableResources of resource: %s, because plugin stopped", resourceName)
+			continue
+		}
+		ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(nil))
+		m.mutex.Unlock()
+		curResp, err := eI.e.getTopologyAwareAllocatableResources(ctx, &pluginapi.GetTopologyAwareAllocatableResourcesRequest{})
+		m.mutex.Lock()
+
+		if err != nil {
+			//[TODO](sunjianyu): to discuss if we should return err if only one resource plugin gets error?
+			return nil, fmt.Errorf("getTopologyAwareAllocatableResources for resource: %s failed with error: %v", resourceName, err)
+		} else if curResp == nil {
+			klog.Warningln("[qosresourcemanager] getTopologyAwareAllocatableResources got nil response but without error")
+			continue
+		}
+
+		if resp == nil {
+			resp = curResp
+
+			if resp.AllocatableResources == nil {
+				resp.AllocatableResources = &pluginapi.TopologyAwareResources{}
+			}
+
+			if resp.AllocatableResources.TopologyAwareResources == nil {
+				resp.AllocatableResources.TopologyAwareResources = make(map[string]*pluginapi.TopologyAwareResource)
+			}
+
+		} else if curResp.AllocatableResources != nil {
+			for resourceName, topologyAwareResource := range curResp.AllocatableResources.TopologyAwareResources {
+				if topologyAwareResource != nil {
+					resp.AllocatableResources.TopologyAwareResources[resourceName] = proto.Clone(topologyAwareResource).(*pluginapi.TopologyAwareResource)
+				}
+			}
+		} else {
+			klog.Warningf("[qosresourcemanager] getTopologyAwareAllocatableResources of resource: %s, get nil resp or nil topologyAwareResources in resp", resourceName)
+		}
+	}
+	m.mutex.Unlock()
+	return resp, nil
 }
 
 // GetCapacity is expected to be called when Kubelet updates its node status.
@@ -709,11 +804,16 @@ func (m *ManagerImpl) UpdateAllocatedResources() {
 	m.writeCheckpoint()
 
 	m.mutex.Lock()
-	for resourceName, ep := range m.endpoints {
+	for resourceName, eI := range m.endpoints {
+		if eI.e.stopGracePeriodExpired() {
+			klog.Warningf("[qosresourcemanager] skip removePods: %+v of resource: %s, because plugin stopped", podsToBeRemovedList, resourceName)
+			continue
+		}
+
 		for _, podUID := range podsToBeRemovedList {
 			ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(nil))
 			m.mutex.Unlock()
-			_, err := ep.e.removePod(ctx, &pluginapi.RemovePodRequest{
+			_, err := eI.e.removePod(ctx, &pluginapi.RemovePodRequest{
 				PodUid: podUID,
 			})
 			m.mutex.Lock()
@@ -859,10 +959,15 @@ func (m *ManagerImpl) reconcileState() {
 	resourceAllocationResps := make([]*pluginapi.GetResourcesAllocationResponse, 0, len(m.endpoints))
 
 	m.mutex.Lock()
-	for resourceName, ep := range m.endpoints {
+	for resourceName, eI := range m.endpoints {
+		if eI.e.stopGracePeriodExpired() {
+			klog.Warningf("[qosresourcemanager] skip getResourceAllocation of resource: %s, because plugin stopped", resourceName)
+			continue
+		}
+
 		ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(nil))
 		m.mutex.Unlock()
-		resp, err := ep.e.getResourceAllocation(ctx, &pluginapi.GetResourcesAllocationRequest{})
+		resp, err := eI.e.getResourceAllocation(ctx, &pluginapi.GetResourcesAllocationRequest{})
 		m.mutex.Lock()
 
 		if err != nil {

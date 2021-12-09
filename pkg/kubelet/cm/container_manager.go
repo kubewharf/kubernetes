@@ -17,6 +17,9 @@ limitations under the License.
 package cm
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -24,6 +27,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	internalapi "k8s.io/cri-api/pkg/apis"
 	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"
+	resourcepluginapi "k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1"
 	"k8s.io/kubernetes/pkg/kubelet/apis/podresources"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/kubernetes/pkg/kubelet/cm/devicemanager"
@@ -34,10 +38,6 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/pluginmanager/cache"
 	"k8s.io/kubernetes/pkg/kubelet/status"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
-
-	"fmt"
-	"strconv"
-	"strings"
 )
 
 type ActivePodsFunc func() []*v1.Pod
@@ -114,16 +114,14 @@ type ContainerManager interface {
 	// GetAllocateResourcesPodAdmitHandler returns an instance of a PodAdmitHandler responsible for allocating pod resources.
 	GetAllocateResourcesPodAdmitHandler() lifecycle.PodAdmitHandler
 
-	// UpdateAllocatedDevices frees any Devices that are bound to terminated pods.
-	UpdateAllocatedDevices()
-
 	// GetResources returns ResourceRunContainerOptions with OCI resources config, annotations and envs fields populated for
 	// resources are managed by qos resource manager and required by container.
 	GetResourceRunContainerOptions(pod *v1.Pod, container *v1.Container) (*kubecontainer.ResourceRunContainerOptions, error)
 
-	// Implements the podresources Provider API for CPUs and Devices
+	// Implements the podresources Provider API for CPUs, Devices and Resources
 	podresources.CPUsProvider
 	podresources.DevicesProvider
+	podresources.ResourcesProvider
 }
 
 type NodeConfig struct {
@@ -194,6 +192,55 @@ func ParseQOSReserved(m map[string]string) (*map[v1.ResourceName]int64, error) {
 		}
 	}
 	return &reservations, nil
+}
+
+func convertTopologyAwareResourceToPodResourceApi(topologyAwareResources map[string]*resourcepluginapi.TopologyAwareResource) []*podresourcesapi.TopologyAwareResource {
+	result := make([]*podresourcesapi.TopologyAwareResource, 0, len(topologyAwareResources))
+
+	for resourceName, resource := range topologyAwareResources {
+		if resource == nil {
+			continue
+		}
+
+		topologyAwareQuantityList := make([]*podresourcesapi.TopologyAwareQuantity, 0, len(resource.TopologyAwareQuantityList))
+
+		for _, topologyAwareQuantity := range resource.TopologyAwareQuantityList {
+			if topologyAwareQuantity != nil {
+				topologyAwareQuantityList = append(topologyAwareQuantityList, &podresourcesapi.TopologyAwareQuantity{
+					ResourceValue: topologyAwareQuantity.ResourceValue,
+					Node:          topologyAwareQuantity.Node,
+				})
+			}
+		}
+
+		result = append(result, &podresourcesapi.TopologyAwareResource{
+			ResourceName:              resourceName,
+			IsNodeResource:            resource.IsNodeResource,
+			IsScalarResource:          resource.IsScalarResource,
+			AggregatedQuantity:        resource.AggregatedQuantity,
+			TopologyAwareQuantityList: topologyAwareQuantityList,
+		})
+	}
+
+	return result
+}
+
+func containerResourcesFromResourceManagerAllocatableResponse(res *resourcepluginapi.GetTopologyAwareAllocatableResourcesResponse) []*podresourcesapi.TopologyAwareResource {
+	if res == nil || res.AllocatableResources == nil {
+		return nil
+	}
+
+	return convertTopologyAwareResourceToPodResourceApi(res.AllocatableResources.TopologyAwareResources)
+}
+
+func containerResourcesFromResourceManagerResponse(res *resourcepluginapi.GetTopologyAwareResourcesResponse) []*podresourcesapi.TopologyAwareResource {
+	if res == nil ||
+		res.ContainerTopologyAwareResources == nil ||
+		res.ContainerTopologyAwareResources.AllocatedResources == nil {
+		return nil
+	}
+
+	return convertTopologyAwareResourceToPodResourceApi(res.ContainerTopologyAwareResources.AllocatedResources.TopologyAwareResources)
 }
 
 func containerDevicesFromResourceDeviceInstances(devs devicemanager.ResourceDeviceInstances) []*podresourcesapi.ContainerDevices {

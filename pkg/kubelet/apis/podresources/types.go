@@ -17,7 +17,7 @@ limitations under the License.
 package podresources
 
 import (
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"
 )
 
@@ -42,4 +42,14 @@ type CPUsProvider interface {
 	GetCPUs(podUID, containerName string) []int64
 	// GetAllocatableCPUs returns the allocatable (not allocated) CPUs
 	GetAllocatableCPUs() []int64
+}
+
+// ResourcesProvider knows how to provide the resources used by the given container
+type ResourcesProvider interface {
+	// UpdateAllocatedResources frees any Resources that are bound to terminated pods.
+	UpdateAllocatedResources()
+	// GetResources returns information about the resources assigned to pods and containers in topology aware format
+	GetTopologyAwareResources(podUID, containerName string) []*podresourcesapi.TopologyAwareResource
+	// GetAllocatableResources returns information about all the resources known to the manager in topology aware format
+	GetTopologyAwareAllocatableResources() []*podresourcesapi.TopologyAwareResource
 }

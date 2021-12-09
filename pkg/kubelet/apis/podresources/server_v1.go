@@ -24,23 +24,25 @@ import (
 	kubefeatures "k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/kubelet/metrics"
 
-	"k8s.io/kubelet/pkg/apis/podresources/v1"
+	v1 "k8s.io/kubelet/pkg/apis/podresources/v1"
 )
 
 // podResourcesServerV1alpha1 implements PodResourcesListerServer
 type v1PodResourcesServer struct {
-	podsProvider    PodsProvider
-	devicesProvider DevicesProvider
-	cpusProvider    CPUsProvider
+	podsProvider      PodsProvider
+	devicesProvider   DevicesProvider
+	cpusProvider      CPUsProvider
+	resourcesProvider ResourcesProvider
 }
 
 // NewV1PodResourcesServer returns a PodResourcesListerServer which lists pods provided by the PodsProvider
 // with device information provided by the DevicesProvider
-func NewV1PodResourcesServer(podsProvider PodsProvider, devicesProvider DevicesProvider, cpusProvider CPUsProvider) v1.PodResourcesListerServer {
+func NewV1PodResourcesServer(podsProvider PodsProvider, devicesProvider DevicesProvider, cpusProvider CPUsProvider, resourcesProvider ResourcesProvider) v1.PodResourcesListerServer {
 	return &v1PodResourcesServer{
-		podsProvider:    podsProvider,
-		devicesProvider: devicesProvider,
-		cpusProvider:    cpusProvider,
+		podsProvider:      podsProvider,
+		devicesProvider:   devicesProvider,
+		cpusProvider:      cpusProvider,
+		resourcesProvider: resourcesProvider,
 	}
 }
 
@@ -52,6 +54,7 @@ func (p *v1PodResourcesServer) List(ctx context.Context, req *v1.ListPodResource
 	pods := p.podsProvider.GetPods()
 	podResources := make([]*v1.PodResources, len(pods))
 	p.devicesProvider.UpdateAllocatedDevices()
+	p.resourcesProvider.UpdateAllocatedResources()
 
 	for i, pod := range pods {
 		pRes := v1.PodResources{
@@ -62,14 +65,16 @@ func (p *v1PodResourcesServer) List(ctx context.Context, req *v1.ListPodResource
 
 		for j, container := range pod.Spec.Containers {
 			pRes.Containers[j] = &v1.ContainerResources{
-				Name:    container.Name,
-				Devices: p.devicesProvider.GetDevices(string(pod.UID), container.Name),
-				CpuIds:  p.cpusProvider.GetCPUs(string(pod.UID), container.Name),
+				Name:      container.Name,
+				Devices:   p.devicesProvider.GetDevices(string(pod.UID), container.Name),
+				CpuIds:    p.cpusProvider.GetCPUs(string(pod.UID), container.Name),
+				Resources: p.resourcesProvider.GetTopologyAwareResources(string(pod.UID), container.Name),
 			}
 		}
 		podResources[i] = &pRes
 	}
 
+	// [TODO](sunjianyu): List always return error nil, but what if resource plugin rpc call gets error and Resources in ContainerResources is nil?
 	return &v1.ListPodResourcesResponse{
 		PodResources: podResources,
 	}, nil
@@ -88,7 +93,8 @@ func (p *v1PodResourcesServer) GetAllocatableResources(ctx context.Context, req 
 	metrics.PodResourcesEndpointRequestsTotalCount.WithLabelValues("v1").Inc()
 
 	return &v1.AllocatableResourcesResponse{
-		Devices: p.devicesProvider.GetAllocatableDevices(),
-		CpuIds:  p.cpusProvider.GetAllocatableCPUs(),
+		Devices:   p.devicesProvider.GetAllocatableDevices(),
+		CpuIds:    p.cpusProvider.GetAllocatableCPUs(),
+		Resources: p.resourcesProvider.GetTopologyAwareAllocatableResources(),
 	}, nil
 }
