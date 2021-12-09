@@ -28,6 +28,7 @@ message AllocatableResourcesResponse {
     repeated ContainerDevices devices = 1;
     repeated int64 cpu_ids = 2;
     repeated ContainerMemory memory = 3;
+    repeated TopologyAwareResource resources = 4;
 }
 
 // ListPodResourcesRequest is the request made to the PodResourcesLister service
@@ -51,6 +52,7 @@ message ContainerResources {
     repeated ContainerDevices devices = 2;
     repeated int64 cpu_ids = 3;
     repeated ContainerMemory memory = 4;
+    repeated TopologyAwareResource resources = 4;
 }
 
 // ContainerMemory contains information about memory and hugepages assigned to a container
@@ -65,6 +67,21 @@ message ContainerDevices {
     string resource_name = 1;
     repeated string device_ids = 2;
     TopologyInfo topology = 3;
+}
+
+
+// TopologyAwareResource contains information about the resource information (allocatable or allocated) in topology aware format
+message TopologyAwareResource {
+    string resource_name = 1;
+    bool is_node_resource = 2;
+    bool is_scalar_resource = 3;
+    double aggregated_quantity = 4;
+    repeated TopologyAwareQuantity topology_aware_quantity_list = 5;
+}
+
+message TopologyAwareQuantity {
+    string resource_value = 1;
+    uint64 node = 2;
 }
 
 // Topology describes hardware topology of the resource
