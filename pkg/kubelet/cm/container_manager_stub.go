@@ -151,6 +151,17 @@ func (cm *containerManagerStub) GetNodeAllocatableAbsolute() v1.ResourceList {
 	return nil
 }
 
+func (cm *containerManagerStub) GetTopologyAwareResources(podUID, containerName string) []*podresourcesapi.TopologyAwareResource {
+	return nil
+}
+
+func (cm *containerManagerStub) GetTopologyAwareAllocatableResources() []*podresourcesapi.TopologyAwareResource {
+	return nil
+}
+
+func (cm *containerManagerStub) UpdateAllocatedResources() {
+}
+
 func NewStubContainerManager() ContainerManager {
 	return &containerManagerStub{shouldResetExtendedResourceCapacity: false}
 }

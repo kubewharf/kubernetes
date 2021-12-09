@@ -343,18 +343,6 @@ var (
 		[]string{"server_api_version"},
 	)
 
-	// PodResourcesEndpointRequestsTotalCount is a Counter that tracks the cumulative number of requests to the PodResource endpoints.
-	// Broken down by server API version.
-	PodResourcesEndpointRequestsTotalCount = metrics.NewCounterVec(
-		&metrics.CounterOpts{
-			Subsystem:      KubeletSubsystem,
-			Name:           PodResourcesEndpointRequestsTotalKey,
-			Help:           "Cumulative number of requests to the PodResource endpoint. Broken down by server api version.",
-			StabilityLevel: metrics.ALPHA,
-		},
-		[]string{"server_api_version"},
-	)
-
 	// PodResourcesEndpointRequestsListCount is a Counter that tracks the number of requests to the PodResource List() endpoint.
 	// Broken down by server API version.
 	PodResourcesEndpointRequestsListCount = metrics.NewCounterVec(
