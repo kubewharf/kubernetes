@@ -140,7 +140,7 @@ message GetTopologyAwareResourcesResponse {
     string pod_uid = 1;
     string pod_name = 2;
     string pod_namespace = 3;
-    repeated ContainerTopologyAwareResources container_topology_aware_resources = 4;
+    ContainerTopologyAwareResources container_topology_aware_resources = 4;
 }
 
 message ContainerTopologyAwareResources {
