@@ -29,6 +29,8 @@ import (
 )
 
 func FillObjectMetaLastUpdateAnnotation(objectMeta metav1.Object, kind schema.GroupVersionKind) {
+	// disable this feature temporally
+	return
 	// add last update annotation
 	annotations := objectMeta.GetAnnotations()
 	if annotations == nil {
