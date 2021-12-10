@@ -289,7 +289,7 @@ func (sched *Scheduler) deletePodFromCache(obj interface{}) {
 		klog.Errorf("cannot convert to *v1.Pod: %v", t)
 		return
 	}
-	klog.V(3).Infof("delete event for scheduled pod %s/%s ", pod.Namespace, pod.Name)
+	klog.V(3).Infof("delete event for scheduled pod %s/%s on node %v", pod.Namespace, pod.Name, pod.Spec.NodeName)
 	// NOTE: Updates must be written to scheduler cache before invalidating
 	// equivalence cache, because we could snapshot equivalence cache after the
 	// invalidation and then snapshot the cache itself. If the cache is
