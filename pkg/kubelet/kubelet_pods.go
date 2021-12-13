@@ -1205,13 +1205,14 @@ func (kl *Kubelet) HandlePodCleanups() error {
 		return err
 	}
 	for _, pod := range runningPods {
-		// if pod is already deleted by APIServer, don't construct it by runtime cache
-		if existing, found := kl.podManager.GetPodByName(pod.Namespace, pod.Name); found && podDeleteExplicitly(existing) {
-			continue
-		}
-
 		if _, desired := desiredPods[pod.ID]; !desired {
 			if pod.ExplicitDeletion {
+				// if pod is already deleted by APIServer, don't construct it by runtime cache
+				if existing, found := kl.podManager.GetPodByName(pod.Namespace, pod.Name); found && podDeleteExplicitly(existing) {
+					kl.podKillingCh <- &kubecontainer.PodPair{APIPod: nil, RunningPod: pod}
+					continue
+				}
+
 				metrics.ExplicitDeletionErrors.WithLabelValues(pod.Namespace+"/"+pod.Name, "cleanup").Inc()
 				klog.V(2).Infof("pod %s/%s (uid %v) needs explicit deletion, can't be cleaned up",
 					pod.Namespace, pod.Name, pod.ID)
