@@ -567,6 +567,16 @@ func (kl *Kubelet) GenerateRunContainerOptions(pod *v1.Pod, container *v1.Contai
 	}
 	opts.Envs = append(opts.Envs, envs...)
 
+	//Override IP related env, if specify host-netns annotation, to support the pod use different physical net interface.
+	for _, anno := range opts.Annotations {
+		if anno.Name == kubetypes.PodNetNSAnnotationKey && anno.Value != "" {
+			opts.Envs = hostdualstackip.OverrideHostIPRelatedEnvs(opts.Envs)
+			if pod.Spec.HostNetwork {
+				opts.Envs = hostdualstackip.OverridePodIPRelatedEnvs(opts.Envs)
+			}
+		}
+	}
+
 	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.GPUSidecarVisibleDevice) {
 		// add NVIDIA_VISIBLE_DEVICES env to mps sidecar
 		const gpuResource = "nvidia.com/gpu"
