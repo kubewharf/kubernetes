@@ -150,11 +150,15 @@ func (cm *containerManagerImpl) GetCapacity() v1.ResourceList {
 	return cm.capacity
 }
 
-func (cm *containerManagerImpl) GetPluginRegistrationHandler() cache.PluginHandler {
+func (cm *containerManagerImpl) GetPluginRegistrationHandler() map[string]cache.PluginHandler {
 	return nil
 }
 
 func (cm *containerManagerImpl) GetDevicePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string) {
+	return nil, nil, []string{}
+}
+
+func (cm *containerManagerImpl) GetResourcePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string) {
 	return nil, nil, []string{}
 }
 

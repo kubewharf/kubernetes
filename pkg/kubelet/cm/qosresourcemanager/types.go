@@ -26,6 +26,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/config"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
+	"k8s.io/kubernetes/pkg/kubelet/pluginmanager/cache"
 	"k8s.io/kubernetes/pkg/kubelet/status"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 )
@@ -89,6 +90,9 @@ type Manager interface {
 	// depending on the checkpoint file availability. Absence of the checkpoint file strongly indicates
 	// the node has been recreated.
 	ShouldResetExtendedResourceCapacity() bool
+
+	// support probe based plugin discovery mechanism in qos resource manager
+	GetWatcherHandler() cache.PluginHandler
 }
 
 // TODO: evaluate whether we need these error definitions.
