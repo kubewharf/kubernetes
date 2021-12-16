@@ -205,6 +205,8 @@ func (m *ManagerImpl) Start(activePods ActivePodsFunc, sourcesReady config.Sourc
 
 	m.activePods = activePods
 	m.sourcesReady = sourcesReady
+	m.podStatusProvider = podStatusProvider
+	m.containerRuntime = containerRuntime
 
 	// Loads in podResources information from disk.
 	err := m.readCheckpoint()
@@ -557,6 +559,13 @@ func (m *ManagerImpl) registerEndpoint(resourceName string, options *pluginapi.R
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
+	old, ok := m.endpoints[resourceName]
+
+	if ok && !old.e.isStopped() {
+		klog.V(2).Infof("[qosresourcemanager] stop old endpoint: %v", old.e)
+		old.e.stop()
+	}
+
 	m.endpoints[resourceName] = endpointInfo{e: e, opts: options}
 	klog.V(2).Infof("[qosresourcemanager] Registered endpoint %v", e)
 }
@@ -577,10 +586,9 @@ func (m *ManagerImpl) GetTopologyAwareResources(podUID, containerName string) (*
 
 	m.mutex.Lock()
 	for resourceName, eI := range m.endpoints {
-		if eI.e.stopGracePeriodExpired() {
+		if eI.e.isStopped() {
 			klog.Warningf("[qosresourcemanager] skip GetTopologyAwareResources of resource: %s for pod: %s container: %s, because plugin stopped",
 				resourceName, podUID, containerName)
-
 			continue
 		}
 
@@ -637,7 +645,7 @@ func (m *ManagerImpl) GetTopologyAwareAllocatableResources() (*pluginapi.GetTopo
 
 	m.mutex.Lock()
 	for resourceName, eI := range m.endpoints {
-		if eI.e.stopGracePeriodExpired() {
+		if eI.e.isStopped() {
 			klog.Warningf("[qosresourcemanager] skip GetTopologyAwareAllocatableResources of resource: %s, because plugin stopped", resourceName)
 			continue
 		}
@@ -718,17 +726,17 @@ func (m *ManagerImpl) GetCapacity() (v1.ResourceList, v1.ResourceList, []string)
 				capacity[v1.ResourceName(resourceName)] = *resource.NewQuantity(0, resource.DecimalSI)
 				allocatable[v1.ResourceName(resourceName)] = *resource.NewQuantity(0, resource.DecimalSI)
 			} else {
-				for accResourceName, taResoure := range resp.AllocatableResources.TopologyAwareResources {
+				for accResourceName, taResource := range resp.AllocatableResources.TopologyAwareResources {
 
-					if taResoure == nil {
+					if taResource == nil {
 						klog.Errorf("[qosresourcemanager] accResourceName: %s with nil topology aware resource", accResourceName)
 						capacity[v1.ResourceName(accResourceName)] = *resource.NewQuantity(0, resource.DecimalSI)
 						allocatable[v1.ResourceName(accResourceName)] = *resource.NewQuantity(0, resource.DecimalSI)
 						continue
 					}
 
-					if taResoure.IsNodeResource && taResoure.IsScalarResource {
-						aggregatedQuantity, _ := resource.ParseQuantity(fmt.Sprintf("%.2f", taResoure.AggregatedQuantity))
+					if taResource.IsNodeResource && taResource.IsScalarResource {
+						aggregatedQuantity, _ := resource.ParseQuantity(fmt.Sprintf("%.2f", taResource.AggregatedQuantity))
 						capacity[v1.ResourceName(accResourceName)] = aggregatedQuantity
 						allocatable[v1.ResourceName(accResourceName)] = aggregatedQuantity
 					}
@@ -772,6 +780,13 @@ func (m *ManagerImpl) readCheckpoint() error {
 
 	m.mutex.Lock()
 	m.allocatedScalarResourcesQuantity = allocatedScalarResourcesQuantity
+
+	allocatedResourceNames := m.podResources.allAllocatedResourceNames()
+
+	for _, allocatedResourceName := range allocatedResourceNames.UnsortedList() {
+		m.endpoints[allocatedResourceName] = endpointInfo{e: newStoppedEndpointImpl(allocatedResourceName), opts: nil}
+	}
+
 	m.mutex.Unlock()
 
 	return nil
@@ -801,11 +816,15 @@ func (m *ManagerImpl) UpdateAllocatedResources() {
 	m.allocatedScalarResourcesQuantity = allocatedScalarResourcesQuantity
 	m.mutex.Unlock()
 
-	m.writeCheckpoint()
+	err := m.writeCheckpoint()
+
+	if err != nil {
+		klog.Errorf("[qosresourcemanager.UpdateAllocatedResources] write checkpoint failed with error: %v", err)
+	}
 
 	m.mutex.Lock()
 	for resourceName, eI := range m.endpoints {
-		if eI.e.stopGracePeriodExpired() {
+		if eI.e.isStopped() {
 			klog.Warningf("[qosresourcemanager] skip removePods: %+v of resource: %s, because plugin stopped", podsToBeRemovedList, resourceName)
 			continue
 		}
@@ -835,10 +854,11 @@ func (m *ManagerImpl) GetResourceRunContainerOptions(pod *v1.Pod, container *v1.
 
 	resources := m.podResources.containerAllResources(podUID, contName)
 
+	// [TODO](sunjianyu): for accompanying resources, we may support request those resources in annotation later
 	// think about a parent resource name with accompanying resources,
 	// we must return the result of the parent resource to aviod reallocating.
 	needsReAllocate := false
-	for k, v := range container.Resources.Limits {
+	for k, v := range container.Resources.Requests {
 		resourceName := string(k)
 		if !m.isResourcePluginResource(resourceName) {
 			continue
@@ -960,8 +980,11 @@ func (m *ManagerImpl) reconcileState() {
 
 	m.mutex.Lock()
 	for resourceName, eI := range m.endpoints {
-		if eI.e.stopGracePeriodExpired() {
+		if eI.e.isStopped() {
 			klog.Warningf("[qosresourcemanager] skip getResourceAllocation of resource: %s, because plugin stopped", resourceName)
+			continue
+		} else if !eI.opts.NeedReconcile {
+			klog.V(6).Infof("[qosresourcemanager] skip getResourceAllocation of resource: %s, because plugin needn't reconciling", resourceName)
 			continue
 		}
 

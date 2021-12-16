@@ -83,12 +83,16 @@ func (cm *containerManagerStub) GetCapacity() v1.ResourceList {
 	return c
 }
 
-func (cm *containerManagerStub) GetPluginRegistrationHandler() cache.PluginHandler {
+func (cm *containerManagerStub) GetPluginRegistrationHandler() map[string]cache.PluginHandler {
 	return nil
 }
 
 func (cm *containerManagerStub) GetDevicePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string) {
 	return cm.extendedPluginResources, cm.extendedPluginResources, []string{}
+}
+
+func (cm *containerManagerStub) GetResourcePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string) {
+	return nil, nil, []string{}
 }
 
 func (cm *containerManagerStub) NewPodContainerManager() PodContainerManager {

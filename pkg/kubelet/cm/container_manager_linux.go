@@ -46,6 +46,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	utilsysctl "k8s.io/component-helpers/node/util/sysctl"
 	internalapi "k8s.io/cri-api/pkg/apis"
+	pluginwatcherapi "k8s.io/kubelet/pkg/apis/pluginregistration/v1"
 	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"
 	kubefeatures "k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/kubelet/cadvisor"
@@ -660,8 +661,11 @@ func (cm *containerManagerImpl) Start(node *v1.Node,
 	return nil
 }
 
-func (cm *containerManagerImpl) GetPluginRegistrationHandler() cache.PluginHandler {
-	return cm.deviceManager.GetWatcherHandler()
+func (cm *containerManagerImpl) GetPluginRegistrationHandler() map[string]cache.PluginHandler {
+	return map[string]cache.PluginHandler{
+		pluginwatcherapi.DevicePlugin:   cm.deviceManager.GetWatcherHandler(),
+		pluginwatcherapi.ResourcePlugin: cm.qosResourceManager.GetWatcherHandler(),
+	}
 }
 
 // TODO: move the GetResources logic to PodContainerManager.
@@ -938,6 +942,10 @@ func isKernelPid(pid int) bool {
 
 func (cm *containerManagerImpl) GetCapacity() v1.ResourceList {
 	return cm.capacity
+}
+
+func (cm *containerManagerImpl) GetResourcePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string) {
+	return cm.qosResourceManager.GetCapacity()
 }
 
 func (cm *containerManagerImpl) GetDevicePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string) {

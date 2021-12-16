@@ -1386,8 +1386,12 @@ func (kl *Kubelet) initializeRuntimeDependentModules() {
 	kl.containerLogManager.Start()
 	// Adding Registration Callback function for CSI Driver
 	kl.pluginManager.AddHandler(pluginwatcherapi.CSIPlugin, plugincache.PluginHandler(csi.PluginHandler))
-	// Adding Registration Callback function for Device Manager
-	kl.pluginManager.AddHandler(pluginwatcherapi.DevicePlugin, kl.containerManager.GetPluginRegistrationHandler())
+
+	// Adding Registration Callback function for handlers provided by Container Manager
+	for handlerType, handler := range kl.containerManager.GetPluginRegistrationHandler() {
+		kl.pluginManager.AddHandler(handlerType, handler)
+	}
+
 	// Start the plugin manager
 	klog.V(4).InfoS("Starting plugin manager")
 	go kl.pluginManager.Run(kl.sourcesReady, wait.NeverStop)

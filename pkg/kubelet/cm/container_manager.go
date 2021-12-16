@@ -76,6 +76,12 @@ type ContainerManager interface {
 	// GetCapacity returns the amount of compute resources tracked by container manager available on the node.
 	GetCapacity() v1.ResourceList
 
+	// GetResourcePluginResourceCapacity returns the node capacity (amount of total resource plugin resources),
+	// node allocatable (amount of total healthy resources reported by resource plugin),
+	// and inactive resource plugin resources previously registered on the node.
+	// notice: only resources with IsNodeResource: True and IsScalarResource: True will be reported by this function.
+	GetResourcePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string)
+
 	// GetDevicePluginResourceCapacity returns the node capacity (amount of total device plugin resources),
 	// node allocatable (amount of total healthy resources reported by device plugin),
 	// and inactive device plugin resources previously registered on the node.
@@ -104,7 +110,7 @@ type ContainerManager interface {
 	// GetPluginRegistrationHandler returns a plugin registration handler
 	// The pluginwatcher's Handlers allow to have a single module for handling
 	// registration.
-	GetPluginRegistrationHandler() cache.PluginHandler
+	GetPluginRegistrationHandler() map[string]cache.PluginHandler
 
 	// ShouldResetExtendedResourceCapacity returns whether or not the extended resources should be zeroed,
 	// due to node recreation.

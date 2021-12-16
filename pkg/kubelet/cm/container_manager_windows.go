@@ -183,6 +183,14 @@ func (cm *containerManagerImpl) GetDevicePluginResourceCapacity() (v1.ResourceLi
 	return cm.deviceManager.GetCapacity()
 }
 
+func (cm *containerManagerImpl) GetDevicePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string) {
+	return nil, nil, []string{}
+}
+
+func (cm *containerManagerImpl) GetResourcePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string) {
+	return nil, nil, []string{}
+}
+
 func (cm *containerManagerImpl) NewPodContainerManager() PodContainerManager {
 	return &podContainerManagerStub{}
 }

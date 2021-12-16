@@ -25,6 +25,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/metrics"
 
 	v1 "k8s.io/kubelet/pkg/apis/podresources/v1"
+	pluginapi "k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1"
 )
 
 // podResourcesServerV1alpha1 implements PodResourcesListerServer
@@ -62,6 +63,8 @@ func (p *v1PodResourcesServer) List(ctx context.Context, req *v1.ListPodResource
 		pRes := v1.PodResources{
 			Name:       pod.Name,
 			Namespace:  pod.Namespace,
+			PodRole:    pod.Labels[pluginapi.PodRoleLabelKey],
+			PodType:    pod.Annotations[pluginapi.PodTypeAnnoatationKey],
 			Containers: make([]*v1.ContainerResources, len(pod.Spec.Containers)),
 		}
 
