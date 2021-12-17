@@ -29,6 +29,8 @@ message ResourcePluginOptions {
 	bool pre_start_required = 1;
 	// Indicates if the resource this plugin managed needs topology alignment
 	bool with_topology_alignment = 2;
+	// Indicates if the resource needs reconciling allocation result
+	bool need_reconcile = 3;
 }
 
 message RegisterRequest {
