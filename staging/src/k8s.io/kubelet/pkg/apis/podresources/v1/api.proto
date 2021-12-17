@@ -43,7 +43,9 @@ message ListPodResourcesResponse {
 message PodResources {
     string name = 1;
     string namespace = 2;
-    repeated ContainerResources containers = 3;
+    string pod_role = 3;
+    string pod_type = 4;
+    repeated ContainerResources containers = 5;
 }
 
 // ContainerResources contains information about the resources assigned to a container
