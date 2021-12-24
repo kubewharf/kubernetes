@@ -91,6 +91,7 @@ const (
 	PodOrphanAnnotation               = "pod.tce.kubernetes.io/orphan"
 	PodRootFSVolumeNameAnnotation     = "pod.tce.kubernetes.io/rootfs-volume-name"
 	PodExplicitDeletionAnnotation     = "pod.kubernetes.io/explicit.deletion"
+	PodGCGracefulSecondsAnnotation    = "pod.kubernetes.io/gc-graceful-secs"
 )
 
 // Visitor is called with each object name, and returns true if visiting should continue

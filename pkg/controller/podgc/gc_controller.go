@@ -19,6 +19,7 @@ package podgc
 import (
 	"context"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -35,8 +36,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/component-base/metrics/prometheus/ratelimiter"
-
 	"k8s.io/klog"
+	utilpod "k8s.io/kubernetes/pkg/api/pod"
 )
 
 const (
@@ -45,6 +46,8 @@ const (
 	// quarantineTime defines how long Orphaned GC waits for nodes to show up
 	// in an informer before issuing a GET call to check if they are truly gone
 	quarantineTime = 40 * time.Second
+	// make sure terminated pod won't be hanging too long
+	gcMaxGracefulPeriod = time.Minute * 5
 )
 
 type PodGCController struct {
@@ -127,7 +130,7 @@ func isPodTerminated(pod *v1.Pod) bool {
 func (gcc *PodGCController) gcTerminated(pods []*v1.Pod) {
 	terminatedPods := []*v1.Pod{}
 	for _, pod := range pods {
-		if isPodTerminated(pod) {
+		if isPodTerminated(pod) && !podInCGGracefulWindow(pod) {
 			terminatedPods = append(terminatedPods, pod)
 		}
 	}
@@ -251,4 +254,42 @@ func (o byCreationTimestamp) Less(i, j int) bool {
 		return o[i].Name < o[j].Name
 	}
 	return o[i].CreationTimestamp.Before(&o[j].CreationTimestamp)
+}
+
+// for give pod, check whether it's within graceful window
+func podInCGGracefulWindow(pod *v1.Pod) bool {
+	if pod == nil || pod.Annotations == nil {
+		return false
+	}
+
+	secsStr, ok := pod.Annotations[utilpod.PodGCGracefulSecondsAnnotation]
+	if !ok {
+		return false
+	}
+
+	secs, err := strconv.Atoi(secsStr)
+	if err != nil {
+		klog.Errorf("invalid gc graceful configuration %v for pod %v: %v", secsStr, pod.GetName(), err)
+		return false
+	}
+	if secs > int(gcMaxGracefulPeriod.Seconds()) {
+		secs = int(gcMaxGracefulPeriod.Seconds())
+	}
+	gracePeriod := time.Duration(secs) * time.Second
+
+	now := time.Now()
+	// if any container is within gc graceful period, we should consider it as true
+	for _, status := range pod.Status.ContainerStatuses {
+		if status.State.Terminated == nil {
+			return false
+		}
+
+		if status.State.Terminated.FinishedAt.Add(gracePeriod).Before(now) {
+			klog.V(6).Infof("pod %v with gc graceful conf %v and container %v terminated at %v, skip gc",
+				pod.GetName(), secs, status.Name, status.State.Terminated.FinishedAt)
+			return true
+		}
+	}
+
+	return false
 }
