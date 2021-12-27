@@ -19,6 +19,8 @@ package cpumanager
 import (
 	"fmt"
 	"math"
+	"os"
+	"path"
 	"sync"
 	"time"
 
@@ -201,6 +203,11 @@ func (m *manager) Start(activePods ActivePodsFunc, sourcesReady config.SourcesRe
 	err = m.policy.Start(m.state)
 	if err != nil {
 		klog.Errorf("[cpumanager] policy start error: %v", err)
+		if err2 := os.Remove(path.Join(m.stateFileDirectory, cpuManagerStateFileName)); err2 != nil && !os.IsNotExist(err2) {
+			klog.Errorf("[cpumanager] - remove policy state file failed: %v", err2)
+			return err2
+		}
+		klog.V(4).Info("[cpumanager] - remove policy state file")
 		return err
 	}
 
