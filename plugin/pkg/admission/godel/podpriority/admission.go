@@ -22,6 +22,8 @@ const (
 	PluginName = "GodelPodPriority"
 
 	CanBePreemptedAnnotationKey = "godel.bytedance.com/can-be-preempted"
+	// 'tce.kubernetes.io' will be deprecated in the future.
+	CanBePreemptedOldAnnotationKey = "tce.kubernetes.io/can-be-preempted"
 )
 
 // Register registers a plugin
@@ -156,7 +158,7 @@ func (p *Plugin) admitGodelPodPriority(a admission.Attributes) error {
 				return fmt.Errorf("failed to pass pod priority check for godel pod: %v", err)
 			}
 			priority = pc.Value
-			if pc.Annotations != nil && pc.Annotations[CanBePreemptedAnnotationKey] == "true" {
+			if priorityClassCanBePreempted(pc) {
 				canBePreempted = "true"
 			}
 		}
@@ -170,6 +172,7 @@ func (p *Plugin) admitGodelPodPriority(a admission.Attributes) error {
 			pod.Annotations = make(map[string]string)
 		}
 		pod.Annotations[CanBePreemptedAnnotationKey] = canBePreempted
+		pod.Annotations[CanBePreemptedOldAnnotationKey] = canBePreempted
 	}
 	return nil
 }
@@ -225,13 +228,12 @@ func (p *Plugin) getDefaultPriorityForGodelPod(pod *api.Pod) (string, int32, str
 		return "", 0, canBePreempted, err
 	}
 	if dpc != nil {
-		if dpc.Annotations != nil && dpc.Annotations[CanBePreemptedAnnotationKey] == "true" {
+		if priorityClassCanBePreempted(dpc) {
 			canBePreempted = "true"
 		}
 		return dpc.Name, dpc.Value, canBePreempted, nil
 	}
 
-	canBePreempted = "true"
 	switch priorityType {
 	case godel.PriorityGuaranteedKublet:
 		return "", godel.MinPriorityForGuaranteedKublet, canBePreempted, nil
@@ -273,4 +275,17 @@ func passPodPriorityCheckForGodelPod(pod *api.Pod, pc *schedulingv1.PriorityClas
 		return fmt.Errorf("the priority value for type %s should be in range [%d, %d]", priorityType, minValue, maxValue)
 	}
 	return nil
+}
+
+func priorityClassCanBePreempted(pc *schedulingv1.PriorityClass) bool {
+	if pc == nil {
+		return false
+	}
+	if pc.Annotations[CanBePreemptedAnnotationKey] == "true" {
+		return true
+	}
+	if pc.Annotations[CanBePreemptedOldAnnotationKey] == "true" {
+		return true
+	}
+	return false
 }
