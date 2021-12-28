@@ -1352,7 +1352,6 @@ func skipTestCompatibility_v1_Scheduler(t *testing.T) {
 				client,
 				informerFactory,
 				nil,
-				informerFactory.Core().V1().Pods(),
 				recorderFactory,
 				make(chan struct{}),
 				scheduler.WithAlgorithmSource(algorithmSrc),
@@ -1518,7 +1517,6 @@ func skipTestAlgorithmProviderCompatibility(t *testing.T) {
 				client,
 				informerFactory,
 				nil,
-				informerFactory.Core().V1().Pods(),
 				recorderFactory,
 				make(chan struct{}),
 				opts...,
@@ -1779,7 +1777,6 @@ func skipTestPluginsConfigurationCompatibility(t *testing.T) {
 				client,
 				informerFactory,
 				nil,
-				informerFactory.Core().V1().Pods(),
 				recorderFactory,
 				make(chan struct{}),
 				scheduler.WithProfiles(config.KubeSchedulerProfile{

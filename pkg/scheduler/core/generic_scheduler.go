@@ -160,7 +160,7 @@ func (g *genericScheduler) PrePredicateFiltering(pod *v1.Pod, nodes []*scheduler
 }
 
 // readyToBind checks if nominated node is ready to accept preemptor
-func readyToBind(preemptor *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo, nodeRefinedResourceInfo *schedulernodeinfo.NodeRefinedResourceInfo) bool {
+func readyToBind(preemptor *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo, nodeRefinedResourceInfo *schedulernodeinfo.NodeRefinedResourceInfo) (bool, error) {
 	// preemptor is added to the requested resource of nodeinfo when CachePreemptor
 	// so if requested <= allocatable, it is ready to bind
 	requested := nodeInfo.RequestedResource()
@@ -175,26 +175,26 @@ func readyToBind(preemptor *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo, nodeRe
 			}
 		}
 		if zeroResource {
-			return false
+			return false, fmt.Errorf("allocatable resource on Node %v is empty", nodeInfo.Node().Name)
 		}
 	}
 
 	if requested.MilliCPU > allocatable.MilliCPU || requested.Memory > allocatable.Memory || requested.EphemeralStorage > allocatable.EphemeralStorage {
-		return false
+		return false, fmt.Errorf("request resource for Node %v is overwhelmed", nodeInfo.Node().Name)
 	}
 
 	podRequest := schedulernodeinfo.GetResourceRequest(preemptor)
 	for rName := range podRequest.ScalarResources {
 		if requested.ScalarResources[rName] > allocatable.ScalarResources[rName] {
-			return false
+			return false, fmt.Errorf("request resource %v for Node %v is overwhelmed", rName, nodeInfo.Node().Name)
 		}
 	}
 
 	if !internalcache.NumaTopologyMatchedPodRequest(preemptor, nodeRefinedResourceInfo, nodeInfo) {
-		return false
+		return false, fmt.Errorf("numa topology binding is failure on for Node %v", nodeInfo.Node().Name)
 	}
 
-	return true
+	return true, nil
 }
 
 // tryToSchedulerPreemptor tries to scheduler preemptor
@@ -203,14 +203,14 @@ func (g *genericScheduler) tryToSchedulePreemptor(ctx context.Context, prof *pro
 		// predicate for preemptor
 		refinedNode := g.cache.GetRefinedResourceNode(preemptor.Status.NominatedNodeName)
 		if g.cache.PreemptorStillHaveChance(preemptor) {
-			if readyToBind(preemptor, nodeInfo, refinedNode) {
+			if ready, err := readyToBind(preemptor, nodeInfo, refinedNode); ready {
 				return ScheduleResult{
 					SuggestedHost:  preemptor.Status.NominatedNodeName,
 					EvaluatedNodes: 1,
 					FeasibleNodes:  1,
 				}, nil
 			} else {
-				return result, fmt.Errorf("not ready to bind the preemptor to the nominated node, maybe victims evictions have not finished")
+				return result, fmt.Errorf("not ready to bind the preemptor to the nominated node with error %v, maybe victims evictions have not finished", err.Error())
 			}
 		} else {
 			// if the preemptor is deleted from cached, we will reach here,

@@ -62,30 +62,6 @@ import (
 	st "k8s.io/kubernetes/pkg/scheduler/testing"
 )
 
-type fakePodConditionUpdater struct{}
-
-func (fc fakePodConditionUpdater) update(pod *v1.Pod, podCondition *v1.PodCondition) error {
-	return nil
-}
-
-type fakePodPreemptor struct{}
-
-func (fp fakePodPreemptor) getUpdatedPod(pod *v1.Pod) (*v1.Pod, error) {
-	return pod, nil
-}
-
-func (fp fakePodPreemptor) deletePod(pod *v1.Pod) error {
-	return nil
-}
-
-func (fp fakePodPreemptor) setNominatedNodeName(pod *v1.Pod, nomNodeName string) error {
-	return nil
-}
-
-func (fp fakePodPreemptor) removeNominatedNodeName(pod *v1.Pod) error {
-	return nil
-}
-
 func podWithID(id, desiredHost string) *v1.Pod {
 	return &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -199,7 +175,7 @@ func skipTestSchedulerCreation(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			client := clientsetfake.NewSimpleClientset()
-			informerFactory := informers.NewSharedInformerFactory(client, 0)
+			informerFactory := NewInformerFactory(client, 0)
 
 			eventBroadcaster := events.NewBroadcaster(&events.EventSinkImpl{Interface: client.EventsV1beta1().Events("")})
 
@@ -208,7 +184,6 @@ func skipTestSchedulerCreation(t *testing.T) {
 			s, err := New(client,
 				informerFactory,
 				nil,
-				NewPodInformer(client, 0),
 				profile.NewRecorderFactory(eventBroadcaster),
 				stopCh,
 				tc.opts...,
@@ -335,9 +310,9 @@ func skipTestSchedulerScheduleOne(t *testing.T) {
 			}
 
 			s := &Scheduler{
-				SchedulerCache:      sCache,
-				Algorithm:           item.algo,
-				podConditionUpdater: fakePodConditionUpdater{},
+				SchedulerCache: sCache,
+				Algorithm:      item.algo,
+				client:         client,
 				Error: func(p *framework.PodInfo, err error) {
 					gotPod = p.Pod
 					gotError = err
@@ -448,7 +423,6 @@ func skipTestSchedulerMultipleProfilesScheduling(t *testing.T) {
 	sched, err := New(client,
 		informerFactory,
 		nil,
-		informerFactory.Core().V1().Pods(),
 		profile.NewRecorderFactory(broadcaster),
 		ctx.Done(),
 		WithProfiles(
@@ -848,10 +822,9 @@ func setupTestScheduler(queuedPodStore *clientcache.FIFO, scache internalcache.C
 		Error: func(p *framework.PodInfo, err error) {
 			errChan <- err
 		},
-		Profiles:            profiles,
-		podConditionUpdater: fakePodConditionUpdater{},
-		podPreemptor:        fakePodPreemptor{},
-		VolumeBinder:        volumeBinder,
+		Profiles:     profiles,
+		client:       client,
+		VolumeBinder: volumeBinder,
 	}
 
 	return sched, bindingChan, errChan
@@ -1205,6 +1178,7 @@ func skipTestSchedulerBinding(t *testing.T) {
 			sched := Scheduler{
 				Algorithm:      algo,
 				SchedulerCache: scache,
+				client:         client,
 			}
 			err = sched.bind(context.Background(), prof, pod, "node", nil)
 			if err != nil {

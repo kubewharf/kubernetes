@@ -291,7 +291,8 @@ func TestPriorityQueue_Pop(t *testing.T) {
 }
 
 func TestPriorityQueue_Update(t *testing.T) {
-	q := createAndRunPriorityQueue(newDefaultQueueSort())
+	c := clock.NewFakeClock(time.Now())
+	q := createAndRunPriorityQueue(newDefaultQueueSort(), WithClock(c))
 	q.Update(nil, &highPriorityPod)
 	q.lock.RLock()
 	if _, exists, _ := q.activeQ.Get(newPodInfoNoTimestamp(&highPriorityPod)); !exists {
@@ -332,6 +333,20 @@ func TestPriorityQueue_Update(t *testing.T) {
 	if p, err := q.Pop(); err != nil || p.Pod != &highPriNominatedPod {
 		t.Errorf("Expected: %v after Pop, but got: %v", highPriorityPod.Name, p.Pod.Name)
 	}
+
+	// Updating a pod that is in backoff queue and it is still backing off
+	// pod will not be moved to active queue, and it will be updated in backoff queue
+	podInfo := q.newPodInfo(&medPriorityPod)
+	if err := q.podBackoffQ.Add(podInfo); err != nil {
+		t.Errorf("adding pod to backoff queue error: %v", err)
+	}
+	q.Update(podInfo.Pod, podInfo.Pod)
+	rawPodInfo, err := q.podBackoffQ.Pop()
+	podGotFromBackoffQ := rawPodInfo.(*framework.PodInfo).Pod
+	if err != nil || podGotFromBackoffQ != podInfo.Pod {
+		t.Errorf("Expected: %v after Pop, but got: %v", podInfo.Pod.Name, podGotFromBackoffQ.Name)
+	}
+
 	// Updating a pod that is in unschedulableQ in a way that it may
 	// become schedulable should add the pod to the activeQ.
 	q.AddUnschedulableIfNotPresent(q.newPodInfo(&medPriorityPod), q.SchedulingCycle())
@@ -340,6 +355,24 @@ func TestPriorityQueue_Update(t *testing.T) {
 	}
 	updatedPod := medPriorityPod.DeepCopy()
 	updatedPod.ClusterName = "test"
+	q.Update(&medPriorityPod, updatedPod)
+	rawPodInfo, err = q.podBackoffQ.Pop()
+	podGotFromBackoffQ = rawPodInfo.(*framework.PodInfo).Pod
+	if err != nil || podGotFromBackoffQ != updatedPod {
+		t.Errorf("Expected: %v after Pop, but got: %v", updatedPod.Name, podGotFromBackoffQ.Name)
+	}
+
+	// updating a pod which is in unschedulable queue, and it is not backing off,
+	// we will move it to active queue
+	q.AddUnschedulableIfNotPresent(q.newPodInfo(&medPriorityPod), q.SchedulingCycle())
+	if len(q.unschedulableQ.podInfoMap) != 1 {
+		t.Error("Expected unschedulableQ to be 1.")
+	}
+	updatedPod = medPriorityPod.DeepCopy()
+	updatedPod.ClusterName = "test1"
+	// Move clock by podInitialBackoffDuration, so that pods in the unschedulableQ would pass the backing off,
+	// and the pods will be moved into activeQ.
+	c.Step(q.podInitialBackoffDuration)
 	q.Update(&medPriorityPod, updatedPod)
 	if p, err := q.Pop(); err != nil || p.Pod != updatedPod {
 		t.Errorf("Expected: %v after Pop, but got: %v", updatedPod.Name, p.Pod.Name)

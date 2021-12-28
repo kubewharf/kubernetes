@@ -17,6 +17,8 @@ limitations under the License.
 package util
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -24,7 +26,11 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	"k8s.io/client-go/kubernetes"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	schedulingv1listers "k8s.io/client-go/listers/scheduling/v1"
 	storagev1 "k8s.io/client-go/listers/storage/v1"
@@ -571,4 +577,55 @@ const (
 
 func GetPSMFromPod(pod *v1.Pod) string {
 	return pod.Labels[PSMLabel]
+}
+
+// GetUpdatedPod returns the latest version of <pod> from API server.
+func GetUpdatedPod(cs kubernetes.Interface, pod *v1.Pod) (*v1.Pod, error) {
+	return cs.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
+}
+
+// DeletePod deletes the given <pod> from API server
+func DeletePod(cs kubernetes.Interface, pod *v1.Pod) error {
+	return cs.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
+}
+
+// PatchPodStatus calculates the delta bytes change from <old.Status> to <newStatus>,
+// and then submit a request to API server to patch the pod changes.
+func PatchPodStatus(cs kubernetes.Interface, old *v1.Pod, newStatus *v1.PodStatus) error {
+	if newStatus == nil {
+		return nil
+	}
+
+	oldData, err := json.Marshal(v1.Pod{Status: old.Status})
+	if err != nil {
+		return err
+	}
+
+	newData, err := json.Marshal(v1.Pod{Status: *newStatus})
+	if err != nil {
+		return err
+	}
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldData, newData, &v1.Pod{})
+	if err != nil {
+		return fmt.Errorf("failed to create merge patch for pod %q/%q: %v", old.Namespace, old.Name, err)
+	}
+	_, err = cs.CoreV1().Pods(old.Namespace).Patch(context.TODO(), old.Name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{}, "status")
+	return err
+}
+
+// ClearNominatedNodeName internally submit a patch request to API server
+// to set each pods[*].Status.NominatedNodeName> to "".
+func ClearNominatedNodeName(cs kubernetes.Interface, pods ...*v1.Pod) utilerrors.Aggregate {
+	var errs []error
+	for _, p := range pods {
+		if len(p.Status.NominatedNodeName) == 0 {
+			continue
+		}
+		podStatusCopy := p.Status.DeepCopy()
+		podStatusCopy.NominatedNodeName = ""
+		if err := PatchPodStatus(cs, p, podStatusCopy); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return utilerrors.NewAggregate(errs)
 }

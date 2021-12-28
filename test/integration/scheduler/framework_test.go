@@ -894,7 +894,7 @@ func TestBindPlugin(t *testing.T) {
 	}
 
 	// Create the master and the scheduler with the test plugin set.
-	testCtx := testutils.InitTestSchedulerWithOptions(t, testContext, false, nil, time.Second,
+	testCtx := testutils.InitTestSchedulerWithOptions(t, testContext, nil, time.Second,
 		scheduler.WithProfiles(prof),
 		scheduler.WithFrameworkOutOfTreeRegistry(registry))
 	defer testutils.CleanupTest(t, testCtx)
@@ -1553,7 +1553,7 @@ func TestPreemptWithPermitPlugin(t *testing.T) {
 }
 
 func initTestSchedulerForFrameworkTest(t *testing.T, testCtx *testutils.TestContext, nodeCount int, opts ...scheduler.Option) *testutils.TestContext {
-	c := testutils.InitTestSchedulerWithOptions(t, testCtx, false, nil, time.Second, opts...)
+	c := testutils.InitTestSchedulerWithOptions(t, testCtx, nil, time.Second, opts...)
 	if nodeCount > 0 {
 		_, err := createNodes(c.ClientSet, "test-node", nil, nodeCount)
 		if err != nil {

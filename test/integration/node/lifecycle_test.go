@@ -125,7 +125,7 @@ func TestTaintBasedEvictions(t *testing.T) {
 			podTolerations.SetExternalKubeClientSet(externalClientset)
 			podTolerations.SetExternalKubeInformerFactory(externalInformers)
 
-			testCtx = testutils.InitTestScheduler(t, testCtx, true, nil)
+			testCtx = testutils.InitTestScheduler(t, testCtx, nil)
 			defer testutils.CleanupTest(t, testCtx)
 			cs := testCtx.ClientSet
 			informers := testCtx.InformerFactory

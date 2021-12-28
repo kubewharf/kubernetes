@@ -424,37 +424,39 @@ func (p *PriorityQueue) Update(oldPod, newPod *v1.Pod) error {
 		// If the pod is in the backoff queue, update it there.
 		if oldPodInfo, exists, _ := p.podBackoffQ.Get(oldPodInfo); exists {
 			p.nominatedPods.update(oldPod, newPod)
-			p.podBackoffQ.Delete(oldPodInfo)
-			err := p.activeQ.Add(updatePod(oldPodInfo, newPod))
-			if err == nil {
-				p.cond.Broadcast()
-			}
-			return err
+			return p.podBackoffQ.Update(updatePod(oldPodInfo, newPod))
 		}
 	}
 
 	// If the pod is in the unschedulable queue, updating it may make it schedulable.
 	if usPodInfo := p.unschedulableQ.get(newPod); usPodInfo != nil {
 		p.nominatedPods.update(oldPod, newPod)
-		if isPodUpdated(oldPod, newPod) {
-			p.unschedulableQ.delete(usPodInfo.Pod)
-			err := p.activeQ.Add(updatePod(usPodInfo, newPod))
-			if err == nil {
-				p.cond.Broadcast()
+		pInfo := updatePod(usPodInfo, newPod)
+		if !isPodUpdated(oldPod, newPod) {
+			// Pod is already in unschedulable queue and hasnt updated, no need to backoff again
+			p.unschedulableQ.addOrUpdate(pInfo)
+		} else if p.isPodBackingoff(usPodInfo) {
+			if err := p.podBackoffQ.Add(pInfo); err != nil {
+				return err
 			}
-			return err
+			p.unschedulableQ.delete(newPod)
+		} else {
+			if err := p.activeQ.Add(pInfo); err != nil {
+				return err
+			}
+			p.unschedulableQ.delete(usPodInfo.Pod)
+			p.cond.Broadcast()
 		}
-		// Pod is already in unschedulable queue and hasnt updated, no need to backoff again
-		p.unschedulableQ.addOrUpdate(updatePod(usPodInfo, newPod))
 		return nil
 	}
+
 	// If pod is not in any of the queues, we put it in the active queue.
-	err := p.activeQ.Add(p.newPodInfo(newPod))
-	if err == nil {
-		p.nominatedPods.add(newPod, "")
-		p.cond.Broadcast()
+	if err := p.activeQ.Add(p.newPodInfo(newPod)); err != nil {
+		return err
 	}
-	return err
+	p.nominatedPods.add(newPod, "")
+	p.cond.Broadcast()
+	return nil
 }
 
 // Delete deletes the item from either of the two queues. It assumes the pod is
@@ -499,8 +501,6 @@ func (p *PriorityQueue) MoveAllToActiveOrBackoffQueue(event string) {
 		unschedulablePods = append(unschedulablePods, pInfo)
 	}
 	p.movePodsToActiveOrBackoffQueue(unschedulablePods, event)
-	p.moveRequestCycle = p.schedulingCycle
-	p.cond.Broadcast()
 }
 
 // NOTE: this function assumes lock has been acquired in caller

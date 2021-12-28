@@ -102,6 +102,11 @@ func (cache *schedulerCache) removePreemptor(preemptor *v1.Pod) error {
 		return nil
 	}
 
+	if preemptor.Spec.NodeName != "" {
+		klog.V(4).Infof("pod %v/%v is assigned, do not removePreemptor from cache", preemptor.Namespace, preemptor.Name, preemptor.Status.NominatedNodeName)
+		return nil
+	}
+
 	n, ok := cache.nodes[preemptor.Status.NominatedNodeName]
 	if !ok {
 		return fmt.Errorf("node %v is not found", preemptor.Status.NominatedNodeName)
