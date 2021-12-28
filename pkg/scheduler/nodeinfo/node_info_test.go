@@ -1005,7 +1005,7 @@ func TestNodeInfoRemovePod(t *testing.T) {
 					},
 				},
 				NodeShareGPUDeviceInfo: &NodeShareGPUDeviceInfo{
-					devs: make(map[int]*DeviceInfo),
+					devs:    make(map[int]*DeviceInfo),
 					RWMutex: new(sync.RWMutex),
 				},
 			},

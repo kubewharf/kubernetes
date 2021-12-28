@@ -549,7 +549,7 @@ func NewLegacyRegistry() *LegacyRegistry {
 		registry.DefaultPriorities[ResourceLimitsPriority] = 1
 	}
 
-	if utilfeature.DefaultFeatureGate.Enabled(features.ShareGPU){
+	if utilfeature.DefaultFeatureGate.Enabled(features.ShareGPU) {
 		klog.Infof("Registering share-gpu predicate and priority function")
 		registry.registerPredicateConfigProducer(ShareGPUPred,
 			func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {

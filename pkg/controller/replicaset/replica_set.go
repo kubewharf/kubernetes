@@ -780,7 +780,7 @@ func (rsc *ReplicaSetController) syncReplicaSet(key string) error {
 	if manageReplicasErr == nil && updatedRS.Spec.MinReadySeconds > 0 &&
 		(updatedRS.Status.ReadyReplicas != *(updatedRS.Spec.Replicas) ||
 			updatedRS.Status.AvailableReplicas != *(updatedRS.Spec.Replicas)) {
-		reQueueTime := time.Duration(updatedRS.Spec.MinReadySeconds / 2) * time.Second
+		reQueueTime := time.Duration(updatedRS.Spec.MinReadySeconds/2) * time.Second
 		if reQueueTime > time.Minute {
 			reQueueTime = time.Minute
 		}
