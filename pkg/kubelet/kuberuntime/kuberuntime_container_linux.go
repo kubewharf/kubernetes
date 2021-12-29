@@ -66,15 +66,17 @@ func (m *kubeGenericRuntimeManager) applyPlatformSpecificContainerConfig(config 
 			config.Annotations = make(map[string]string)
 		}
 
-		for _, anno := range opts.Annotations {
-			config.Annotations[anno.Name] = anno.Value
-		}
+		if opts != nil {
+			for _, anno := range opts.Annotations {
+				config.Annotations[anno.Name] = anno.Value
+			}
 
-		for _, env := range opts.Envs {
-			config.Envs = append(config.Envs, &runtimeapi.KeyValue{
-				Key:   env.Name,
-				Value: env.Value,
-			})
+			for _, env := range opts.Envs {
+				config.Envs = append(config.Envs, &runtimeapi.KeyValue{
+					Key:   env.Name,
+					Value: env.Value,
+				})
+			}
 		}
 	}
 

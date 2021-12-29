@@ -39,6 +39,11 @@ func (m *ManagerImpl) GetPodTopologyHints(pod *v1.Pod) map[string][]topologymana
 // ensures the Resource Manager is consulted when Topology Aware Hints for each
 // container are created.
 func (m *ManagerImpl) GetTopologyHints(pod *v1.Pod, container *v1.Container) map[string][]topologymanager.TopologyHint {
+	if isSkippedPod(pod) {
+		klog.V(4).Infof("[qosresourcemanager] skip get topology hints for pod")
+		return nil
+	}
+
 	// Garbage collect any stranded resource resources before providing TopologyHints
 	m.UpdateAllocatedResources()
 
@@ -48,11 +53,14 @@ func (m *ManagerImpl) GetTopologyHints(pod *v1.Pod, container *v1.Container) map
 		resource := string(resourceObj)
 		requested := int(requestedObj.Value())
 
+		klog.Infof("[qosresourcemanager] pod: %s/%s container: %s needs %d %s, to get topology hint",
+			pod.Namespace, pod.Name, container.Name, requested, resource)
+
 		// Only consider resources associated with a resource plugin.
 		if m.isResourcePluginResource(resource) && !requestedObj.IsZero() {
 			// Only consider resources that are actually with topology alignment
 			if aligned := m.resourceHasTopologyAlignment(resource); !aligned {
-				klog.Infof("[qosresourcemanager] Resource '%v' does not have a topology preference", resource)
+				klog.Infof("[qosresourcemanager] resource '%v' does not have a topology preference", resource)
 				resourceHints[resource] = nil
 				continue
 			}
@@ -61,12 +69,17 @@ func (m *ManagerImpl) GetTopologyHints(pod *v1.Pod, container *v1.Container) map
 			// resources allocated to the Container. This might happen after a
 			// kubelet restart, for example.
 			allocationInfo := m.podResources.containerResource(string(pod.UID), container.Name, resource)
-			if allocationInfo.ResourceHints != nil && len(allocationInfo.ResourceHints.Hints) > 0 {
-				if allocationInfo.IsScalarResource && int(math.Ceil(allocationInfo.AllocatedQuantity)) >= requested {
+			if allocationInfo != nil && allocationInfo.ResourceHints != nil && len(allocationInfo.ResourceHints.Hints) > 0 {
+
+				allocated := int(math.Ceil(allocationInfo.AllocatedQuantity))
+
+				if allocationInfo.IsScalarResource && allocated >= requested {
 					resourceHints[resource] = ParseListOfTopologyHints(allocationInfo.ResourceHints)
+					klog.Warningf("[qosresourcemanager] resource %s already allocated to (pod %s/%s, container %v) with larger number than request: requested: %d, allocated: %d; not to getTopologyHints",
+						resource, pod.GetNamespace(), pod.GetName(), container.Name, requested, allocated)
 					continue
 				} else {
-					klog.Warningf("[qosresourcemanager] Resource '%s' already allocated to (pod %s/%s, container %v) with smaller number than request: requested: %d, allocated: %d; continue to getTopologyHints",
+					klog.Warningf("[qosresourcemanager] resource %s already allocated to (pod %s/%s, container %v) with smaller number than request: requested: %d, allocated: %d; continue to getTopologyHints",
 						resource, pod.GetNamespace(), pod.GetName(), container.Name, requested, int(math.Ceil(allocationInfo.AllocatedQuantity)))
 				}
 			}
@@ -77,11 +90,12 @@ func (m *ManagerImpl) GetTopologyHints(pod *v1.Pod, container *v1.Container) map
 			m.mutex.Unlock()
 			if !ok {
 				klog.Errorf("[qosresourcemanager] unknown Resource Plugin %s", resource)
+				resourceHints[resource] = []topologymanager.TopologyHint{}
 				continue
 			}
 
-			klog.V(3).Infof("Making GetTopologyHints request of resources %s for pod: %s/%s; container: %s",
-				resource, pod.Namespace, pod.Name, container.Name)
+			klog.Infof("[qosresourcemanager] making GetTopologyHints request of %.3f resources %s for pod: %s/%s, container: %s",
+				ParseQuantityToFloat64(requestedObj), resource, pod.Namespace, pod.Name, container.Name)
 
 			resourceReq := &pluginapi.ResourceRequest{
 				PodUid:           string(pod.GetUID()),
@@ -111,6 +125,9 @@ func (m *ManagerImpl) GetTopologyHints(pod *v1.Pod, container *v1.Container) map
 			// think about a resource name with accompanying resources,
 			// we must return union result of all accompanying resources in the resource name
 			resourceHints[resource] = ParseListOfTopologyHints(resp.ResourceHints[resource])
+
+			klog.Infof("[qosresourcemanager] GetTopologyHints for resource: %s, pod: %s/%s; container: %s, result: %+v",
+				resource, pod.Namespace, pod.Name, container.Name, resourceHints[resource])
 		}
 	}
 
@@ -119,14 +136,13 @@ func (m *ManagerImpl) GetTopologyHints(pod *v1.Pod, container *v1.Container) map
 
 func (m *ManagerImpl) resourceHasTopologyAlignment(resource string) bool {
 	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	eI, ok := m.endpoints[resource]
 	if !ok {
-		m.mutex.Unlock()
 		return false
 	}
 
 	if eI.opts == nil || !eI.opts.WithTopologyAlignment {
-		m.mutex.Unlock()
 		klog.V(4).Infof("[qosresourcemanager] resource plugin options indicates that resource: %s without topology alignment", resource)
 		return false
 	}
