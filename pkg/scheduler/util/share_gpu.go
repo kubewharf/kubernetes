@@ -9,8 +9,10 @@ import (
 )
 
 const (
-	ResourceGPUMemName            = "bytedance.com/gpu-memory"
-	ResourceGPUSMName             = "bytedance.com/gpu-sm"
+	ResourceGPUMemName   = "bytedance.com/gpu-memory"
+	ResourceGPUSMName    = "bytedance.com/gpu-sm"
+	ResourceShareGPUName = "nvidia.com/share-gpu"
+
 	ShareGPUIDIndex               = "tce.kubernetes.io/gpu-id"
 	ShareGPUAssumedTimeAnnotation = "tce.kubernetes.io/gpu-share-assumed-time"
 )
@@ -18,6 +20,17 @@ const (
 // Is the Node for GPU sharing
 func IsGPUSharingNode(node *v1.Node) bool {
 	return GetGPUCountInNode(node) > 0
+}
+
+// Get the total share GPU of the Node
+func GetTotalShareGPU(node *v1.Node) int {
+	val, ok := node.Status.Allocatable[ResourceShareGPUName]
+
+	if !ok {
+		return 0
+	}
+
+	return int(val.Value())
 }
 
 // Get the total GPU memory of the Node
@@ -46,11 +59,14 @@ func GetTotalGPUSM(node *v1.Node) int {
 func GetGPUCountInNode(node *v1.Node) int {
 	val, ok := node.Status.Allocatable[ResourceGPUSMName]
 
-	if !ok {
-		return int(0)
+	if ok {
+		return int(val.Value()) / 10
 	}
-
-	return int(val.Value()) / 10
+	val, ok = node.Status.Allocatable[ResourceShareGPUName]
+	if ok {
+		return int(val.Value()) / 1024
+	}
+	return 0
 }
 
 // IsCompletePod determines if the pod is complete
@@ -67,7 +83,7 @@ func IsCompletePod(pod *v1.Pod) bool {
 
 // IsGPUSharingPod determines if it's the pod for GPU sharing
 func IsGPUSharingPod(pod *v1.Pod) bool {
-	return GetGPUMemoryFromPodResource(pod) > 0 || GetGPUSMFromPodResource(pod) > 0
+	return GetGPUMemoryFromPodResource(pod) > 0 || GetGPUSMFromPodResource(pod) > 0 || GetShareGPUFromPodResource(pod) > 0
 }
 
 // GetGPUIDFromAnnotation gets GPU ID from Annotation
@@ -101,6 +117,18 @@ func GetGPUSMFromPodResource(pod *v1.Pod) int {
 	containers := pod.Spec.Containers
 	for _, container := range containers {
 		if val, ok := container.Resources.Limits[ResourceGPUSMName]; ok {
+			total += int(val.Value())
+		}
+	}
+	return total
+}
+
+// GetGPUMemoryFromPodResource gets GPU Memory of the Pod
+func GetShareGPUFromPodResource(pod *v1.Pod) int {
+	var total int
+	containers := pod.Spec.Containers
+	for _, container := range containers {
+		if val, ok := container.Resources.Limits[ResourceShareGPUName]; ok {
 			total += int(val.Value())
 		}
 	}

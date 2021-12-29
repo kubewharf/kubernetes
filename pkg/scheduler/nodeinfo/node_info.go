@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/klog"
+
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	"k8s.io/kubernetes/pkg/features"
 	schedutil "k8s.io/kubernetes/pkg/scheduler/util"
@@ -286,7 +287,8 @@ func NewNodeInfo(pods ...*v1.Pod) *NodeInfo {
 		usedPorts:           make(HostPortInfo),
 		imageStates:         make(map[string]*ImageStateSummary),
 		NodeShareGPUDeviceInfo: &NodeShareGPUDeviceInfo{
-			devs: make(map[int]*DeviceInfo),
+			devs:    make(map[int]*DeviceInfo),
+			RWMutex: new(sync.RWMutex),
 		},
 	}
 	for _, pod := range pods {

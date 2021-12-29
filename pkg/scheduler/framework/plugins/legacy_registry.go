@@ -103,6 +103,9 @@ const (
 	// NodePackageNBWMatchPriority defines the name of prioritizer function that prioritizes nodes based on
 	// whether they have 25Gi nbw
 	NodePackageNBWMatchPriority = "NodePackageNBWMatchPriority"
+	// ShareGPUPriority Defines the name of prioritizer function that prioritizes nodes based on left shareGPU resource of
+	// single card on node
+	ShareGPUPriority = "ShareGPU"
 )
 
 const (
@@ -157,7 +160,9 @@ const (
 	// PodFitsStoragePoolPred defines the name of predicate PodFitsStoragePool
 	PodFitsStoragePoolPred = "PodFitsStoragePool"
 
+	// ShareGPUPred defines the name of predicate ShareGPU
 	ShareGPUPred = "ShareGPU"
+
 	// NodeMatchesPackagePred defines the name of predicate NodeMatchesPackage
 	NodeMatchesPackagePred = "NodeMatchesPackage"
 )
@@ -234,7 +239,6 @@ func NewLegacyRegistry() *LegacyRegistry {
 			CheckVolumeBindingPred,
 			CheckNodeUnschedulablePred,
 			MatchHostUniquePred,
-			ShareGPUPred,
 			PodFitsStoragePoolPred,
 		),
 
@@ -378,11 +382,7 @@ func NewLegacyRegistry() *LegacyRegistry {
 			plugins.Filter = appendToPluginSet(plugins.Filter, csistoragepool.Name, nil)
 			return
 		})
-	registry.registerPredicateConfigProducer(ShareGPUPred,
-		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
-			plugins.Filter = appendToPluginSet(plugins.Filter, noderesources.ShareGPUName, nil)
-			return
-		})
+
 	registry.registerPredicateConfigProducer(NodeMatchesPackagePred,
 		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
 			plugins.Filter = appendToPluginSet(plugins.Filter, nodepackage.Name, nil)
@@ -547,6 +547,23 @@ func NewLegacyRegistry() *LegacyRegistry {
 				return
 			})
 		registry.DefaultPriorities[ResourceLimitsPriority] = 1
+	}
+
+	if utilfeature.DefaultFeatureGate.Enabled(features.ShareGPU) {
+		klog.Infof("Registering share-gpu predicate and priority function")
+		registry.registerPredicateConfigProducer(ShareGPUPred,
+			func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
+				plugins.Filter = appendToPluginSet(plugins.Filter, noderesources.ShareGPUName, nil)
+				return
+			})
+		registry.DefaultPredicates.Insert(ShareGPUPred)
+
+		registry.registerPriorityConfigProducer(ShareGPUPriority,
+			func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
+				plugins.Score = appendToPluginSet(plugins.Score, noderesources.ShareGPUName, &args.Weight)
+				return
+			})
+		registry.DefaultPriorities[ShareGPUPriority] = 1
 	}
 
 	return registry
