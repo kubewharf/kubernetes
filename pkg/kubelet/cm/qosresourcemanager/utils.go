@@ -90,3 +90,20 @@ func findContainerIDByName(status *v1.PodStatus, name string) (string, error) {
 	}
 	return "", fmt.Errorf("unable to find ID for container with name %v in pod status (it may not be running)", name)
 }
+
+func isDaemonPod(pod *v1.Pod) bool {
+	if _, exists := pod.Annotations[pluginapi.PodDaemonAnnotationKey]; exists {
+		return true
+	}
+
+	return false
+}
+
+func isSkippedPod(pod *v1.Pod) bool {
+	// [TODO](sunjianyu): consider other types of pods need to be skipped
+	if pod == nil {
+		return true
+	}
+
+	return isDaemonPod(pod)
+}

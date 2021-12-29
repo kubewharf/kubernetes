@@ -46,8 +46,9 @@ const (
 	KubeletResourcePluginGetTopologyAwareAllocatableResourcesRPCTimeoutInSecs = 10
 	// [TODO](sunjianyu) make role, type identifiers more general
 	// label to identity pod role
-	PodRoleLabelKey       = "bytedance.com/pod-role"
-	PodTypeAnnoatationKey = "godel.bytedance.com/pod-resource-type"
+	PodRoleLabelKey        = "bytedance.com/pod-role"
+	PodTypeAnnoatationKey  = "godel.bytedance.com/pod-resource-type"
+	PodDaemonAnnotationKey = "pod.tce.kubernetes.io/tce-daemon"
 )
 
 var SupportedVersions = [...]string{"v1alpha1"}

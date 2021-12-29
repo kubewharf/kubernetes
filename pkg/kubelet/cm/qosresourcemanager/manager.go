@@ -333,6 +333,11 @@ func (m *ManagerImpl) isVersionCompatibleWithPlugin(versions []string) bool {
 // Allocate is the call that you can use to allocate a set of resources
 // from the registered resource plugins.
 func (m *ManagerImpl) Allocate(pod *v1.Pod, container *v1.Container) error {
+	if isSkippedPod(pod) {
+		klog.V(4).Infof("[qosresourcemanager] skip pod resource allocation")
+		return nil
+	}
+
 	// Allocate resources for init containers first as we know the caller always loops
 	// through init containers before looping through app containers. Should the caller
 	// ever change those semantics, this logic will need to be amended.
@@ -367,7 +372,7 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 	for k, v := range container.Resources.Requests {
 		resource := string(k)
 		needed := int(v.Value())
-		klog.V(3).Infof("[qosresourcemanager] pod: %s/%s container: %s needs %d %s",
+		klog.Infof("[qosresourcemanager] pod: %s/%s container: %s needs %d %s",
 			pod.Namespace, pod.Name, container.Name, needed, resource)
 
 		if !m.isResourcePluginResource(resource) {
@@ -388,11 +393,16 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 		// if you want to allocate for accompanying resources every times, you can set the parent resource as non-scalar resource or set allocated quantity as zero
 		allocationInfo := m.podResources.containerResource(string(pod.UID), container.Name, resource)
 		if allocationInfo != nil {
-			if allocationInfo.IsScalarResource && int(math.Ceil(allocationInfo.AllocatedQuantity)) >= needed {
+
+			allocated := int(math.Ceil(allocationInfo.AllocatedQuantity))
+
+			if allocationInfo.IsScalarResource && allocated >= needed {
+				klog.Infof("[qosresourcemanager] resource %s already allocated to (pod %s/%s, container %v) with larger number than request: requested: %d, allocated: %d; not to allocate",
+					resource, pod.GetNamespace(), pod.GetName(), container.Name, needed, allocated)
 				continue
 			} else {
-				klog.Warningf("[qosresourcemanager] resource '%s' already allocated to (pod %s/%s, container %v) with smaller number than request: requested: %d, allocated: %d; continue to allocate",
-					resource, pod.GetNamespace(), pod.GetName(), container.Name, needed, int(math.Ceil(allocationInfo.AllocatedQuantity)))
+				klog.Warningf("[qosresourcemanager] resource %s already allocated to (pod %s/%s, container %v) with smaller number than request: requested: %d, allocated: %d; continue to allocate",
+					resource, pod.GetNamespace(), pod.GetName(), container.Name, needed, allocated)
 			}
 		}
 
@@ -418,7 +428,7 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 
 		// TODO: refactor this part of code to just append a ContainerAllocationRequest
 		// in a passed in AllocateRequest pointer, and issues a single Allocate call per pod.
-		klog.V(3).Infof("[qosresourcemanager] Making allocation request of %.3f resources %s for pod: %s/%s; container: %s",
+		klog.V(3).Infof("[qosresourcemanager] making allocation request of %.3f resources %s for pod: %s/%s; container: %s",
 			ParseQuantityToFloat64(v), resource, pod.Namespace, pod.Name, container.Name)
 
 		resourceReq := &pluginapi.ResourceRequest{
@@ -736,7 +746,7 @@ func (m *ManagerImpl) GetCapacity() (v1.ResourceList, v1.ResourceList, []string)
 					}
 
 					if taResource.IsNodeResource && taResource.IsScalarResource {
-						aggregatedQuantity, _ := resource.ParseQuantity(fmt.Sprintf("%.2f", taResource.AggregatedQuantity))
+						aggregatedQuantity, _ := resource.ParseQuantity(fmt.Sprintf("%.3f", taResource.AggregatedQuantity))
 						capacity[v1.ResourceName(accResourceName)] = aggregatedQuantity
 						allocatable[v1.ResourceName(accResourceName)] = aggregatedQuantity
 					}
@@ -838,7 +848,7 @@ func (m *ManagerImpl) UpdateAllocatedResources() {
 			m.mutex.Lock()
 
 			if err != nil {
-				klog.Errorf("[qrm.UpdateAllocatedResources] remove pod: %s in %s endpoint failed with error: %v", podUID, resourceName, err)
+				klog.Errorf("[qosresourcemanager.UpdateAllocatedResources] remove pod: %s in %s endpoint failed with error: %v", podUID, resourceName, err)
 			}
 		}
 	}
@@ -849,6 +859,11 @@ func (m *ManagerImpl) UpdateAllocatedResources() {
 // for the passed-in <pod, container> and returns its ResourceRunContainerOptions
 // for the found one. An empty struct is returned in case no cached state is found.
 func (m *ManagerImpl) GetResourceRunContainerOptions(pod *v1.Pod, container *v1.Container) (*kubecontainer.ResourceRunContainerOptions, error) {
+	if isSkippedPod(pod) {
+		klog.V(4).Infof("[qosresourcemanager] skip get resource run container options")
+		return nil, nil
+	}
+
 	podUID := string(pod.UID)
 	contName := container.Name
 
@@ -947,7 +962,7 @@ func (m *ManagerImpl) sanitizeNodeAllocatable(node *schedulernodeinfo.NodeInfo) 
 func (m *ManagerImpl) isResourcePluginResource(resource string) bool {
 	m.mutex.Lock()
 	_, registeredResource := m.endpoints[resource]
-	defer m.mutex.Unlock()
+	m.mutex.Unlock()
 
 	if registeredResource {
 		return true
@@ -972,6 +987,8 @@ func (m *ManagerImpl) ShouldResetExtendedResourceCapacity() bool {
 }
 
 func (m *ManagerImpl) reconcileState() {
+	klog.Infof("[qosresourcemanager.reconcileState] reconciling")
+
 	m.UpdateAllocatedResources()
 
 	activePods := m.activePods()
@@ -981,10 +998,10 @@ func (m *ManagerImpl) reconcileState() {
 	m.mutex.Lock()
 	for resourceName, eI := range m.endpoints {
 		if eI.e.isStopped() {
-			klog.Warningf("[qosresourcemanager] skip getResourceAllocation of resource: %s, because plugin stopped", resourceName)
+			klog.Warningf("[qosresourcemanager.reconcileState] skip getResourceAllocation of resource: %s, because plugin stopped", resourceName)
 			continue
 		} else if !eI.opts.NeedReconcile {
-			klog.V(6).Infof("[qosresourcemanager] skip getResourceAllocation of resource: %s, because plugin needn't reconciling", resourceName)
+			klog.V(6).Infof("[qosresourcemanager.reconcileState] skip getResourceAllocation of resource: %s, because plugin needn't reconciling", resourceName)
 			continue
 		}
 
@@ -994,7 +1011,7 @@ func (m *ManagerImpl) reconcileState() {
 		m.mutex.Lock()
 
 		if err != nil {
-			klog.Errorf("[qrm.reconcileState] getResourceAllocation to %s endpoint failed with error: %v", resourceName, err)
+			klog.Errorf("[qosresourcemanager.reconcileState] getResourceAllocation to %s endpoint failed with error: %v", resourceName, err)
 			continue
 		}
 
@@ -1003,6 +1020,10 @@ func (m *ManagerImpl) reconcileState() {
 	m.mutex.Unlock()
 
 	for _, pod := range activePods {
+		if isSkippedPod(pod) {
+			klog.V(4).Infof("[qosresourcemanager] skip active pod reconcile")
+			continue
+		}
 
 		nContainers := len(pod.Spec.Containers)
 		for i := 0; i < nContainers; i++ {
@@ -1011,13 +1032,13 @@ func (m *ManagerImpl) reconcileState() {
 
 			pstatus, ok := m.podStatusProvider.GetPodStatus(pod.UID)
 			if !ok {
-				klog.Warningf("[qrm.reconcileState] reconcileState: skipping pod; status not found (pod: %s/%s, container: %s)", pod.Namespace, pod.Name, containerName)
+				klog.Warningf("[qosresourcemanager.reconcileState] reconcileState: skipping pod; status not found (pod: %s/%s, container: %s)", pod.Namespace, pod.Name, containerName)
 				continue
 			}
 
 			containerID, err := findContainerIDByName(&pstatus, containerName)
 			if err != nil {
-				klog.Warningf("[qrm.reconcileState] reconcileState: skipping container; ID not found in pod status (pod: %s/%s, container: %s, error: %v)",
+				klog.Warningf("[qosresourcemanager.reconcileState] reconcileState: skipping container; ID not found in pod status (pod: %s/%s, container: %s, error: %v)",
 					pod.Namespace, pod.Name, containerName, err)
 				continue
 			}
@@ -1031,7 +1052,16 @@ func (m *ManagerImpl) reconcileState() {
 				}
 			}
 
-			m.updateContainerResources(podUID, containerName, containerID)
+			err = m.updateContainerResources(podUID, containerName, containerID)
+
+			if err != nil {
+				klog.Errorf("[qosresourcemanager.reconcileState] pod: %s/%s, container: %s, updateContainerResources failed with error: %v",
+					pod.Namespace, pod.Name, containerName, err)
+				continue
+			} else {
+				klog.Infof("[qosresourcemanager.reconcileState] pod: %s/%s, container: %s, reconcile state successfully",
+					pod.Namespace, pod.Name, containerName)
+			}
 		}
 	}
 }
@@ -1041,6 +1071,10 @@ func (m *ManagerImpl) updateContainerResources(podUID, containerName, containerI
 
 	if err != nil {
 		return fmt.Errorf("updateContainerResources failed with error: %v", err)
+	} else if opts == nil {
+		klog.Warningf("[qosresourcemanager.updateContainerResources] there is no resources opts for pod: %s, container: %s",
+			podUID, containerName)
+		return nil
 	}
 
 	return m.containerRuntime.UpdateContainerResources(
