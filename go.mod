@@ -68,7 +68,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/heketi/heketi v9.0.1-0.20190917153846-c2e2a4ab7ab9+incompatible
 	github.com/heketi/tests v0.0.0-20151005000721-f3775cbcefd6 // indirect
-	github.com/json-iterator/go v1.1.8
+	github.com/json-iterator/go v1.1.10
 	github.com/libopenstorage/openstorage v1.0.0
 	github.com/lithammer/dedent v1.1.0
 	github.com/lpabon/godbc v0.1.1 // indirect
@@ -104,9 +104,9 @@ require (
 	github.com/vishvananda/netns v0.0.0-20200520041808-52d707b772fe
 	github.com/vmware/govmomi v0.20.3
 	go.etcd.io/etcd v0.5.0-alpha.5.0.20210803123658-fa1e66085bad
-	golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/lint v0.0.0-20190409202823-959b441ac422
-	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553
+	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/sys v0.0.0-20201201145000-ef89a241ccb3
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
@@ -501,11 +501,11 @@ replace (
 	golang.org/x/lint => golang.org/x/lint v0.0.0-20190409202823-959b441ac422
 	golang.org/x/mobile => golang.org/x/mobile v0.0.0-20190312151609-d3739f865fa6
 	golang.org/x/mod => golang.org/x/mod v0.0.0-20190513183733-4bf6d317e70e
-	golang.org/x/net => golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
+	golang.org/x/net => golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
 	golang.org/x/oauth2 => golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/perf => golang.org/x/perf v0.0.0-20180704124530-6e6d33e29852
 	golang.org/x/sync => golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
-	golang.org/x/sys => golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a // pinned to release-branch.go1.13
+	golang.org/x/sys => golang.org/x/sys v0.0.0-20201112073958-5cba982894dd // pinned to release-branch.go1.13
 	golang.org/x/text => golang.org/x/text v0.3.2
 	golang.org/x/time => golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	golang.org/x/tools => golang.org/x/tools v0.0.0-20190821162956-65e3620a7ae7 // pinned to release-branch.go1.13
