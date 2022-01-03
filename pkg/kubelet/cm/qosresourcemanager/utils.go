@@ -6,6 +6,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	pluginapi "k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1"
+	apipod "k8s.io/kubernetes/pkg/api/pod"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager/bitmask"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
@@ -92,7 +93,7 @@ func findContainerIDByName(status *v1.PodStatus, name string) (string, error) {
 }
 
 func isDaemonPod(pod *v1.Pod) bool {
-	if _, exists := pod.Annotations[pluginapi.PodDaemonAnnotationKey]; exists {
+	if _, exists := pod.Annotations[apipod.TCEDaemonPodAnnotationKey]; exists {
 		return true
 	}
 
