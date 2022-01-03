@@ -438,7 +438,7 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 			ContainerName:    container.Name,
 			IsInitContainer:  isInitContainer,
 			PodRole:          pod.Labels[pluginapi.PodRoleLabelKey],
-			PodType:          pod.Annotations[pluginapi.PodTypeAnnoatationKey],
+			PodType:          pod.Annotations[pluginapi.PodTypeAnnotationKey],
 			ResourceName:     resource,
 			ResourceRequests: map[string]float64{resource: ParseQuantityToFloat64(v)},
 		}

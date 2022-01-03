@@ -104,7 +104,7 @@ func (m *ManagerImpl) GetTopologyHints(pod *v1.Pod, container *v1.Container) map
 				ContainerName:    container.Name,
 				IsInitContainer:  IsInitContainerOfPod(pod, container),
 				PodRole:          pod.Labels[pluginapi.PodRoleLabelKey],
-				PodType:          pod.Annotations[pluginapi.PodTypeAnnoatationKey],
+				PodType:          pod.Annotations[pluginapi.PodTypeAnnotationKey],
 				ResourceName:     resource,
 				ResourceRequests: map[string]float64{resource: ParseQuantityToFloat64(requestedObj)},
 			}

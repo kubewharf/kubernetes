@@ -64,7 +64,7 @@ func (p *v1PodResourcesServer) List(ctx context.Context, req *v1.ListPodResource
 			Name:       pod.Name,
 			Namespace:  pod.Namespace,
 			PodRole:    pod.Labels[pluginapi.PodRoleLabelKey],
-			PodType:    pod.Annotations[pluginapi.PodTypeAnnoatationKey],
+			PodType:    pod.Annotations[pluginapi.PodTypeAnnotationKey],
 			Containers: make([]*v1.ContainerResources, len(pod.Spec.Containers)),
 		}
 
