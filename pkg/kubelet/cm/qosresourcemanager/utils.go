@@ -93,6 +93,7 @@ func findContainerIDByName(status *v1.PodStatus, name string) (string, error) {
 			if err != nil {
 				return "", err
 			}
+
 			return cid.ID, nil
 		}
 	}

@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
@@ -15,6 +15,7 @@ go_library(
     importpath = "k8s.io/kubernetes/pkg/kubelet/cm/qosresourcemanager",
     visibility = ["//visibility:public"],
     deps = [
+        "//pkg/api/pod:go_default_library",
         "//pkg/features:go_default_library",
         "//pkg/kubelet/checkpointmanager:go_default_library",
         "//pkg/kubelet/checkpointmanager/errors:go_default_library",
@@ -58,8 +59,38 @@ filegroup(
     srcs = [
         ":package-srcs",
         "//pkg/kubelet/cm/qosresourcemanager/checkpoint:all-srcs",
-        "//pkg/kubelet/cm/qosresourcemanager/tmp:all-srcs",
     ],
     tags = ["automanaged"],
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "endpoint_test.go",
+        "manager_test.go",
+        "pod_resources_test.go",
+        "topology_hints_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "//pkg/api/pod:go_default_library",
+        "//pkg/kubelet/cm/topologymanager:go_default_library",
+        "//pkg/kubelet/cm/topologymanager/bitmask:go_default_library",
+        "//pkg/kubelet/config:go_default_library",
+        "//pkg/kubelet/container:go_default_library",
+        "//pkg/kubelet/pluginmanager:go_default_library",
+        "//pkg/kubelet/status/testing:go_default_library",
+        "//staging/src/k8s.io/api/core/v1:go_default_library",
+        "//staging/src/k8s.io/apimachinery/pkg/api/resource:go_default_library",
+        "//staging/src/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
+        "//staging/src/k8s.io/apimachinery/pkg/util/sets:go_default_library",
+        "//staging/src/k8s.io/apimachinery/pkg/util/wait:go_default_library",
+        "//staging/src/k8s.io/client-go/tools/record:go_default_library",
+        "//staging/src/k8s.io/cri-api/pkg/apis/runtime/v1alpha2:go_default_library",
+        "//staging/src/k8s.io/cri-api/pkg/apis/testing:go_default_library",
+        "//staging/src/k8s.io/kubelet/pkg/apis/pluginregistration/v1:go_default_library",
+        "//staging/src/k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1:go_default_library",
+        "//vendor/github.com/stretchr/testify/require:go_default_library",
+    ],
 )

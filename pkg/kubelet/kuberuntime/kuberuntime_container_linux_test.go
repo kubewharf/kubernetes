@@ -67,6 +67,9 @@ func makeExpectedConfig(m *kubeGenericRuntimeManager, pod *v1.Pod, containerInde
 		Linux:       m.generateLinuxContainerConfig(container, pod, new(int64), "", nil, enforceMemoryQoS, nil, newContainerAnnotations(container, pod, restartCount, opts)),
 		Envs:        envs,
 	}
+
+	expectedConfig.Envs = append(expectedConfig.Envs, envs...)
+
 	return expectedConfig
 }
 
