@@ -26,6 +26,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/features:go_default_library",
+        "//pkg/kubelet/apis/podresources:go_default_library",
         "//pkg/kubelet/cm/cpumanager:go_default_library",
         "//pkg/kubelet/cm/cpuset:go_default_library",
         "//pkg/kubelet/cm/devicemanager:go_default_library",
@@ -43,8 +44,9 @@ go_library(
         "//staging/src/k8s.io/apimachinery/pkg/util/sets:go_default_library",
         "//staging/src/k8s.io/apiserver/pkg/util/feature:go_default_library",
         "//staging/src/k8s.io/cri-api/pkg/apis:go_default_library",
-        "//vendor/k8s.io/klog:go_default_library",
         "//staging/src/k8s.io/kubelet/pkg/apis/podresources/v1:go_default_library",
+        "//staging/src/k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1:go_default_library",
+        "//vendor/k8s.io/klog:go_default_library",
     ] + select({
         "@io_bazel_rules_go//go/platform:android": [
             "//pkg/api/v1/resource:go_default_library",
@@ -69,6 +71,7 @@ go_library(
             "//staging/src/k8s.io/apimachinery/pkg/util/wait:go_default_library",
             "//staging/src/k8s.io/client-go/kubernetes:go_default_library",
             "//staging/src/k8s.io/client-go/tools/record:go_default_library",
+            "//staging/src/k8s.io/kubelet/pkg/apis/pluginregistration/v1:go_default_library",
             "//vendor/github.com/docker/go-units:go_default_library",
             "//vendor/github.com/opencontainers/runc/libcontainer/cgroups:go_default_library",
             "//vendor/github.com/opencontainers/runc/libcontainer/cgroups/fs:go_default_library",
@@ -126,6 +129,7 @@ go_library(
             "//staging/src/k8s.io/apimachinery/pkg/util/wait:go_default_library",
             "//staging/src/k8s.io/client-go/kubernetes:go_default_library",
             "//staging/src/k8s.io/client-go/tools/record:go_default_library",
+            "//staging/src/k8s.io/kubelet/pkg/apis/pluginregistration/v1:go_default_library",
             "//vendor/github.com/docker/go-units:go_default_library",
             "//vendor/github.com/opencontainers/runc/libcontainer/cgroups:go_default_library",
             "//vendor/github.com/opencontainers/runc/libcontainer/cgroups/fs:go_default_library",

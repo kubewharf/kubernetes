@@ -36,9 +36,8 @@ import (
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
-	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	pluginapi "k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1"
-	"k8s.io/kubernetes/pkg/features"
+	"k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager"
 	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager/errors"
 	cputopology "k8s.io/kubernetes/pkg/kubelet/cm/cpumanager/topology"
@@ -215,6 +214,7 @@ func (m *ManagerImpl) Start(activePods ActivePodsFunc, sourcesReady config.Sourc
 	}
 
 	socketPath := filepath.Join(m.socketdir, m.socketname)
+
 	if err = os.MkdirAll(m.socketdir, 0750); err != nil {
 		return err
 	}
@@ -724,7 +724,13 @@ func (m *ManagerImpl) GetCapacity() (v1.ResourceList, v1.ResourceList, []string)
 	m.mutex.Lock()
 	// [TODO](sunjianyu): consider we need diff capacity and allocatable here?
 	for resourceName, eI := range m.endpoints {
+		implicitIsNodeResource := m.isNodeResource(resourceName)
+
 		if eI.e.stopGracePeriodExpired() {
+			if !implicitIsNodeResource {
+				klog.Infof("[qosresourcemanager] skip GetCapacity for resource: %s with implicitIsNodeResource: %v", resourceName, implicitIsNodeResource)
+				continue
+			}
 			delete(m.endpoints, resourceName)
 			deletedResources.Insert(resourceName)
 		} else {
@@ -734,6 +740,10 @@ func (m *ManagerImpl) GetCapacity() (v1.ResourceList, v1.ResourceList, []string)
 			m.mutex.Lock()
 			if err != nil {
 				klog.Errorf("[qosresourcemanager] getTopologyAwareAllocatableResources for resource: %s failed with error: %v", resourceName, err)
+				if !implicitIsNodeResource {
+					klog.Infof("[qosresourcemanager] skip GetCapacity for resource: %s with implicitIsNodeResource: %v", resourceName, implicitIsNodeResource)
+					continue
+				}
 				// [TODO](sunjianyu): consider if it will cause resource quantity vibrating?
 				capacity[v1.ResourceName(resourceName)] = *resource.NewQuantity(0, resource.DecimalSI)
 				allocatable[v1.ResourceName(resourceName)] = *resource.NewQuantity(0, resource.DecimalSI)
@@ -741,6 +751,10 @@ func (m *ManagerImpl) GetCapacity() (v1.ResourceList, v1.ResourceList, []string)
 				resp.AllocatableResources == nil ||
 				len(resp.AllocatableResources.TopologyAwareResources) == 0 {
 				klog.Warningf("[qosresourcemanager] getTopologyAwareAllocatableResources for resource: %s got nil response or empty content in response", resourceName)
+				if !implicitIsNodeResource {
+					klog.Infof("[qosresourcemanager] skip GetCapacity for resource: %s with implicitIsNodeResource: %v", resourceName, implicitIsNodeResource)
+					continue
+				}
 				capacity[v1.ResourceName(resourceName)] = *resource.NewQuantity(0, resource.DecimalSI)
 				allocatable[v1.ResourceName(resourceName)] = *resource.NewQuantity(0, resource.DecimalSI)
 			} else {
@@ -983,14 +997,16 @@ func (m *ManagerImpl) isResourcePluginResource(resource string) bool {
 // ShouldResetExtendedResourceCapacity returns whether the extended resources should be zeroed or not,
 // depending on whether the node has been recreated. Absence of the checkpoint file strongly indicates the node
 // has been recreated.
+// since QRM isn't responsible for extended resources now, we just return false directly.
+// for the future, we shoud think about identify resource name from QRM and device manager and reset them respectively.
 func (m *ManagerImpl) ShouldResetExtendedResourceCapacity() bool {
-	if utilfeature.DefaultFeatureGate.Enabled(features.QoSResourceManager) {
-		checkpoints, err := m.checkpointManager.ListCheckpoints()
-		if err != nil {
-			return false
-		}
-		return len(checkpoints) == 0
-	}
+	//if utilfeature.DefaultFeatureGate.Enabled(features.QoSResourceManager) {
+	//	checkpoints, err := m.checkpointManager.ListCheckpoints()
+	//	if err != nil {
+	//		return false
+	//	}
+	//	return len(checkpoints) == 0
+	//}
 	return false
 }
 
@@ -1004,6 +1020,7 @@ func (m *ManagerImpl) reconcileState() {
 	resourceAllocationResps := make([]*pluginapi.GetResourcesAllocationResponse, 0, len(m.endpoints))
 
 	m.mutex.Lock()
+
 	for resourceName, eI := range m.endpoints {
 		if eI.e.isStopped() {
 			klog.Warningf("[qosresourcemanager.reconcileState] skip getResourceAllocation of resource: %s, because plugin stopped", resourceName)
@@ -1061,7 +1078,6 @@ func (m *ManagerImpl) reconcileState() {
 			}
 
 			err = m.updateContainerResources(podUID, containerName, containerID)
-
 			if err != nil {
 				klog.Errorf("[qosresourcemanager.reconcileState] pod: %s/%s, container: %s, updateContainerResources failed with error: %v",
 					pod.Namespace, pod.Name, containerName, err)
@@ -1070,7 +1086,15 @@ func (m *ManagerImpl) reconcileState() {
 				klog.Infof("[qosresourcemanager.reconcileState] pod: %s/%s, container: %s, reconcile state successfully",
 					pod.Namespace, pod.Name, containerName)
 			}
+
 		}
+	}
+
+	// write checkpoint periodically in reconcileState function, to keep syncing podResources in memory to checkpoint file.
+	err := m.writeCheckpoint()
+
+	if err != nil {
+		klog.Errorf("[qosresourcemanager.reconcileState] write checkpoint failed with error: %v", err)
 	}
 }
 
@@ -1089,4 +1113,19 @@ func (m *ManagerImpl) updateContainerResources(podUID, containerName, containerI
 	return m.containerRuntime.UpdateContainerResources(
 		containerID,
 		opts.Resources)
+}
+
+func (m *ManagerImpl) isNodeResource(resourceName string) bool {
+	allocatedNodeResourceNames := m.podResources.allAllocatedNodeResourceNames()
+	allocatedResourceNames := m.podResources.allAllocatedResourceNames()
+
+	if allocatedNodeResourceNames.Has(resourceName) {
+		return true
+	} else if allocatedResourceNames.Has(resourceName) {
+		return false
+	}
+
+	// currently we think we only report quantity for scalar resource to node,
+	// if there is no allocation record declaring it as node resource explicitly.
+	return helper.IsScalarResourceName(v1.ResourceName(resourceName))
 }

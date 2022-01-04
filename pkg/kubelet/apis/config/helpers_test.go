@@ -231,5 +231,6 @@ var (
 		"TypeMeta.APIVersion",
 		"TypeMeta.Kind",
 		"VolumeStatsAggPeriod.Duration",
+		"QoSResourceManagerReconcilePeriod.Duration",
 	)
 )

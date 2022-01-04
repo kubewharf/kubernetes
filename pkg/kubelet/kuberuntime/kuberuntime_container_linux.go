@@ -41,13 +41,18 @@ func (m *kubeGenericRuntimeManager) applyPlatformSpecificContainerConfig(config 
 		return fmt.Errorf("applyPlatformSpecificContainerConfig met nil input config")
 	}
 
+	if pod == nil || container == nil {
+		return fmt.Errorf("applyPlatformSpecificContainerConfig met nil pod or container")
+	}
+
 	var opts *kubecontainer.ResourceRunContainerOptions
 	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.QoSResourceManager) {
 		var err error
 		opts, err = m.runtimeHelper.GenerateResourceRunContainerOptions(pod, container)
 
 		if err != nil {
-			klog.Errorf("[applyPlatformSpecificContainerConfig] pod: %s/%s, containerName: %s GenerateResourceRunContainerOptions failed with error: %v", err)
+			klog.Errorf("[applyPlatformSpecificContainerConfig] pod: %s/%s, containerName: %s GenerateResourceRunContainerOptions failed with error: %v",
+				pod.Namespace, pod.Name, container.Name, err)
 			return fmt.Errorf("GenerateResourceRunContainerOptions failed with error: %v", err)
 		}
 

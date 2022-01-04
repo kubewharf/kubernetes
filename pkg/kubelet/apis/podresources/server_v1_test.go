@@ -22,7 +22,7 @@ import (
 	"sort"
 	"testing"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
@@ -50,11 +50,31 @@ func TestListPodResourcesV1(t *testing.T) {
 
 	cpus := []int64{12, 23, 30}
 
+	resources := []*podresourcesapi.TopologyAwareResource{
+		{
+			ResourceName:       "resource",
+			IsNodeResource:     false,
+			IsScalarResource:   true,
+			AggregatedQuantity: 2,
+			TopologyAwareQuantityList: []*podresourcesapi.TopologyAwareQuantity{
+				{
+					ResourceValue: "0",
+					Node:          0,
+				},
+				{
+					ResourceValue: "1",
+					Node:          1,
+				},
+			},
+		},
+	}
+
 	for _, tc := range []struct {
 		desc             string
 		pods             []*v1.Pod
 		devices          []*podresourcesapi.ContainerDevices
 		cpus             []int64
+		resources        []*podresourcesapi.TopologyAwareResource
 		expectedResponse *podresourcesapi.ListPodResourcesResponse
 	}{
 		{
@@ -65,7 +85,7 @@ func TestListPodResourcesV1(t *testing.T) {
 			expectedResponse: &podresourcesapi.ListPodResourcesResponse{},
 		},
 		{
-			desc: "pod without devices",
+			desc: "pod without devices and resources",
 			pods: []*v1.Pod{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -100,7 +120,7 @@ func TestListPodResourcesV1(t *testing.T) {
 			},
 		},
 		{
-			desc: "pod with devices",
+			desc: "pod with devices and resources",
 			pods: []*v1.Pod{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -126,9 +146,10 @@ func TestListPodResourcesV1(t *testing.T) {
 						Namespace: podNamespace,
 						Containers: []*podresourcesapi.ContainerResources{
 							{
-								Name:    containerName,
-								Devices: devs,
-								CpuIds:  cpus,
+								Name:      containerName,
+								Devices:   devs,
+								CpuIds:    cpus,
+								Resources: resources,
 							},
 						},
 					},
@@ -141,10 +162,12 @@ func TestListPodResourcesV1(t *testing.T) {
 			m.On("GetPods").Return(tc.pods)
 			m.On("GetDevices", string(podUID), containerName).Return(tc.devices)
 			m.On("GetCPUs", string(podUID), containerName).Return(tc.cpus)
+			m.On("GetTopologyAwareResources", string(podUID), containerName).Return(tc.resources)
 			m.On("UpdateAllocatedDevices").Return()
+			m.On("UpdateAllocatedResources").Return()
 			m.On("GetAllocatableCPUs").Return(cpuset.CPUSet{})
 			m.On("GetAllocatableDevices").Return(devicemanager.NewResourceDeviceInstances())
-			server := NewV1PodResourcesServer(m, m, m)
+			server := NewV1PodResourcesServer(m, m, m, m)
 			resp, err := server.List(context.TODO(), &podresourcesapi.ListPodResourcesRequest{})
 			if err != nil {
 				t.Errorf("want err = %v, got %q", nil, err)
@@ -158,6 +181,25 @@ func TestListPodResourcesV1(t *testing.T) {
 
 func TestAllocatableResources(t *testing.T) {
 	defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, pkgfeatures.KubeletPodResourcesGetAllocatable, true)()
+
+	allResources := []*podresourcesapi.TopologyAwareResource{
+		{
+			ResourceName:       "resource",
+			IsNodeResource:     false,
+			IsScalarResource:   true,
+			AggregatedQuantity: 2,
+			TopologyAwareQuantityList: []*podresourcesapi.TopologyAwareQuantity{
+				{
+					ResourceValue: "0",
+					Node:          0,
+				},
+				{
+					ResourceValue: "1",
+					Node:          1,
+				},
+			},
+		},
+	}
 
 	allDevs := []*podresourcesapi.ContainerDevices{
 		{
@@ -219,6 +261,7 @@ func TestAllocatableResources(t *testing.T) {
 		desc                                 string
 		allCPUs                              []int64
 		allDevices                           []*podresourcesapi.ContainerDevices
+		allResources                         []*podresourcesapi.TopologyAwareResource
 		expectedAllocatableResourcesResponse *podresourcesapi.AllocatableResourcesResponse
 	}{
 		{
@@ -228,7 +271,7 @@ func TestAllocatableResources(t *testing.T) {
 			expectedAllocatableResourcesResponse: &podresourcesapi.AllocatableResourcesResponse{},
 		},
 		{
-			desc:       "no devices, all CPUs",
+			desc:       "no devices, all CPUs, no resources",
 			allCPUs:    allCPUs,
 			allDevices: []*podresourcesapi.ContainerDevices{},
 			expectedAllocatableResourcesResponse: &podresourcesapi.AllocatableResourcesResponse{
@@ -236,7 +279,34 @@ func TestAllocatableResources(t *testing.T) {
 			},
 		},
 		{
-			desc:       "with devices, all CPUs",
+			desc:         "no devices, all CPUs, all resources",
+			allCPUs:      allCPUs,
+			allDevices:   []*podresourcesapi.ContainerDevices{},
+			allResources: allResources,
+			expectedAllocatableResourcesResponse: &podresourcesapi.AllocatableResourcesResponse{
+				CpuIds: allCPUs,
+				Resources: []*podresourcesapi.TopologyAwareResource{
+					{
+						ResourceName:       "resource",
+						IsNodeResource:     false,
+						IsScalarResource:   true,
+						AggregatedQuantity: 2,
+						TopologyAwareQuantityList: []*podresourcesapi.TopologyAwareQuantity{
+							{
+								ResourceValue: "0",
+								Node:          0,
+							},
+							{
+								ResourceValue: "1",
+								Node:          1,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			desc:       "with devices, all CPUs, no resources",
 			allCPUs:    allCPUs,
 			allDevices: allDevs,
 			expectedAllocatableResourcesResponse: &podresourcesapi.AllocatableResourcesResponse{
@@ -297,7 +367,7 @@ func TestAllocatableResources(t *testing.T) {
 			},
 		},
 		{
-			desc:       "with devices, no CPUs",
+			desc:       "with devices, no CPUs, no resources",
 			allCPUs:    []int64{},
 			allDevices: allDevs,
 			expectedAllocatableResourcesResponse: &podresourcesapi.AllocatableResourcesResponse{
@@ -364,7 +434,8 @@ func TestAllocatableResources(t *testing.T) {
 			m.On("UpdateAllocatedDevices").Return()
 			m.On("GetAllocatableDevices").Return(tc.allDevices)
 			m.On("GetAllocatableCPUs").Return(tc.allCPUs)
-			server := NewV1PodResourcesServer(m, m, m)
+			m.On("GetTopologyAwareAllocatableResources").Return(tc.allResources)
+			server := NewV1PodResourcesServer(m, m, m, m)
 
 			resp, err := server.GetAllocatableResources(context.TODO(), &podresourcesapi.AllocatableResourcesRequest{})
 			if err != nil {

@@ -42,19 +42,28 @@ type Stub struct {
 
 	server *grpc.Server
 
-	// allocFunc is used for handling allocation request
-	allocFunc stubAllocFunc
+	// allocFunc1 is used for handling allocation request
+	allocFunc1 stubAllocFunc1
+	//handling get allocation request
+	allocFunc2 stubAllocFunc2
 
 	registrationStatus chan watcherapi.RegistrationStatus // for testing
 	endpoint           string                             // for testing
 }
 
-// stubAllocFunc is the function called when an allocation request is received from Kubelet
-type stubAllocFunc func(r *pluginapi.ResourceRequest) (*pluginapi.ResourceAllocationResponse, error)
+// stubAllocFunc1 is the function called when an allocation request is received from Kubelet
+type stubAllocFunc1 func(r *pluginapi.ResourceRequest) (*pluginapi.ResourceAllocationResponse, error)
+
+//stubAllocFYnc2 is the function called when a get allocation request is received form Kubelet
+type stubAllocFunc2 func(r *pluginapi.GetResourcesAllocationRequest) (*pluginapi.GetResourcesAllocationResponse, error)
 
 func defaultAllocFunc(r *pluginapi.ResourceRequest) (*pluginapi.ResourceAllocationResponse, error) {
 	var response pluginapi.ResourceAllocationResponse
 
+	return &response, nil
+}
+func defaultGetAllocFunc(r *pluginapi.GetResourcesAllocationRequest) (*pluginapi.GetResourcesAllocationResponse, error) {
+	var response pluginapi.GetResourcesAllocationResponse
 	return &response, nil
 }
 
@@ -67,13 +76,17 @@ func NewResourcePluginStub(socket string, name string, preStartContainerFlag boo
 
 		stop: make(chan interface{}),
 
-		allocFunc: defaultAllocFunc,
+		allocFunc1: defaultAllocFunc,
+		allocFunc2: defaultGetAllocFunc,
 	}
 }
 
 // SetAllocFunc sets allocFunc of the resource plugin
-func (m *Stub) SetAllocFunc(f stubAllocFunc) {
-	m.allocFunc = f
+func (m *Stub) SetAllocFunc(f stubAllocFunc1) {
+	m.allocFunc1 = f
+}
+func (m *Stub) SetGetAllocFunc(f stubAllocFunc2) {
+	m.allocFunc2 = f
 }
 
 // Start starts the gRPC server of the resource plugin. Can only
@@ -199,7 +212,7 @@ func (m *Stub) PreStartContainer(ctx context.Context, r *pluginapi.PreStartConta
 func (m *Stub) Allocate(ctx context.Context, r *pluginapi.ResourceRequest) (*pluginapi.ResourceAllocationResponse, error) {
 	log.Printf("Allocate, %+v", r)
 
-	return m.allocFunc(r)
+	return m.allocFunc1(r)
 }
 
 func (m *Stub) cleanup() error {
@@ -213,7 +226,7 @@ func (m *Stub) cleanup() error {
 // GetResourcesAllocation returns allocation results of corresponding resources
 func (m *Stub) GetResourcesAllocation(ctx context.Context, r *pluginapi.GetResourcesAllocationRequest) (*pluginapi.GetResourcesAllocationResponse, error) {
 	log.Printf("GetResourcesAllocation, %+v", r)
-	return &pluginapi.GetResourcesAllocationResponse{}, nil
+	return m.allocFunc2(r)
 }
 
 // GetTopologyAwareResources returns allocation results of corresponding resources as topology aware format

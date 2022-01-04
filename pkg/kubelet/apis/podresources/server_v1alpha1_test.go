@@ -22,9 +22,10 @@ import (
 
 	"github.com/stretchr/testify/mock"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"
 	podresourcesv1 "k8s.io/kubelet/pkg/apis/podresources/v1"
 	"k8s.io/kubelet/pkg/apis/podresources/v1alpha1"
 )
@@ -60,6 +61,20 @@ func (m *mockProvider) GetAllocatableDevices() []*podresourcesv1.ContainerDevice
 func (m *mockProvider) GetAllocatableCPUs() []int64 {
 	args := m.Called()
 	return args.Get(0).([]int64)
+}
+
+func (m *mockProvider) UpdateAllocatedResources() {
+	m.Called()
+}
+
+func (m *mockProvider) GetTopologyAwareResources(podUID, containerName string) []*podresourcesapi.TopologyAwareResource {
+	args := m.Called(podUID, containerName)
+	return args.Get(0).([]*podresourcesapi.TopologyAwareResource)
+}
+
+func (m *mockProvider) GetTopologyAwareAllocatableResources() []*podresourcesapi.TopologyAwareResource {
+	args := m.Called()
+	return args.Get(0).([]*podresourcesapi.TopologyAwareResource)
 }
 
 func TestListPodResourcesV1alpha1(t *testing.T) {

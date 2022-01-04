@@ -90,6 +90,9 @@ func (pres *podResourcesChk) pods() sets.String {
 	return ret
 }
 
+// "resourceName" here is different than "resourceName" in qrm allocation, one qrm plugin may
+// only represent one resource in allocation, but can also return several other resourceNames
+// to store in pod resources
 func (pres *podResourcesChk) insert(podUID, contName, resourceName string, allocationInfo *pluginapi.ResourceAllocationInfo) {
 	if allocationInfo == nil {
 		return
@@ -128,7 +131,7 @@ func (pres *podResourcesChk) podResources(podUID string) ContainerResources {
 	return pres.resources[podUID]
 }
 
-// Returns all resources infomation allocated to the given container.
+// Returns all resources information allocated to the given container.
 // Returns nil if we don't have cached state for the given <podUID, contName>.
 func (pres *podResourcesChk) containerAllResources(podUID, contName string) ResourceAllocation {
 	pres.RLock()
@@ -144,7 +147,7 @@ func (pres *podResourcesChk) containerAllResources(podUID, contName string) Reso
 	return pres.resources[podUID][contName].DeepCopy()
 }
 
-// Returns resource infomation allocated to the given container for the given resource.
+// Returns resource information allocated to the given container for the given resource.
 // Returns nil if we don't have cached state for the given <podUID, contName, resource>.
 func (pres *podResourcesChk) containerResource(podUID, contName, resource string) *pluginapi.ResourceAllocationInfo {
 	pres.RLock()
@@ -278,6 +281,25 @@ func assembleOciResourceConfig(podUID, containerName string, opts *kubecontainer
 
 	opts.Resources = ociResourceConfig
 	return nil
+}
+
+func (pres *podResourcesChk) allAllocatedNodeResourceNames() sets.String {
+	pres.RLock()
+	defer pres.RUnlock()
+
+	res := sets.NewString()
+
+	for _, containerResources := range pres.resources {
+		for _, resourcesAllocation := range containerResources {
+			for resourceName, allocation := range resourcesAllocation {
+				if allocation.IsNodeResource {
+					res.Insert(resourceName)
+				}
+			}
+		}
+	}
+
+	return res
 }
 
 func (pres *podResourcesChk) allAllocatedResourceNames() sets.String {
