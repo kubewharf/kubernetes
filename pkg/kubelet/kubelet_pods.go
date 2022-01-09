@@ -27,6 +27,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -39,13 +40,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/sets"
 	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"k8s.io/klog"
 	utilpod "k8s.io/kubernetes/pkg/api/pod"
-
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/pkg/api/v1/resource"
 	podshelper "k8s.io/kubernetes/pkg/apis/core/pods"
@@ -72,11 +73,18 @@ import (
 	"k8s.io/kubernetes/pkg/volume/util/volumepathhandler"
 	volumevalidation "k8s.io/kubernetes/pkg/volume/validation"
 	"k8s.io/kubernetes/third_party/forked/golang/expansion"
+	"k8s.io/utils/mount"
 )
 
 const (
 	managedHostsHeader                = "# Kubernetes-managed hosts file.\n"
 	managedHostsHeaderWithHostNetwork = "# Kubernetes-managed hosts file (host network).\n"
+
+	diskMountPointPrefx = "/data"
+)
+
+var (
+	disksMountPointRegex = regexp.MustCompile(fmt.Sprintf("^%s[0-9]{2}$", diskMountPointPrefx))
 )
 
 // Get a list of pods that have data directories.
@@ -202,6 +210,7 @@ func makeMounts(pod *v1.Pod, podDir string, container *v1.Container, hostName, h
 	klog.V(3).Infof("container: %v/%v/%v podIPs: %q creating hosts mount: %v", pod.Namespace, pod.Name, container.Name, podIPs, mountEtcHostsFile)
 	mounts := []kubecontainer.Mount{}
 	rootfsVolumeName := volumeutil.GetPodRootFSDiskName(pod)
+	containerPathSets := sets.NewString()
 	isVMPod := v1helper.IsVMRuntime(pod)
 	var cleanupAction func()
 	for i, mount := range container.VolumeMounts {
@@ -331,6 +340,8 @@ func makeMounts(pod *v1.Pod, podDir string, container *v1.Container, hostName, h
 			SELinuxRelabel: relabelVolume,
 			Propagation:    propagation,
 		})
+
+		containerPathSets.Insert(filepath.Clean(containerPath))
 	}
 	if mountEtcHostsFile {
 		hostAliases := pod.Spec.HostAliases
@@ -340,6 +351,32 @@ func makeMounts(pod *v1.Pod, podDir string, container *v1.Container, hostName, h
 		}
 		mounts = append(mounts, *hostsMount)
 	}
+
+	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.AutoMountLocalDisks) && pod.GetAnnotations()[utilpod.PodAutoMountLocalDisksAnnotationKey] == "true" {
+		allMounts, err := mount.New("").List()
+		if err != nil {
+			klog.Errorf("failed to prepare local disks mount for pod %q container %q: %v", pod.Name, container.Name, err)
+			return nil, cleanupAction, err
+		}
+
+		randStr := rand.String(4)
+		for _, m := range allMounts {
+			mountPoint := filepath.Clean(m.Path)
+			if filepath.IsAbs(mountPoint) && strings.HasPrefix(mountPoint, diskMountPointPrefx) {
+				if disksMountPointRegex.Match([]byte(mountPoint)) && !containerPathSets.Has(mountPoint) {
+					klog.V(4).Infof("Auto add local disk mount point %q as volume mounts for pod %q container %q", mountPoint, pod.Name, container.Name)
+					mounts = append(mounts, kubecontainer.Mount{
+						Name:          fmt.Sprintf("local-disk-%s-%s", randStr, strings.ReplaceAll(mountPoint, string(os.PathSeparator), "-")),
+						ContainerPath: mountPoint,
+						HostPath:      mountPoint,
+						ReadOnly:      false,
+						Propagation:   runtimeapi.MountPropagation_PROPAGATION_PRIVATE,
+					})
+				}
+			}
+		}
+	}
+
 	return mounts, cleanupAction, nil
 }
 
