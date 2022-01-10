@@ -384,16 +384,16 @@ func CanPodBePreemptedAtSamePriority(pod, preemptor *v1.Pod, pvcLister coreliste
 	// numa requests are equal
 
 	// nbw check
-	preemptorRequest25GNBW := podReqeust25GNBW(preemptor)
-	podRequest25GNBW := podReqeust25GNBW(pod)
-	if preemptorRequest25GNBW != podRequest25GNBW {
-		if preemptorRequest25GNBW {
-			return true
-		} else {
-			return false
-		}
+	podCPURequest, podMemRequest, podNetworkRequest, podErr := ParseCPUMemNetworkRequest(pod.Annotations[NumericResourcesRequests])
+	preemptorCPURequest, preemptorMemRequest, preemptorNetworkRequest, preemptorErr := ParseCPUMemNetworkRequest(preemptor.Annotations[NumericResourcesRequests])
+	if podErr != nil || preemptorErr != nil {
+		klog.Errorf("parse cpu, memory, nbw request error, pod error: %v, preemptor error: %v", podErr, preemptorErr)
+		return false
 	}
-	// both request 25G NBW or neither requests
+	if podNetworkRequest != preemptorNetworkRequest {
+		return preemptorNetworkRequest > podNetworkRequest
+	}
+	// NBW requests are equal
 
 	// large package pods can preempt small package pods
 	// at the first stage,
@@ -402,13 +402,6 @@ func CanPodBePreemptedAtSamePriority(pod, preemptor *v1.Pod, pvcLister coreliste
 	// only when both pod and preemptor's NumericResourcesRequests are not nil, we do the following check
 	if pod.Annotations != nil && len(pod.Annotations[NumericResourcesRequests]) > 0 &&
 		preemptor.Annotations != nil && len(preemptor.Annotations[NumericResourcesRequests]) > 0 {
-		podCPURequest, podMemRequest, _, podErr := ParseCPUMemNetworkRequest(pod.Annotations[NumericResourcesRequests])
-		preemptorCPURequest, preemptorMemRequest, _, preemptorErr := ParseCPUMemNetworkRequest(preemptor.Annotations[NumericResourcesRequests])
-		if podErr != nil || preemptorErr != nil {
-			klog.Errorf("parse cpu, memory, nbw request error, pod error: %v, preemptor error: %v", podErr, preemptorErr)
-			return false
-		}
-
 		// we assume cpu and memory are positive correlation in packages
 		// podCPURequest > preemptorCPURequest && podMemRequest < preemptorMemRequest should not happen
 		if preemptorCPURequest != podCPURequest {
@@ -434,21 +427,8 @@ func CanPodBePreemptedAtSamePriority(pod, preemptor *v1.Pod, pvcLister coreliste
 	return false
 }
 
-func podReqeust25GNBW(pod *v1.Pod) bool {
-	if pod.Annotations == nil || len(pod.Annotations[NumericResourcesRequests]) == 0 || !strings.Contains(pod.Annotations[NumericResourcesRequests], NBWRefinedResourceKey) {
-		return false
-	}
-
-	// for now, only one nbw(25000) is added to our packages,
-	// so simply checking "nbw" substring is ok here
-	// TODO: add nbw value checks later if needed
-
-	return true
-}
-
-func ParseCPUMemNetworkRequest(properties string) (int64, int64, bool, error) {
-	var cpuRequest, memRequest int64
-	var networkRequest bool
+func ParseCPUMemNetworkRequest(properties string) (int64, int64, int64, error) {
+	var cpuRequest, memRequest, networkRequest int64
 	var err error
 	andProperties := strings.Split(properties, "&")
 	for _, andProperty := range andProperties {
@@ -458,14 +438,14 @@ func ParseCPUMemNetworkRequest(properties string) (int64, int64, bool, error) {
 			// support more later if needed
 			kv := strings.Split(orProperty, ">=")
 			if len(kv) != 2 {
-				return 0, 0, false, fmt.Errorf("properties format error")
+				return 0, 0, 0, fmt.Errorf("properties format error")
 			} else {
 				// for now, we do not support Z"OR"-package, so there will not be two CPU or Mem requests
 				// TODO; if "OR"-package is supported, choose suitable resource requests
 				if kv[0] == CPURefinedResourceKey || kv[0] == MemoryRefineResourceKey || kv[0] == NBWRefinedResourceKey {
 					request, err := resource.ParseQuantity(kv[1])
 					if err != nil {
-						return 0, 0, false, fmt.Errorf("parse quantity for %s error: %v", kv[0], err)
+						return 0, 0, 0, fmt.Errorf("parse quantity for %s error: %v", kv[0], err)
 					}
 					switch kv[0] {
 					case CPURefinedResourceKey:
@@ -473,13 +453,7 @@ func ParseCPUMemNetworkRequest(properties string) (int64, int64, bool, error) {
 					case MemoryRefineResourceKey:
 						memRequest = request.Value()
 					case NBWRefinedResourceKey:
-						nbw25g, err := resource.ParseQuantity("25000")
-						if err != nil {
-							return 0, 0, false, fmt.Errorf("parse nbw error: %v", err)
-						}
-						if request.Value() >= nbw25g.Value() {
-							networkRequest = true
-						}
+						networkRequest = request.Value()
 					}
 				}
 			}
