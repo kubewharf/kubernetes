@@ -77,8 +77,13 @@ func (p *PodAnnotationsAdmitHandler) Admit(attrs *lifecycle.PodAdmitAttributes) 
 	if dualStackHostIPv6 != nil {
 		hostIPv6Str = dualStackHostIPv6.String()
 	}
-	attrs.Pod.ObjectMeta.Annotations[HostIPv4AnnotationKey] = hostIPv4Str
-	attrs.Pod.ObjectMeta.Annotations[HostIPv6AnnotationKey] = hostIPv6Str
+	updatedAnnotation := make(map[string]string)
+	for key, value := range attrs.Pod.Annotations {
+		updatedAnnotation[key] = value
+	}
+	updatedAnnotation[HostIPv4AnnotationKey] = hostIPv4Str
+	updatedAnnotation[HostIPv6AnnotationKey] = hostIPv6Str
+	attrs.Pod.Annotations = updatedAnnotation
 
 	return lifecycle.PodAdmitResult{
 		Admit: true,
