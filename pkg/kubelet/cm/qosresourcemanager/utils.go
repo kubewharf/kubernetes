@@ -1,8 +1,10 @@
 package qosresourcemanager
 
 import (
+	"context"
 	"fmt"
 
+	"google.golang.org/grpc/metadata"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	pluginapi "k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1"
@@ -77,6 +79,10 @@ func IsInitContainerOfPod(pod *v1.Pod, container *v1.Container) bool {
 }
 
 func findContainerIDByName(status *v1.PodStatus, name string) (string, error) {
+	if status == nil {
+		return "", fmt.Errorf("findContainerIDByName got nil status")
+	}
+
 	allStatuses := status.InitContainerStatuses
 	allStatuses = append(allStatuses, status.ContainerStatuses...)
 	for _, container := range allStatuses {
@@ -93,6 +99,10 @@ func findContainerIDByName(status *v1.PodStatus, name string) (string, error) {
 }
 
 func isDaemonPod(pod *v1.Pod) bool {
+	if pod == nil {
+		return false
+	}
+
 	if _, exists := pod.Annotations[apipod.TCEDaemonPodAnnotationKey]; exists {
 		return true
 	}
@@ -107,4 +117,62 @@ func isSkippedPod(pod *v1.Pod) bool {
 	}
 
 	return isDaemonPod(pod)
+}
+
+func GetContainerTypeAndIndex(pod *v1.Pod, container *v1.Container) (containerType pluginapi.ContainerType, containerIndex uint64, err error) {
+	if pod == nil || container == nil {
+		err = fmt.Errorf("got nil pod: %v or container: %v", pod, container)
+		return
+	}
+
+	foundContainer := false
+
+	for i, initContainer := range pod.Spec.InitContainers {
+		if container.Name == initContainer.Name {
+			foundContainer = true
+			containerType = pluginapi.ContainerType_INIT
+			containerIndex = uint64(i)
+			break
+		}
+	}
+
+	if !foundContainer {
+		for i, appContainer := range pod.Spec.Containers {
+			if container.Name == appContainer.Name {
+				foundContainer = true
+
+				if i == 0 {
+					containerType = pluginapi.ContainerType_MAIN
+				} else {
+					containerType = pluginapi.ContainerType_SIDECAR
+				}
+
+				containerIndex = uint64(i)
+				break
+			}
+		}
+	}
+
+	if !foundContainer {
+		err = fmt.Errorf("GetContainerTypeAndIndex doesn't find container: %s in pod: %s/%s", container.Name, pod.Namespace, pod.Name)
+	}
+
+	return
+}
+
+func GetContextWithSpecificInfo(pod *v1.Pod, container *v1.Container) (context.Context, error) {
+	if pod == nil || container == nil {
+		return context.Background(), fmt.Errorf("got nil pod: %v or container: %v", pod, container)
+	}
+
+	// currently we only get psm from pod and may get more infomation later
+
+	psm := pod.Labels["psm"]
+
+	if psm == "" {
+		return context.Background(), fmt.Errorf("pod: %s/%s, container: %s with empty psm label", pod.Namespace, pod.Name, container.Name)
+	}
+
+	md := metadata.Pairs("psm", psm)
+	return metadata.NewOutgoingContext(context.Background(), md), nil
 }

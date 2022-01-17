@@ -17,14 +17,11 @@ limitations under the License.
 package qosresourcemanager
 
 import (
-	"context"
 	"math"
 	"time"
 
-	"google.golang.org/grpc/metadata"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
-
 	pluginapi "k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	"k8s.io/kubernetes/pkg/kubelet/metrics"
@@ -39,8 +36,20 @@ func (m *ManagerImpl) GetPodTopologyHints(pod *v1.Pod) map[string][]topologymana
 // ensures the Resource Manager is consulted when Topology Aware Hints for each
 // container are created.
 func (m *ManagerImpl) GetTopologyHints(pod *v1.Pod, container *v1.Container) map[string][]topologymanager.TopologyHint {
+	if pod == nil || container == nil {
+		klog.Errorf("[qosresourcemanager] GetTopologyHints got nil pod: %v or container: %v", pod, container)
+		return nil
+	}
+
 	if isSkippedPod(pod) {
 		klog.V(4).Infof("[qosresourcemanager] skip get topology hints for pod")
+		return nil
+	}
+
+	containerType, containerIndex, err := GetContainerTypeAndIndex(pod, container)
+
+	if err != nil {
+		klog.Errorf("[qosresourcemanager] GetContainerTypeAndIndex failed with error: %v", err)
 		return nil
 	}
 
@@ -102,14 +111,21 @@ func (m *ManagerImpl) GetTopologyHints(pod *v1.Pod, container *v1.Container) map
 				PodNamespace:     pod.GetNamespace(),
 				PodName:          pod.GetName(),
 				ContainerName:    container.Name,
-				IsInitContainer:  IsInitContainerOfPod(pod, container),
+				ContainerType:    containerType,
+				ContainerIndex:   containerIndex,
 				PodRole:          pod.Labels[pluginapi.PodRoleLabelKey],
 				PodType:          pod.Annotations[pluginapi.PodTypeAnnotationKey],
 				ResourceName:     resource,
 				ResourceRequests: map[string]float64{resource: ParseQuantityToFloat64(requestedObj)},
 			}
 
-			ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(nil))
+			ctx, err := GetContextWithSpecificInfo(pod, container)
+
+			if err != nil {
+				klog.Errorf("[qosresourcemanager] GetContextWithSpecificInfo failed with error: %v", err)
+				return resourceHints
+			}
+
 			resp, err := eI.e.getTopologyHints(ctx, resourceReq)
 			metrics.ResourcePluginGetTopologyHintsDuration.WithLabelValues(resource).Observe(metrics.SinceInSeconds(startRPCTime))
 			if err != nil {

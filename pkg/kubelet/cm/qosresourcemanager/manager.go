@@ -333,23 +333,22 @@ func (m *ManagerImpl) isVersionCompatibleWithPlugin(versions []string) bool {
 // Allocate is the call that you can use to allocate a set of resources
 // from the registered resource plugins.
 func (m *ManagerImpl) Allocate(pod *v1.Pod, container *v1.Container) error {
+	if pod == nil || container == nil {
+		return fmt.Errorf("Allocate got nil pod: %v or container: %v", pod, container)
+	}
+
 	if isSkippedPod(pod) {
 		klog.V(4).Infof("[qosresourcemanager] skip pod resource allocation")
 		return nil
 	}
 
-	// Allocate resources for init containers first as we know the caller always loops
-	// through init containers before looping through app containers. Should the caller
-	// ever change those semantics, this logic will need to be amended.
-	for _, initContainer := range pod.Spec.InitContainers {
-		if container.Name == initContainer.Name {
-			if err := m.allocateContainerResources(pod, container, true); err != nil {
-				return err
-			}
-			return nil
-		}
+	containerType, containerIndex, err := GetContainerTypeAndIndex(pod, container)
+
+	if err != nil {
+		return fmt.Errorf("GetContainerTypeAndIndex failed with error: %v", err)
 	}
-	if err := m.allocateContainerResources(pod, container, false); err != nil {
+
+	if err = m.allocateContainerResources(pod, container, containerType, containerIndex); err != nil {
 		return err
 	}
 	return nil
@@ -359,7 +358,7 @@ func (m *ManagerImpl) Allocate(pod *v1.Pod, container *v1.Container) error {
 // plugin resources for the input container, issues an Allocate rpc request
 // for each new resource resource requirement, processes their AllocateResponses,
 // and updates the cached containerResources on success.
-func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Container, isInitContainer bool) error {
+func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Container, containerType pluginapi.ContainerType, containerIndex uint64) error {
 
 	if pod == nil || container == nil {
 		return fmt.Errorf("allocateContainerResources met nil pod: %v or container: %v", pod, container)
@@ -436,7 +435,8 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 			PodNamespace:     pod.GetNamespace(),
 			PodName:          pod.GetName(),
 			ContainerName:    container.Name,
-			IsInitContainer:  isInitContainer,
+			ContainerType:    containerType,
+			ContainerIndex:   containerIndex,
 			PodRole:          pod.Labels[pluginapi.PodRoleLabelKey],
 			PodType:          pod.Annotations[pluginapi.PodTypeAnnotationKey],
 			ResourceName:     resource,
@@ -457,7 +457,12 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 			resourceReq.Hint = ParseTopologyManagerHint(hint)
 		}
 
-		ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(nil))
+		ctx, err := GetContextWithSpecificInfo(pod, container)
+
+		if err != nil {
+			return fmt.Errorf("GetContextWithSpecificInfo failed with error: %v", err)
+		}
+
 		resp, err := eI.e.allocate(ctx, resourceReq)
 		metrics.ResourcePluginAllocationDuration.WithLabelValues(resource).Observe(metrics.SinceInSeconds(startRPCTime))
 		if err != nil {
