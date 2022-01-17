@@ -137,11 +137,17 @@ func GetContainerTypeAndIndex(pod *v1.Pod, container *v1.Container) (containerTy
 	}
 
 	if !foundContainer {
+		mainContainerName := pod.Annotations[MainContainerNameAnnotationKey]
+
+		if mainContainerName == "" && len(pod.Spec.Containers) > 0 {
+			mainContainerName = pod.Spec.Containers[0].Name
+		}
+
 		for i, appContainer := range pod.Spec.Containers {
 			if container.Name == appContainer.Name {
 				foundContainer = true
 
-				if i == 0 {
+				if container.Name == mainContainerName {
 					containerType = pluginapi.ContainerType_MAIN
 				} else {
 					containerType = pluginapi.ContainerType_SIDECAR
@@ -167,7 +173,7 @@ func GetContextWithSpecificInfo(pod *v1.Pod, container *v1.Container) (context.C
 
 	// currently we only get psm from pod and may get more infomation later
 
-	psm := pod.Labels["psm"]
+	psm := pod.Labels[PSMLabelKey]
 
 	if psm == "" {
 		return context.Background(), fmt.Errorf("pod: %s/%s, container: %s with empty psm label", pod.Namespace, pod.Name, container.Name)
