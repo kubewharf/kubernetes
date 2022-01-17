@@ -45,17 +45,25 @@ message RegisterRequest {
 	ResourcePluginOptions options = 4;
 }
 
+enum ContainerType {
+    INIT = 0;
+    MAIN = 1;
+    SIDECAR = 2;
+    EPHEMERAL = 3;
+}
+
 message ResourceRequest {
 	string pod_uid = 1;
 	string pod_namespace = 2;
 	string pod_name = 3;
 	string container_name = 4;
-	bool is_init_container = 5;
-	string pod_role = 6;
-    string pod_type = 7;
-    string resource_name = 8;
-    TopologyHint hint = 9;
-    map<string,double> resource_requests = 10;
+	ContainerType container_type = 5;
+	uint64 container_index = 6;
+	string pod_role = 7;
+    string pod_type = 8;
+    string resource_name = 9;
+    TopologyHint hint = 10;
+    map<string,double> resource_requests = 11;
 }
 
 message ResourceHintsResponse {
@@ -63,11 +71,12 @@ message ResourceHintsResponse {
 	string pod_namespace = 2;
 	string pod_name = 3;
 	string container_name = 4;
-	bool is_init_container = 5;
-	string pod_role = 6;
-    string pod_type = 7;
-    string resource_name = 8;
-    map<string,ListOfTopologyHints> resource_hints = 9;
+	ContainerType container_type = 5;
+	uint64 container_index = 6;
+	string pod_role = 7;
+    string pod_type = 8;
+    string resource_name = 9;
+    map<string,ListOfTopologyHints> resource_hints = 10;
 }
 
 message ResourceAllocationResponse {
@@ -75,11 +84,12 @@ message ResourceAllocationResponse {
 	string pod_namespace = 2;
 	string pod_name = 3;
 	string container_name = 4;
-	bool is_init_container = 5;
-	string pod_role = 6;
-    string pod_type = 7;
-    string resource_name = 8;
-    ResourceAllocation allocatation_result = 9;
+	ContainerType container_type = 5;
+	uint64 container_index = 6;
+	string pod_role = 7;
+    string pod_type = 8;
+    string resource_name = 9;
+    ResourceAllocation allocatation_result = 10;
 }
 
 message ListOfTopologyHints {
