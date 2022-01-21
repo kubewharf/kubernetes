@@ -19,14 +19,15 @@ package nodepackage
 import (
 	"context"
 	"fmt"
+	"math"
 
 	nonnativeresourcelisters "code.byted.org/kubernetes/clientsets/k8s/listers/non.native.resource/v1alpha1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/kubernetes/pkg/features"
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
+	"k8s.io/kubernetes/pkg/scheduler/util"
 )
 
 const NodePackageNBWMatch = "NodePackageNBWMatch"
@@ -73,26 +74,38 @@ func (m *MatchNodePackageNBW) Score(ctx context.Context, state *framework.CycleS
 		return 0, nil
 	}
 
-	var nbw25g bool
-	nbw25gQuantity, err := resource.ParseQuantity("25000")
-	if err != nil {
-		return 0, framework.NewStatus(framework.Error, fmt.Sprintf("parsing 25g nbw error: %v", err))
-	}
-
 	for _, pattern := range refinedNode.Status.NumericResource.NumericProperties {
-		if pattern.PropertyName == "nbw" && pattern.PropertyCapacityValue.Cmp(nbw25gQuantity) >= 0 {
-			nbw25g = true
+		if pattern.PropertyName == util.NBWRefinedResourceKey {
+			return pattern.PropertyCapacityValue.Value(), nil
 		}
 	}
 
-	// prefer choosing non 25gi nbw node
-	if nbw25g {
-		return 1, nil
-	} else {
-		return 5, nil
-	}
+	return 0, nil
 }
 
 func (m *MatchNodePackageNBW) ScoreExtensions() framework.ScoreExtensions {
+	return m
+}
+
+func (m *MatchNodePackageNBW) NormalizeScore(ctx context.Context, state *framework.CycleState, pod *v1.Pod, scores framework.NodeScoreList) *framework.Status {
+	var minNbwCapacity int64 = math.MaxInt64
+	var maxNbwCapacity int64 = math.MinInt64
+	for _, score := range scores {
+		if score.Score < minNbwCapacity {
+			minNbwCapacity = score.Score
+		}
+		if score.Score > maxNbwCapacity {
+			maxNbwCapacity = score.Score
+		}
+	}
+
+	for i, score := range scores {
+		if maxNbwCapacity == minNbwCapacity {
+			scores[i].Score = framework.MinNodeScore
+			continue
+		}
+		newScore := (maxNbwCapacity - score.Score) * framework.MaxNodeScore / (maxNbwCapacity - minNbwCapacity)
+		scores[i].Score = newScore
+	}
 	return nil
 }
