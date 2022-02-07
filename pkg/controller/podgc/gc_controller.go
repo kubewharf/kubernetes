@@ -284,7 +284,7 @@ func podInCGGracefulWindow(pod *v1.Pod) bool {
 			return false
 		}
 
-		if status.State.Terminated.FinishedAt.Add(gracePeriod).Before(now) {
+		if status.State.Terminated.FinishedAt.Add(gracePeriod).After(now) {
 			klog.V(6).Infof("pod %v with gc graceful conf %v and container %v terminated at %v, skip gc",
 				pod.GetName(), secs, status.Name, status.State.Terminated.FinishedAt)
 			return true
