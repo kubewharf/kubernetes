@@ -33,6 +33,10 @@ func isSupportedQoSComputeResource(name corev1.ResourceName) bool {
 // A pod is guaranteed only when requests and limits are specified for all the containers and they are equal.
 // A pod is burstable if limits and requests do not match across all containers.
 func GetPodQOS(pod *corev1.Pod) corev1.PodQOSClass {
+	if pod.Annotations[corev1.PodResourceTypeAnnotationKey] == corev1.ResourceTypeBestEffort {
+		return corev1.PodQOSOfflineBestEffort
+	}
+
 	requests := corev1.ResourceList{}
 	limits := corev1.ResourceList{}
 	zeroQuantity := resource.MustParse("0")

@@ -2894,6 +2894,14 @@ type PodSecurityContext struct {
 	Sysctls []Sysctl
 }
 
+const (
+	// PodResourceTypeAnnotationKey is a pod annotation key, value is the pod resource type (guaranteed or best-effort)
+	PodResourceTypeAnnotationKey = "godel.bytedance.com/pod-resource-type"
+
+	ResourceTypeGuaranteed = "guaranteed"
+	ResourceTypeBestEffort = "best-effort"
+)
+
 // PodQOSClass defines the supported qos classes of Pods.
 type PodQOSClass string
 
@@ -2905,6 +2913,8 @@ const (
 	PodQOSBurstable PodQOSClass = "Burstable"
 	// PodQOSBestEffort is the BestEffort qos class.
 	PodQOSBestEffort PodQOSClass = "BestEffort"
+	// PodQOSOfflineBestEffort is the Offline BestEffort qos class.
+	PodQOSOfflineBestEffort PodQOSClass = "Offline-BestEffort"
 )
 
 // PodDNSConfig defines the DNS parameters of a pod in addition to

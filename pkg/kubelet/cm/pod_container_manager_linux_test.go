@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 /*
@@ -28,9 +29,10 @@ import (
 
 func TestIsCgroupPod(t *testing.T) {
 	qosContainersInfo := QOSContainersInfo{
-		Guaranteed: RootCgroupName,
-		Burstable:  NewCgroupName(RootCgroupName, strings.ToLower(string(v1.PodQOSBurstable))),
-		BestEffort: NewCgroupName(RootCgroupName, strings.ToLower(string(v1.PodQOSBestEffort))),
+		Guaranteed:        RootCgroupName,
+		Burstable:         NewCgroupName(RootCgroupName, strings.ToLower(string(v1.PodQOSBurstable))),
+		BestEffort:        NewCgroupName(RootCgroupName, strings.ToLower(string(v1.PodQOSBestEffort))),
+		OfflineBestEffort: NewCgroupName(RootCgroupName, strings.ToLower(string(v1.PodQOSOfflineBestEffort))),
 	}
 	podUID := types.UID("123")
 	testCases := []struct {
@@ -85,6 +87,21 @@ func TestIsCgroupPod(t *testing.T) {
 		},
 		{
 			input:          NewCgroupName(qosContainersInfo.BestEffort, GetPodCgroupNameSuffix(podUID), "container.scope"),
+			expectedResult: false,
+			expectedUID:    types.UID(""),
+		},
+		{
+			input:          NewCgroupName(qosContainersInfo.OfflineBestEffort),
+			expectedResult: false,
+			expectedUID:    types.UID(""),
+		},
+		{
+			input:          NewCgroupName(qosContainersInfo.OfflineBestEffort, GetPodCgroupNameSuffix(podUID)),
+			expectedResult: true,
+			expectedUID:    podUID,
+		},
+		{
+			input:          NewCgroupName(qosContainersInfo.OfflineBestEffort, GetPodCgroupNameSuffix(podUID), "container.scope"),
 			expectedResult: false,
 			expectedUID:    types.UID(""),
 		},

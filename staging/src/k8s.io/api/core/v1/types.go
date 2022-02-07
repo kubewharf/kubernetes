@@ -3210,6 +3210,14 @@ type PodSecurityContext struct {
 	FSGroupChangePolicy *PodFSGroupChangePolicy `json:"fsGroupChangePolicy,omitempty" protobuf:"bytes,9,opt,name=fsGroupChangePolicy"`
 }
 
+const (
+	// PodResourceTypeAnnotationKey is a pod annotation key, value is the pod resource type (guaranteed or best-effort)
+	PodResourceTypeAnnotationKey = "godel.bytedance.com/pod-resource-type"
+
+	ResourceTypeGuaranteed = "guaranteed"
+	ResourceTypeBestEffort = "best-effort"
+)
+
 // PodQOSClass defines the supported qos classes of Pods.
 type PodQOSClass string
 
@@ -3220,6 +3228,8 @@ const (
 	PodQOSBurstable PodQOSClass = "Burstable"
 	// PodQOSBestEffort is the BestEffort qos class.
 	PodQOSBestEffort PodQOSClass = "BestEffort"
+	// PodQOSOfflineBestEffort is the Offline BestEffort qos class.
+	PodQOSOfflineBestEffort PodQOSClass = "Offline-BestEffort"
 )
 
 // PodDNSConfig defines the DNS parameters of a pod in addition to
@@ -5372,6 +5382,8 @@ const (
 	ResourceQuotaScopeNotTerminating ResourceQuotaScope = "NotTerminating"
 	// Match all pod objects that have best effort quality of service
 	ResourceQuotaScopeBestEffort ResourceQuotaScope = "BestEffort"
+	// Match all pod objects that have offline best effort quality of service
+	ResourceQuotaScopeOfflineBestEffort ResourceQuotaScope = "OfflineBestEffort"
 	// Match all pod objects that do not have best effort quality of service
 	ResourceQuotaScopeNotBestEffort ResourceQuotaScope = "NotBestEffort"
 	// Match all pod objects that have priority class mentioned

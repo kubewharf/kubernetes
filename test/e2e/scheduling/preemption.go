@@ -720,7 +720,7 @@ func getCurrentPodUsageOnTheNode(nodeName string, pods []v1.Pod, resource *v1.Re
 	totalRequestedCPUResource := resource.Requests.Cpu().MilliValue()
 	totalRequestedMemResource := resource.Requests.Memory().Value()
 	for _, pod := range pods {
-		if pod.Spec.NodeName != nodeName || v1qos.GetPodQOS(&pod) == v1.PodQOSBestEffort {
+		if pod.Spec.NodeName != nodeName || (v1qos.GetPodQOS(&pod) == v1.PodQOSBestEffort || v1qos.GetPodQOS(&pod) == v1.PodQOSOfflineBestEffort) {
 			continue
 		}
 		result := getNonZeroRequests(&pod)

@@ -59,6 +59,24 @@ func TestGetPodQOS(t *testing.T) {
 			expected: v1.PodQOSBestEffort,
 		},
 		{
+			pod: newPodWithAnnotations("offline-best-effort", map[string]string{
+				v1.PodResourceTypeAnnotationKey: v1.ResourceTypeBestEffort,
+			}, []v1.Container{
+				newContainer("offline-best-effort", getResourceList("", ""), getResourceList("", "")),
+				newContainer("offline-best-effort", getResourceList("", ""), getResourceList("", "")),
+			}),
+			expected: v1.PodQOSOfflineBestEffort,
+		},
+		{
+			pod: newPodWithAnnotations("offline-best-effort", map[string]string{
+				v1.PodResourceTypeAnnotationKey: v1.ResourceTypeGuaranteed,
+			}, []v1.Container{
+				newContainer("offline-best-effort", getResourceList("", ""), getResourceList("", "")),
+				newContainer("offline-best-effort", getResourceList("", ""), getResourceList("", "")),
+			}),
+			expected: v1.PodQOSBestEffort,
+		},
+		{
 			pod: newPod("best-effort-burstable", []v1.Container{
 				newContainer("best-effort", getResourceList("", ""), getResourceList("", "")),
 				newContainer("burstable", getResourceList("1", ""), getResourceList("2", "")),
@@ -191,6 +209,18 @@ func newPodWithInitContainers(name string, containers []v1.Container, initContai
 		Spec: v1.PodSpec{
 			Containers:     containers,
 			InitContainers: initContainers,
+		},
+	}
+}
+
+func newPodWithAnnotations(name string, annotations map[string]string, containers []v1.Container) *v1.Pod {
+	return &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Annotations: annotations,
+		},
+		Spec: v1.PodSpec{
+			Containers: containers,
 		},
 	}
 }
