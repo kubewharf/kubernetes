@@ -55,6 +55,9 @@ const (
 	// SriovNICDeviceAnnotationKey determines the PCIe devices info of Allocated VFs
 	SriovNICDeviceAnnotationKey = "bytedance.cni.v1/pci-devices"
 
+	// PodNetNSAnnotationKey determines netns path to support host network pods use different network interfaces
+	PodNetNSAnnotationKey = "pod.tce.kubernetes.io/host-netns-path"
+
 	KataRootFSVolumeAnnotationKey  = "io.katacontainers.config.hypervisor.rootfs_volume"
 	KataStorageDaemonAnnotationKey = "io.katacontainers.config.hypervisor.enable_storage_daemon"
 )

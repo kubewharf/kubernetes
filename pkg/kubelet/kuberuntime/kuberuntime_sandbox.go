@@ -28,6 +28,7 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/api/core/v1"
 	kubetypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"k8s.io/klog"
@@ -146,6 +147,7 @@ func (m *kubeGenericRuntimeManager) generatePodSandboxConfig(pod *v1.Pod, attemp
 
 	// get sriov device annotation from containers in pod creation
 	if len(pod.Spec.Containers) > 0 {
+		passthroughAnnoSets := sets.NewString(types.SriovNICDeviceAnnotationKey, types.PodNetNSAnnotationKey)
 		for _, container := range pod.Spec.Containers {
 			opts, err := m.runtimeHelper.GenerateCreatePodResourceOptions(pod, &container)
 			if err != nil {
@@ -153,8 +155,8 @@ func (m *kubeGenericRuntimeManager) generatePodSandboxConfig(pod *v1.Pod, attemp
 			}
 
 			for _, annotation := range opts.Annotations {
-				if annotation.Name == types.SriovNICDeviceAnnotationKey {
-					podSandboxConfig.Annotations[types.SriovNICDeviceAnnotationKey] = annotation.Value
+				if passthroughAnnoSets.Has(annotation.Name) {
+					podSandboxConfig.Annotations[annotation.Name] = annotation.Value
 					break
 				}
 			}
