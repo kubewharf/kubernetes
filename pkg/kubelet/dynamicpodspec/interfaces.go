@@ -2,6 +2,7 @@ package dynamicpodspec
 
 import (
 	"context"
+	"fmt"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,6 +49,7 @@ func (p *podUpdater) update(pod *v1.Pod) error {
 		return nil
 	}
 	klog.V(2).Infof("Updating pod %s/%s", pod.Namespace, pod.Name)
+	oldPodUID := pod.GetUID()
 	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		spec := pod.Spec
 		_, updateErr := p.client.CoreV1().Pods(pod.Namespace).Update(context.Background(), pod, metav1.UpdateOptions{})
@@ -55,6 +57,10 @@ func (p *podUpdater) update(pod *v1.Pod) error {
 			return nil
 		}
 		if updated, err := p.client.CoreV1().Pods(pod.Namespace).Get(context.Background(), pod.Name, metav1.GetOptions{ResourceVersion: "0"}); err == nil {
+			newPodUID := updated.GetUID()
+			if newPodUID != oldPodUID {
+				return fmt.Errorf("pod was deleted and then recreated, skipping pod update, oldPodUID %s, newPodUID %s", oldPodUID, newPodUID)
+			}
 			pod = updated.DeepCopy()
 			pod.Spec = spec
 		}
