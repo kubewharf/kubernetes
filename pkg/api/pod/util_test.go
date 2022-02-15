@@ -22,6 +22,7 @@ import (
 	"strings"
 	"testing"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/diff"
@@ -33,6 +34,49 @@ import (
 	"k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/security/apparmor"
 )
+
+func TestGetOverridePorts(t *testing.T) {
+	testCases := []struct {
+		description string
+		pod         *v1.Pod
+		want        sets.String
+	}{
+		{
+			"empty",
+			&v1.Pod{},
+			sets.NewString("0"),
+		},
+		{
+			"testcase 1",
+			&v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						PodPortAnnotation: "1",
+					},
+				},
+			},
+			sets.NewString("1"),
+		},
+		{
+			"testcase 2",
+			&v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						PodPortAnnotation: "1,2",
+					},
+				},
+			},
+			sets.NewString("1", "2"),
+		},
+	}
+
+	for _, tc := range testCases {
+		got := GetOverridePorts(tc.pod)
+		if len(got.Difference(tc.want)) != 0 || len(tc.want.Difference(got)) != 0 {
+			t.Errorf("GetOverridePorts() for test case %q got %q, wanted %q", tc.description, got, tc.want)
+		}
+	}
+}
 
 func TestVisitContainers(t *testing.T) {
 	defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.EphemeralContainers, true)()

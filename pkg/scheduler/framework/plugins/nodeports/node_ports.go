@@ -22,6 +22,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilpod "k8s.io/kubernetes/pkg/api/pod"
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 	"k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 )
@@ -61,10 +62,16 @@ func (pl *NodePorts) Name() string {
 func getContainerPorts(pods ...*v1.Pod) []*v1.ContainerPort {
 	ports := []*v1.ContainerPort{}
 	for _, pod := range pods {
+		portset := utilpod.GetOverridePorts(pod)
 		for j := range pod.Spec.Containers {
 			container := &pod.Spec.Containers[j]
 			for k := range container.Ports {
-				ports = append(ports, &container.Ports[k])
+				port := &container.Ports[k]
+				if portset.Has(string(container.Ports[k].HostPort)) {
+					port = container.Ports[k].DeepCopy()
+					port.HostPort = 0
+				}
+				ports = append(ports, port)
 			}
 		}
 	}

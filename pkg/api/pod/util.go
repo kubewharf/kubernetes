@@ -19,7 +19,9 @@ package pod
 import (
 	"strings"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	api "k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/features"
@@ -85,6 +87,7 @@ func VisitContainers(podSpec *api.PodSpec, mask ContainerType, visitor Container
 const (
 	PodAutoPortAnnotation             = "pod.tce.kubernetes.io/autoport"
 	PodAutoPortHighPriorityAnnotation = "pod.tce.kubernetes.io/autoportHighPriority"
+	PodPortAnnotation                 = "pod.tce.kubernetes.io/autoportList"
 	PodHostPathTemplateAnnotation     = "pod.tce.kubernetes.io/hostPathTemplate"
 	PodHostUniqueToleranceAnnotation  = "pod.tce.kubernetes.io/host-unique-tolerance-count"
 	TCEDaemonPodAnnotationKey         = "pod.tce.kubernetes.io/tce-daemon"
@@ -93,6 +96,24 @@ const (
 	PodExplicitDeletionAnnotation     = "pod.kubernetes.io/explicit.deletion"
 	PodGCGracefulSecondsAnnotation    = "pod.kubernetes.io/gc-graceful-secs"
 )
+
+func GetOverridePorts(pod *v1.Pod) sets.String {
+	overridePorts := sets.NewString()
+	anno := pod.GetAnnotations()
+	if anno == nil {
+		anno = make(map[string]string)
+	}
+	autoPortStr, exists := anno[PodPortAnnotation]
+	if !exists {
+		overridePorts.Insert("0")
+	} else {
+		autoPortList := strings.Split(autoPortStr, ",")
+		for i := range autoPortList {
+			overridePorts.Insert(autoPortList[i])
+		}
+	}
+	return overridePorts
+}
 
 // Visitor is called with each object name, and returns true if visiting should continue
 type Visitor func(name string) (shouldContinue bool)
