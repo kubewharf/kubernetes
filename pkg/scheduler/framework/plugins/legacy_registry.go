@@ -46,6 +46,7 @@ import (
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/volumebinding"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/volumerestrictions"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/volumezone"
+	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/balancesche"
 )
 
 const (
@@ -106,6 +107,8 @@ const (
 	// ShareGPUPriority Defines the name of prioritizer function that prioritizes nodes based on left shareGPU resource of
 	// single card on node
 	ShareGPUPriority = "ShareGPU"
+	// Balance Sche Priority defnied the name of prioritizer function BalanceSche.
+	BalanceSchePriority = "BalanceSchePriority"
 )
 
 const (
@@ -254,6 +257,7 @@ func NewLegacyRegistry() *LegacyRegistry {
 			ImageLocalityPriority:       1,
 			MostGPURequestedPriority:    100,
 			LabelSpreadPriority:         1,
+			BalanceSchePriority:         1,
 		},
 
 		PredicateToConfigProducer: make(map[string]ConfigProducer),
@@ -510,6 +514,11 @@ func NewLegacyRegistry() *LegacyRegistry {
 			if args.ServiceAffinityArgs != nil {
 				pluginConfig = append(pluginConfig, NewPluginConfig(serviceaffinity.Name, args.ServiceAffinityArgs))
 			}
+			return
+		})
+	registry.registerPriorityConfigProducer(BalanceSchePriority,
+		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
+			plugins.Score = appendToPluginSet(plugins.Score, balancesche.Name, &args.Weight)
 			return
 		})
 
