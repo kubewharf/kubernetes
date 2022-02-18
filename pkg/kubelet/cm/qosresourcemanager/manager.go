@@ -359,7 +359,6 @@ func (m *ManagerImpl) Allocate(pod *v1.Pod, container *v1.Container) error {
 // for each new resource resource requirement, processes their AllocateResponses,
 // and updates the cached containerResources on success.
 func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Container, containerType pluginapi.ContainerType, containerIndex uint64) error {
-
 	if pod == nil || container == nil {
 		return fmt.Errorf("allocateContainerResources met nil pod: %v or container: %v", pod, container)
 	}
@@ -371,13 +370,15 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 	for k, v := range container.Resources.Requests {
 		resource := string(k)
 		needed := int(v.Value())
-		klog.Infof("[qosresourcemanager] pod: %s/%s container: %s needs %d %s",
-			pod.Namespace, pod.Name, container.Name, needed, resource)
 
 		if !m.isResourcePluginResource(resource) {
 			klog.Infof("[qosresourcemanager] resource %s is not supported by any resource plugin", resource)
 			continue
 		}
+
+		klog.Infof("[qosresourcemanager] pod: %s/%s container: %s needs %d %s",
+			pod.Namespace, pod.Name, container.Name, needed, resource)
+
 		// Updates allocated resources to garbage collect any stranded resources
 		// before doing the resource plugin allocation.
 		if !allocatedResourcesUpdated {
@@ -616,6 +617,7 @@ func (m *ManagerImpl) GetTopologyAwareResources(podUID, containerName string) (*
 		m.mutex.Lock()
 
 		if err != nil {
+			m.mutex.Unlock()
 			//[TODO](sunjianyu): to discuss if we should return err if only one resource plugin gets error?
 			return nil, fmt.Errorf("getTopologyAwareResources for resource: %s failed with error: %v", resourceName, err)
 		} else if curResp == nil {
@@ -670,6 +672,7 @@ func (m *ManagerImpl) GetTopologyAwareAllocatableResources() (*pluginapi.GetTopo
 		m.mutex.Lock()
 
 		if err != nil {
+			m.mutex.Unlock()
 			//[TODO](sunjianyu): to discuss if we should return err if only one resource plugin gets error?
 			return nil, fmt.Errorf("getTopologyAwareAllocatableResources for resource: %s failed with error: %v", resourceName, err)
 		} else if curResp == nil {
@@ -894,7 +897,7 @@ func (m *ManagerImpl) GetResourceRunContainerOptions(pod *v1.Pod, container *v1.
 		// This is a resource plugin resource yet we don't have cached
 		// resource state. This is likely due to a race during node
 		// restart. We re-issue allocate request to cover this race.
-		if resources[resourceName] == nil {
+		if resources[resourceName] == nil && !isSkippedContainer(pod, container) {
 			needsReAllocate = true
 		}
 	}
@@ -1077,6 +1080,7 @@ func (m *ManagerImpl) updateContainerResources(podUID, containerName, containerI
 	if err != nil {
 		return fmt.Errorf("updateContainerResources failed with error: %v", err)
 	} else if opts == nil {
+		// [TODO]: should we judge reallocation here to aviod entry of the container in podResources is missing
 		klog.Warningf("[qosresourcemanager.updateContainerResources] there is no resources opts for pod: %s, container: %s",
 			podUID, containerName)
 		return nil
