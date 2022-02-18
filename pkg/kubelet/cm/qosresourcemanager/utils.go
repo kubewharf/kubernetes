@@ -7,6 +7,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/klog"
 	pluginapi "k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1"
 	apipod "k8s.io/kubernetes/pkg/api/pod"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
@@ -117,6 +118,20 @@ func isSkippedPod(pod *v1.Pod) bool {
 	}
 
 	return isDaemonPod(pod)
+}
+
+func isSkippedContainer(pod *v1.Pod, container *v1.Container) bool {
+	// [TODO](sunjianyu):
+	// 1. we skip init container currently and if needed we should implement reuse strategy later
+	// 2. consider other types of containers need to be skipped
+	containerType, _, err := GetContainerTypeAndIndex(pod, container)
+
+	if err != nil {
+		klog.Errorf("GetContainerTypeAndIndex failed with error: %v", err)
+		return false
+	}
+
+	return containerType == pluginapi.ContainerType_INIT
 }
 
 func GetContainerTypeAndIndex(pod *v1.Pod, container *v1.Container) (containerType pluginapi.ContainerType, containerIndex uint64, err error) {
