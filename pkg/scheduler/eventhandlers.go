@@ -24,6 +24,7 @@ import (
 	bytedinformers "code.byted.org/kubernetes/clientsets/k8s/informers"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	policy "k8s.io/api/policy/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -493,6 +494,14 @@ func addAllEventHandlers(
 			DeleteFunc: sched.onDeployDelete,
 		},
 	)
+
+	informerFactory.Policy().V1beta1().PodDisruptionBudgets().Informer().AddEventHandler(
+		cache.ResourceEventHandlerFuncs{
+			AddFunc:    sched.onPdbAdd,
+			UpdateFunc: sched.onPdbUpdate,
+			DeleteFunc: sched.onPdbDelete,
+		},
+	)
 }
 
 func (sched *Scheduler) onRefinedNodeResourceAdd(obj interface{}) {
@@ -619,4 +628,48 @@ func (sched *Scheduler) onDeployDelete(obj interface{}) {
 		return
 	}
 	sched.SchedulerCache.DeleteDeployItems(deploy)
+}
+
+func (sched *Scheduler) onPdbAdd(obj interface{}) {
+	pdb, ok := obj.(*policy.PodDisruptionBudget)
+	if !ok {
+		klog.Errorf("cannot convert to *policy.PodDisruptionBudget: %v", obj)
+		return
+	}
+
+	klog.V(4).Infof("add event for pdb %s/%s ", pdb.Namespace, pdb.Name)
+	sched.SchedulerCache.AddPDB(pdb)
+}
+
+func (sched *Scheduler) onPdbUpdate(oldObj, newObj interface{}) {
+	oldPdb, ok := oldObj.(*policy.PodDisruptionBudget)
+	if !ok {
+		klog.Errorf("cannot convert to *policy.PodDisruptionBudget: %v", oldObj)
+		return
+	}
+	newPdb, ok := newObj.(*policy.PodDisruptionBudget)
+	if !ok {
+		klog.Errorf("cannot convert to *policy.PodDisruptionBudget: %v", newObj)
+		return
+	}
+	if skipPDBUpdate(oldPdb, newPdb) {
+		klog.V(6).Infof("skip update event for pdb %s/%s ", newPdb.Namespace, newPdb.Name)
+		return
+	}
+	klog.V(4).Infof("update event for pdb %s/%s ", newPdb.Namespace, newPdb.Name)
+	sched.SchedulerCache.UpdatePDB(oldPdb, newPdb)
+}
+
+func (sched *Scheduler) onPdbDelete(obj interface{}) {
+	pdb, ok := obj.(*policy.PodDisruptionBudget)
+	if !ok {
+		klog.Errorf("cannot convert to *policy.PodDisruptionBudget: %v", obj)
+		return
+	}
+	klog.V(4).Infof("delete event for pdb %s/%s ", pdb.Namespace, pdb.Name)
+	sched.SchedulerCache.DeletePDB(pdb)
+}
+
+func skipPDBUpdate(oldPdb, newPdb *policy.PodDisruptionBudget) bool {
+	return oldPdb.Spec.String() == newPdb.Spec.String()
 }

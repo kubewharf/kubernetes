@@ -31,7 +31,6 @@ import (
 	nonnativeresourcelisters "code.byted.org/kubernetes/clientsets/k8s/listers/non.native.resource/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	policy "k8s.io/api/policy/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	appv1listers "k8s.io/client-go/listers/apps/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
@@ -479,13 +478,7 @@ func (g *genericScheduler) Preempt(ctx context.Context, prof *profile.Profile, s
 		// In this case, we should clean-up any existing nominated node name of the pod.
 		return nil, nil, []*v1.Pod{pod}, nil
 	}
-	var pdbs []*policy.PodDisruptionBudget
-	if g.pdbLister != nil {
-		pdbs, err = g.pdbLister.List(labels.Everything())
-		if err != nil {
-			return nil, nil, nil, err
-		}
-	}
+	pdbs := g.cache.GetPDBList()
 	nodeToVictims, err := g.selectNodesForPreemption(ctx, prof, state, pod, potentialNodes, pdbs, g.pcLister, g.deployLister, g.cache)
 	if err != nil {
 		return nil, nil, nil, err
@@ -1102,6 +1095,13 @@ func (g *genericScheduler) selectNodesForPreemption(
 	var resultLock sync.Mutex
 
 	checkNode := func(i int) {
+		resultLock.Lock()
+		mapLen := len(nodeToVictims)
+		resultLock.Unlock()
+		if mapLen > 0 {
+			return
+		}
+
 		nodeInfoCopy := potentialNodes[i].Clone()
 		stateCopy := state.Clone()
 		pods, numPDBViolations, fits := g.selectVictimsOnNode(ctx, prof, stateCopy, pod, nodeInfoCopy, pdbs, pcLister, deployLister, cache)
@@ -1119,12 +1119,14 @@ func (g *genericScheduler) selectNodesForPreemption(
 	return nodeToVictims, nil
 }
 
+type pdbSelectorFactory func(*policy.PodDisruptionBudget) labels.Selector
+
 // filterPodsWithPDBViolation groups the given "pods" into two groups of "violatingPods"
 // and "nonViolatingPods" based on whether their PDBs will be violated if they are
 // preempted.
 // This function is stable and does not change the order of received pods. So, if it
 // receives a sorted list, grouping will preserve the order of the input list.
-func filterPodsWithPDBViolation(pods []*v1.Pod, pdbs []*policy.PodDisruptionBudget) (violatingPods, nonViolatingPods []*v1.Pod) {
+func filterPodsWithPDBViolation(pods []*v1.Pod, pdbs []*policy.PodDisruptionBudget, selectorFactory pdbSelectorFactory) (violatingPods, nonViolatingPods []*v1.Pod) {
 	pdbsAllowed := make([]int32, len(pdbs))
 	for i, pdb := range pdbs {
 		pdbsAllowed[i] = pdb.Status.DisruptionsAllowed
@@ -1139,10 +1141,7 @@ func filterPodsWithPDBViolation(pods []*v1.Pod, pdbs []*policy.PodDisruptionBudg
 				if pdb.Namespace != pod.Namespace {
 					continue
 				}
-				selector, err := metav1.LabelSelectorAsSelector(pdb.Spec.Selector)
-				if err != nil {
-					continue
-				}
+				selector := selectorFactory(pdb)
 				// A PDB with a nil or empty selector matches nothing.
 				if selector.Empty() || !selector.Matches(labels.Set(pod.Labels)) {
 					continue
@@ -1296,7 +1295,7 @@ func (g *genericScheduler) selectVictimsOnNode(
 	// TODO: need to revisit this later
 	// 1. the sorting order is not suitable for violation check
 	// 2. PDB violation check need to be refactored
-	violatingVictims, nonViolatingVictims := filterPodsWithPDBViolation(potentialVictims, pdbs)
+	violatingVictims, nonViolatingVictims := filterPodsWithPDBViolation(potentialVictims, pdbs, cache.GetPDBSelector)
 	klog.V(6).Infof("the number of nonViolatingVictims is: %d on node %v", len(nonViolatingVictims), nodeInfo.Node().Name)
 	klog.V(6).Infof("the number of violatingVictims is: %d on node %v", len(violatingVictims), nodeInfo.Node().Name)
 	// if the number of nonViolatingVictims is 0, return directly
