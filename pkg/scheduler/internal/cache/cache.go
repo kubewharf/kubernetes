@@ -24,6 +24,9 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	policy "k8s.io/api/policy/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
@@ -90,6 +93,10 @@ type schedulerCache struct {
 	deployVictims map[string]victimSet
 	// key is deployNamespace/deployName
 	deployItems map[string]DeployItem
+	// a map from key to pdb, where key is "namespace/name"
+	pdbs map[string]*policy.PodDisruptionBudget
+	// key is in the format of "namespace/name" for pdbs
+	pdbSelectors map[string]labels.Selector
 }
 
 type DeployItem struct {
@@ -156,6 +163,8 @@ func newSchedulerCache(ttl, period time.Duration, stop <-chan struct{}) *schedul
 		cachedPreemptors:     make(map[string]int),
 		deployVictims:        make(map[string]victimSet),
 		deployItems:          make(map[string]DeployItem),
+		pdbs:                 make(map[string]*policy.PodDisruptionBudget),
+		pdbSelectors:         make(map[string]labels.Selector),
 	}
 }
 
@@ -948,4 +957,59 @@ func (cache *schedulerCache) GetDeployItems(deployKey string) DeployItem {
 	cache.mu.RLock()
 	defer cache.mu.RUnlock()
 	return cache.deployItems[deployKey]
+}
+
+func (cache *schedulerCache) AddPDB(pdb *policy.PodDisruptionBudget) error {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	key := pdb.Namespace + "/" + pdb.Name
+	cache.pdbs[key] = pdb
+	selector, err := metav1.LabelSelectorAsSelector(pdb.Spec.Selector)
+	if err != nil {
+		return err
+	}
+	cache.pdbSelectors[key] = selector
+	return nil
+}
+
+func (cache *schedulerCache) UpdatePDB(oldPdb, newPdb *policy.PodDisruptionBudget) error {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	key := newPdb.Namespace + "/" + newPdb.Name
+	cache.pdbs[key] = newPdb
+	if oldPdb.Spec.Selector.String() == newPdb.Spec.Selector.String() {
+		return nil
+	}
+	selector, err := metav1.LabelSelectorAsSelector(newPdb.Spec.Selector)
+	if err != nil {
+		return err
+	}
+	cache.pdbSelectors[key] = selector
+	return nil
+}
+
+func (cache *schedulerCache) DeletePDB(pdb *policy.PodDisruptionBudget) error {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	key := pdb.Namespace + "/" + pdb.Name
+	delete(cache.pdbs, key)
+	delete(cache.pdbSelectors, key)
+	return nil
+}
+
+func (cache *schedulerCache) GetPDBList() []*policy.PodDisruptionBudget {
+	cache.mu.RLock()
+	defer cache.mu.RUnlock()
+	pdbList := make([]*policy.PodDisruptionBudget, 0)
+	for _, pdb := range cache.pdbs {
+		pdbList = append(pdbList, pdb)
+	}
+	return pdbList
+}
+
+func (cache *schedulerCache) GetPDBSelector(pdb *policy.PodDisruptionBudget) labels.Selector {
+	cache.mu.RLock()
+	defer cache.mu.RUnlock()
+	key := pdb.Namespace + "/" + pdb.Name
+	return cache.pdbSelectors[key]
 }

@@ -21,9 +21,13 @@ import (
 	nonnativeresourcelisters "code.byted.org/kubernetes/clientsets/k8s/listers/non.native.resource/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	policy "k8s.io/api/policy/v1beta1"
+	"k8s.io/apimachinery/pkg/labels"
 	internalcache "k8s.io/kubernetes/pkg/scheduler/internal/cache"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 )
+
+var _ internalcache.Cache = &Cache{}
 
 // Cache is used for testing
 type Cache struct {
@@ -167,4 +171,24 @@ func (c *Cache) DeleteDeployItems(deploy *appsv1.Deployment) {}
 
 func (c *Cache) GetDeployItems(deployKey string) internalcache.DeployItem {
 	return internalcache.DeployItem{}
+}
+
+func (c *Cache) AddPDB(pdb *policy.PodDisruptionBudget) error {
+	return nil
+}
+
+func (c *Cache) UpdatePDB(oldPdb, newPdb *policy.PodDisruptionBudget) error {
+	return nil
+}
+
+func (c *Cache) DeletePDB(pdb *policy.PodDisruptionBudget) error {
+	return nil
+}
+
+func (c *Cache) GetPDBList() []*policy.PodDisruptionBudget {
+	return []*policy.PodDisruptionBudget{}
+}
+
+func (c *Cache) GetPDBSelector(pdb *policy.PodDisruptionBudget) labels.Selector {
+	return nil
 }
