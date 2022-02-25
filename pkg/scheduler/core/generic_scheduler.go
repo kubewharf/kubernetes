@@ -1143,7 +1143,7 @@ func filterPodsWithPDBViolation(pods []*v1.Pod, pdbs []*policy.PodDisruptionBudg
 				}
 				selector := selectorFactory(pdb)
 				// A PDB with a nil or empty selector matches nothing.
-				if selector.Empty() || !selector.Matches(labels.Set(pod.Labels)) {
+				if selector == nil || selector.Empty() || !selector.Matches(labels.Set(pod.Labels)) {
 					continue
 				}
 				// We have found a matching PDB.
