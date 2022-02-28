@@ -149,6 +149,12 @@ const (
 	//
 	// Allows label and field based indexes in apiserver watch cache to accelerate list operations.
 	SelectorIndex featuregate.Feature = "SelectorIndex"
+
+	// owner:
+	// alpha: v1.18
+	//
+	// Enables collection of watch lag metrics by recording the timestamps of each API object operation
+	WatchLag featuregate.Feature = "WatchLag"
 )
 
 func init() {
@@ -175,4 +181,5 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 	APIPriorityAndFairness:  {Default: false, PreRelease: featuregate.Alpha},
 	RemoveSelfLink:          {Default: false, PreRelease: featuregate.Alpha},
 	SelectorIndex:           {Default: false, PreRelease: featuregate.Alpha},
+	WatchLag:                {Default: false, PreRelease: featuregate.Alpha},
 }

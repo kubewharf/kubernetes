@@ -38,7 +38,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
+	"k8s.io/apiserver/pkg/features"
 	"k8s.io/apiserver/pkg/registry/rest"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	"k8s.io/client-go/tools/cache"
 )
 
 // TODO(apelisse): Tests in this file should be more hermertic by always
@@ -318,6 +321,18 @@ func (t *Tester) testCreateDryRunEquals(obj runtime.Object) {
 	createdFakeMeta.SetResourceVersion("")
 	createdMeta.SetResourceVersion("")
 	createdMeta.SetUID(createdFakeMeta.GetUID())
+
+	if utilfeature.DefaultFeatureGate.Enabled(features.WatchLag) {
+		if annotations := createdMeta.GetAnnotations(); annotations != nil {
+			delete(annotations, cache.LastUpdateAnnotation)
+			createdMeta.SetAnnotations(annotations)
+		}
+
+		if annotations := createdFakeMeta.GetAnnotations(); annotations != nil {
+			delete(annotations, cache.LastUpdateAnnotation)
+			createdFakeMeta.SetAnnotations(annotations)
+		}
+	}
 
 	if e, a := created, createdFake; !apiequality.Semantic.DeepEqual(e, a) {
 		t.Errorf("unexpected obj: %#v, expected %#v", e, a)
