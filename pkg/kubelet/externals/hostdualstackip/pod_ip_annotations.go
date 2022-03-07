@@ -68,7 +68,7 @@ func (p *PodAnnotationsAdmitHandler) Admit(attrs *lifecycle.PodAdmitAttributes) 
 		}
 	}
 
-	klog.Infof("GetDualStackIPFromHostInterfaces %v ipv4: %v, ipv6: %v \n\n", attrs.Pod.Name, dualStackHostIPv4, dualStackHostIPv4)
+	klog.Infof("GetDualStackIPFromHostInterfaces %v ipv4: %v, ipv6: %v \n\n", attrs.Pod.Name, dualStackHostIPv4, dualStackHostIPv6)
 
 	var hostIPv4Str, hostIPv6Str string
 	if dualStackHostIPv4 != nil {

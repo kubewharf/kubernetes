@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "get_address_by_netlink.go",
+        "ip_override.go",
         "pod_ip_annotations.go",
         "validate_tce_ip_envs.go",
     ],

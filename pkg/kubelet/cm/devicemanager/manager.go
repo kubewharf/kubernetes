@@ -51,6 +51,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 	"k8s.io/kubernetes/pkg/kubelet/metrics"
 	"k8s.io/kubernetes/pkg/kubelet/pluginmanager/cache"
+	"k8s.io/kubernetes/pkg/kubelet/util/format"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 	"k8s.io/kubernetes/pkg/util/selinux"
 )
@@ -418,6 +419,7 @@ func (m *ManagerImpl) isVersionCompatibleWithPlugin(versions []string) bool {
 // Allocate is the call that you can use to allocate a set of devices
 // from the registered device plugins.
 func (m *ManagerImpl) Allocate(pod *v1.Pod, container *v1.Container) error {
+	klog.V(4).Infof("[devicemananger] allocating resources for pod %s, container %s", format.Pod(pod), container.Name)
 	if _, ok := m.devicesToReuse[string(pod.UID)]; !ok {
 		m.devicesToReuse[string(pod.UID)] = make(map[string]sets.String)
 	}
@@ -435,9 +437,15 @@ func (m *ManagerImpl) Allocate(pod *v1.Pod, container *v1.Container) error {
 			if err := m.allocateContainerResources(pod, container, m.devicesToReuse[string(pod.UID)]); err != nil {
 				return err
 			}
+			if m.devicesToReuse[string(pod.UID)] == nil {
+				klog.Errorf("[devicemananger] unexpected empty devicesToReuse for pod %s, init container %s", format.Pod(pod), container.Name)
+			}
 			m.podDevices.addContainerAllocatedResources(string(pod.UID), container.Name, m.devicesToReuse[string(pod.UID)])
 			return nil
 		}
+	}
+	if m.devicesToReuse[string(pod.UID)] == nil {
+		klog.Errorf("[devicemananger] unexpected empty devicesToReuse for pod %s, container %s", format.Pod(pod), container.Name)
 	}
 	if err := m.allocateContainerResources(pod, container, m.devicesToReuse[string(pod.UID)]); err != nil {
 		return err
@@ -1101,6 +1109,10 @@ func injectCPUResourcesAnnotationToPod(pod *v1.Pod, resp *pluginapi.AllocateResp
 		return
 	}
 
+	updatedAnnotation := make(map[string]string)
+	for key, value := range pod.Annotations {
+		updatedAnnotation[key] = value
+	}
 	for _, containerResponse := range resp.ContainerResponses {
 		if containerResponse != nil {
 
@@ -1108,12 +1120,13 @@ func injectCPUResourcesAnnotationToPod(pod *v1.Pod, resp *pluginapi.AllocateResp
 				switch annoKey {
 				case config.CPUSetAnnotation, config.NumaSetAnnotation:
 					if annoValue != "" {
-						pod.Annotations[annoKey] = annoValue
+						updatedAnnotation[annoKey] = annoValue
 					}
 				}
 			}
 		}
 	}
+	pod.Annotations = updatedAnnotation
 }
 
 // GetDeviceRunContainerOptions checks whether we have cached containerDevices

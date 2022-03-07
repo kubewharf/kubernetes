@@ -89,8 +89,16 @@ func newPodLabels(pod *v1.Pod) map[string]string {
 }
 
 // newPodAnnotations creates pod annotations from v1.Pod.
+// returns a copy of pod annotation for mutating
 func newPodAnnotations(pod *v1.Pod) map[string]string {
-	return pod.Annotations
+	annotations := map[string]string{}
+
+	// Get annotations from v1.Pod
+	for k, v := range pod.Annotations {
+		annotations[k] = v
+	}
+
+	return annotations
 }
 
 // newContainerLabels creates container labels from v1.Container and v1.Pod.
