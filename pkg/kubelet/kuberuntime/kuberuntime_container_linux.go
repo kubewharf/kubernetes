@@ -36,12 +36,12 @@ import (
 
 // applyPlatformSpecificContainerConfig applies platform specific configurations to runtimeapi.ContainerConfig.
 func (m *kubeGenericRuntimeManager) applyPlatformSpecificContainerConfig(config *runtimeapi.ContainerConfig, container *v1.Container, pod *v1.Pod, uid *int64, username string, nsTarget *kubecontainer.ContainerID) error {
-	config.Linux = m.generateLinuxContainerConfig(container, pod, uid, username, nsTarget)
+	config.Linux = m.generateLinuxContainerConfig(container, pod, uid, username, nsTarget, config.Annotations)
 	return nil
 }
 
 // generateLinuxContainerConfig generates linux container config for kubelet runtime v1.
-func (m *kubeGenericRuntimeManager) generateLinuxContainerConfig(container *v1.Container, pod *v1.Pod, uid *int64, username string, nsTarget *kubecontainer.ContainerID) *runtimeapi.LinuxContainerConfig {
+func (m *kubeGenericRuntimeManager) generateLinuxContainerConfig(container *v1.Container, pod *v1.Pod, uid *int64, username string, nsTarget *kubecontainer.ContainerID, configAnnotations map[string]string) *runtimeapi.LinuxContainerConfig {
 	lc := &runtimeapi.LinuxContainerConfig{
 		Resources:       &runtimeapi.LinuxContainerResources{},
 		SecurityContext: m.determineEffectiveSecurityContext(pod, container, uid, username),
@@ -102,14 +102,14 @@ func (m *kubeGenericRuntimeManager) generateLinuxContainerConfig(container *v1.C
 
 	lc.Resources.HugepageLimits = GetHugepageLimitsFromResources(container.Resources)
 
-	if pod.Annotations[config.CPUSetAnnotation] != "" {
-		klog.V(2).Infof("cpuset has been set for pod: %s, container: %s, cpuset: %s", pod.Name, container.Name, pod.Annotations[config.CPUSetAnnotation])
-		lc.Resources.CpusetCpus = pod.Annotations[config.CPUSetAnnotation]
+	if configAnnotations[config.CPUSetAnnotation] != "" {
+		klog.V(2).Infof("cpuset has been set for pod: %s, container: %s, cpuset: %s", pod.Name, container.Name, configAnnotations[config.CPUSetAnnotation])
+		lc.Resources.CpusetCpus = configAnnotations[config.CPUSetAnnotation]
 	}
 
-	if pod.Annotations[config.NumaSetAnnotation] != "" {
-		klog.V(2).Infof("numaset has been set for pod: %s, container: %s, numaset: %s", pod.Name, container.Name, pod.Annotations[config.NumaSetAnnotation])
-		lc.Resources.CpusetMems = pod.Annotations[config.NumaSetAnnotation]
+	if configAnnotations[config.NumaSetAnnotation] != "" {
+		klog.V(2).Infof("numaset has been set for pod: %s, container: %s, numaset: %s", pod.Name, container.Name, configAnnotations[config.NumaSetAnnotation])
+		lc.Resources.CpusetMems = configAnnotations[config.NumaSetAnnotation]
 	}
 
 	return lc
