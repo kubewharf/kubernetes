@@ -11,6 +11,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api/pod:go_default_library",
+        "//pkg/kubelet/externals/hostdualstackip:go_default_library",
         "//pkg/kubelet/lifecycle:go_default_library",
         "//staging/src/k8s.io/api/core/v1:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",

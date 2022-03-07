@@ -14,7 +14,9 @@ go_library(
         "//pkg/apis/core:go_default_library",
         "//pkg/features:go_default_library",
         "//pkg/security/apparmor:go_default_library",
+        "//staging/src/k8s.io/api/core/v1:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
+        "//staging/src/k8s.io/apimachinery/pkg/util/sets:go_default_library",
         "//staging/src/k8s.io/apiserver/pkg/util/feature:go_default_library",
     ],
 )
@@ -40,6 +42,7 @@ go_test(
         "//pkg/apis/core:go_default_library",
         "//pkg/features:go_default_library",
         "//pkg/security/apparmor:go_default_library",
+        "//staging/src/k8s.io/api/core/v1:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/api/resource:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/util/diff:go_default_library",

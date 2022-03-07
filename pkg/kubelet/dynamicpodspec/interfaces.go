@@ -9,6 +9,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
+	"k8s.io/kubernetes/pkg/kubelet/externals/hostdualstackip"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 )
 
@@ -52,6 +53,8 @@ func (p *podUpdater) update(pod *v1.Pod) error {
 	oldPodUID := pod.GetUID()
 	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		spec := pod.Spec
+		hostIPv4Annotation := pod.Annotations[hostdualstackip.HostIPv4AnnotationKey]
+		hostIPv6Annotation := pod.Annotations[hostdualstackip.HostIPv6AnnotationKey]
 		_, updateErr := p.client.CoreV1().Pods(pod.Namespace).Update(context.Background(), pod, metav1.UpdateOptions{})
 		if updateErr == nil {
 			return nil
@@ -62,7 +65,16 @@ func (p *podUpdater) update(pod *v1.Pod) error {
 				return fmt.Errorf("pod was deleted and then recreated, skipping pod update, oldPodUID %s, newPodUID %s", oldPodUID, newPodUID)
 			}
 			pod = updated.DeepCopy()
+			if pod.Annotations == nil {
+				pod.Annotations = make(map[string]string)
+			}
 			pod.Spec = spec
+			if hostIPv4Annotation != "" {
+				pod.Annotations[hostdualstackip.HostIPv4AnnotationKey] = hostIPv4Annotation
+			}
+			if hostIPv6Annotation != "" {
+				pod.Annotations[hostdualstackip.HostIPv6AnnotationKey] = hostIPv6Annotation
+			}
 		}
 		return updateErr
 	})

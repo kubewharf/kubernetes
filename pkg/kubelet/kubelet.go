@@ -2209,7 +2209,7 @@ func (kl *Kubelet) HandlePodAdditions(pods []*v1.Pod) {
 		// !!! try to make sure this patch happens before the container-creating jobs start
 		err := patchDualStackIPAddressInPodAnnotations(kl, pod)
 		if err != nil {
-			klog.V(2).Infof("Failed to sync dual-stack ip info to pod annotations %q, err: %v", format.Pod(pod), err)
+			klog.Errorf("Failed to sync dual-stack ip info to pod annotations %q, err: %v", format.Pod(pod), err)
 			kl.rejectPod(pod, "PatchDualStackIpAddrAnnotationsError", err.Error())
 			continue
 		}
