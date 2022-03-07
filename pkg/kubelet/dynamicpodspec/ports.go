@@ -9,7 +9,9 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	netutil "k8s.io/apimachinery/pkg/util/net"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog"
 	utilpod "k8s.io/kubernetes/pkg/api/pod"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
@@ -24,18 +26,15 @@ const (
 type PortStatus struct {
 	mu           sync.RWMutex
 	lastUsedPort int
-	ports        map[int]bool
+	// map[port]podUID
+	ports map[int]types.UID
 }
 
-func NewPortStatus(portRange netutil.PortRange) *PortStatus {
+func NewPortStatus() *PortStatus {
 	portStatus := &PortStatus{
 		mu:           sync.RWMutex{},
-		ports:        make(map[int]bool),
+		ports:        make(map[int]types.UID),
 		lastUsedPort: -1,
-	}
-
-	for i := 0; i < portRange.Size; i++ {
-		portStatus.ports[portRange.Base+i] = false
 	}
 
 	return portStatus
@@ -53,44 +52,46 @@ func (ps *PortStatus) sync(pods []*v1.Pod) {
 		ps.lastUsedPort = lastUsedPort
 	}
 
-	for port := range usedPorts {
-		ps.ports[port] = true
+	for port, uid := range usedPorts {
+		ps.ports[port] = uid
 	}
 
-	for port, used := range ps.ports {
-		if !used {
+	uidSets := sets.NewString()
+	for _, pod := range pods {
+		uidSets.Insert(string(pod.UID))
+	}
+
+	for port, uid := range ps.ports {
+		if uidSets.Has(string(uid)) {
 			continue
 		}
-		if val, ok := usedPorts[port]; !val || !ok {
-			ps.ports[port] = false
-		}
+		delete(ps.ports, port)
+		klog.V(1).Infof("autoport: release port: %d, used by pod UID: %s", port, uid)
 	}
+	klog.V(1).Infof("autoport: sync port status: %#v, uidsets: %#v", ps.ports, uidSets)
 }
 
-func (ps *PortStatus) get() (map[int]bool, int) {
-	m := make(map[int]bool)
+func (ps *PortStatus) get() (map[int]types.UID, int) {
+	m := make(map[int]types.UID)
 	for k, v := range ps.ports {
-		if v {
-			m[k] = v
-		}
+		m[k] = v
 	}
 	return m, ps.lastUsedPort
 }
 
-func (ps *PortStatus) Get() (map[int]bool, int) {
+func (ps *PortStatus) Get() (map[int]types.UID, int) {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 	return ps.get()
 }
 
-func (ps *PortStatus) assign(ports []int) {
-	for i := range ports {
-		ps.ports[ports[i]] = true
+func (ps *PortStatus) assign(ports map[int]types.UID) {
+	for port, uid := range ports {
+		ps.ports[port] = uid
 	}
-	return
 }
 
-func (ps *PortStatus) Assign(ports []int) {
+func (ps *PortStatus) Assign(ports map[int]types.UID) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 	ps.assign(ports)
@@ -110,13 +111,17 @@ func NewAssignPortHandler(podAnnotation string, portRange netutil.PortRange, pod
 		portRange:     portRange,
 		podUpdater:    podUpdater,
 		rander:        rand.New(rand.NewSource(time.Now().Unix())),
-		portStatus:    NewPortStatus(portRange),
+		portStatus:    NewPortStatus(),
 	}
 }
 
 func (w *assignPortAdmitHandler) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAdmitResult {
 	pod := attrs.Pod
-	w.portStatus.Assign(getPodUsedPorts(pod))
+	used := make(map[int]types.UID)
+	for _, port := range getPodUsedPorts(pod) {
+		used[port] = pod.GetUID()
+	}
+	w.portStatus.Assign(used)
 	autoPortType, exists := pod.ObjectMeta.Annotations[w.podAnnotation]
 	if !exists {
 		return lifecycle.PodAdmitResult{
@@ -137,13 +142,13 @@ func (w *assignPortAdmitHandler) Admit(attrs *lifecycle.PodAdmitAttributes) life
 	count := 0
 	for i := range pod.Spec.Containers {
 		for j := range pod.Spec.Containers[i].Ports {
-			klog.V(1).Infof("admit pod %s, override: %q, hostPort: %s", pod.Name, overridePortsSet, string(pod.Spec.Containers[i].Ports[j].HostPort))
+			klog.V(1).Infof("admit pod %s, override: %#v, hostPort: %s", pod.Name, overridePortsSet, string(pod.Spec.Containers[i].Ports[j].HostPort))
 			if overridePortsSet.Has(fmt.Sprint(pod.Spec.Containers[i].Ports[j].HostPort)) {
 				count++
 			}
 		}
 	}
-	klog.V(1).Infof("admit pod %s, override: %q, count: %d", pod.Name, overridePortsSet, count)
+	klog.V(1).Infof("admit pod %s, override: %#v, count: %d", pod.Name, overridePortsSet, count)
 
 	if count == 0 {
 		return lifecycle.PodAdmitResult{
@@ -157,7 +162,7 @@ func (w *assignPortAdmitHandler) Admit(attrs *lifecycle.PodAdmitAttributes) life
 	usedPorts, lastUsedPort := w.portStatus.get()
 
 	availablePorts, canAssigned := getAvailablePorts(usedPorts, w.portRange.Base, w.portRange.Size, lastUsedPort, count, r)
-	klog.V(1).Infof("admit pod %s, override: %q, available: %q, used: %#v, lastUsed: %#v", pod.Name, overridePortsSet, availablePorts, usedPorts, lastUsedPort)
+	klog.V(1).Infof("admit pod %s, override: %q, available: %#v, used: %#v, lastUsed: %#v", pod.Name, overridePortsSet, availablePorts, usedPorts, lastUsedPort)
 	if !canAssigned {
 		w.portStatus.mu.Unlock()
 		klog.V(1).Infof("no hostport can be assigned")
@@ -168,11 +173,15 @@ func (w *assignPortAdmitHandler) Admit(attrs *lifecycle.PodAdmitAttributes) life
 		}
 	}
 
-	w.portStatus.assign(availablePorts)
+	assigned := make(map[int]types.UID)
+	for _, port := range availablePorts {
+		assigned[port] = pod.GetUID()
+	}
+	w.portStatus.assign(assigned)
 	w.portStatus.mu.Unlock()
 
 	portIndex := 0
-	klog.V(1).Infof("admit pod %s, override: %q, available: %q", pod.Name, overridePortsSet, availablePorts)
+	klog.V(1).Infof("admit pod %s, override: %q, available: %#v", pod.Name, overridePortsSet, availablePorts)
 	for i := range pod.Spec.Containers {
 		for j := range pod.Spec.Containers[i].Ports {
 			if !overridePortsSet.Has(fmt.Sprint(pod.Spec.Containers[i].Ports[j].HostPort)) {
@@ -205,7 +214,7 @@ func (w *assignPortAdmitHandler) Admit(attrs *lifecycle.PodAdmitAttributes) life
 	}
 }
 
-func getAvailablePorts(allocated map[int]bool, base, max, arrangeBase, portCount int, rander *rand.Rand) ([]int, bool) {
+func getAvailablePorts(allocated map[int]types.UID, base, max, arrangeBase, portCount int, rander *rand.Rand) ([]int, bool) {
 	usedCount := len(allocated)
 	if usedCount >= max {
 		// all ports has been assigned
@@ -213,7 +222,7 @@ func getAvailablePorts(allocated map[int]bool, base, max, arrangeBase, portCount
 	}
 
 	if allocated == nil {
-		allocated = map[int]bool{}
+		allocated = map[int]types.UID{}
 	}
 
 	if arrangeBase < base || arrangeBase >= base+max {
@@ -231,7 +240,7 @@ func getAvailablePorts(allocated map[int]bool, base, max, arrangeBase, portCount
 	var result []int
 	for i := 0; i < availablePortLength; {
 		port := base + i + offset
-		if used := allocated[port]; used {
+		if _, ok := allocated[port]; ok {
 			offset += 1
 			continue
 		}
@@ -286,16 +295,16 @@ func getScheduledTime(pod *v1.Pod) time.Time {
 	return time.Time{}
 }
 
-func getUsedPorts(pods ...*v1.Pod) (map[int]bool, int) {
+func getUsedPorts(pods ...*v1.Pod) (map[int]types.UID, int) {
 	// TODO: Aggregate it at the NodeInfo level.
-	ports := make(map[int]bool)
+	ports := make(map[int]types.UID)
 	lastPort := 0
 	var lastPodTime time.Time
 	for _, pod := range pods {
 		scheduledTime := getScheduledTime(pod)
 		usedPorts := getPodUsedPorts(pod)
 		for i := range usedPorts {
-			ports[usedPorts[i]] = true
+			ports[usedPorts[i]] = pod.GetUID()
 		}
 		if scheduledTime.After(lastPodTime) && len(usedPorts) > 0 {
 			lastPort = int(usedPorts[len(usedPorts)-1])
