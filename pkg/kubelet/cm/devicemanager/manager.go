@@ -1072,8 +1072,6 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 			return fmt.Errorf("no containers return in allocation response %v", resp)
 		}
 
-		injectCPUResourcesAnnotationToPod(pod, resp)
-
 		// Update internal cached podDevices state.
 		m.mutex.Lock()
 		m.podDevices.insert(podUID, contName, resource, allocDevices, resp.ContainerResponses[0])
@@ -1102,31 +1100,6 @@ func getRoleFromPod(pod *v1.Pod) (role string) {
 
 	role = pod.Labels[config.PodRoleLabel]
 	return
-}
-
-func injectCPUResourcesAnnotationToPod(pod *v1.Pod, resp *pluginapi.AllocateResponse) {
-	if pod == nil || resp == nil {
-		return
-	}
-
-	updatedAnnotation := make(map[string]string)
-	for key, value := range pod.Annotations {
-		updatedAnnotation[key] = value
-	}
-	for _, containerResponse := range resp.ContainerResponses {
-		if containerResponse != nil {
-
-			for annoKey, annoValue := range containerResponse.Annotations {
-				switch annoKey {
-				case config.CPUSetAnnotation, config.NumaSetAnnotation:
-					if annoValue != "" {
-						updatedAnnotation[annoKey] = annoValue
-					}
-				}
-			}
-		}
-	}
-	pod.Annotations = updatedAnnotation
 }
 
 // GetDeviceRunContainerOptions checks whether we have cached containerDevices
