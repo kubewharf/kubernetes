@@ -61,7 +61,7 @@ func makeExpectedConfig(m *kubeGenericRuntimeManager, pod *v1.Pod, containerInde
 		Stdin:       container.Stdin,
 		StdinOnce:   container.StdinOnce,
 		Tty:         container.TTY,
-		Linux:       m.generateLinuxContainerConfig(container, pod, new(int64), "", nil),
+		Linux:       m.generateLinuxContainerConfig(container, pod, new(int64), "", nil, newContainerAnnotations(container, pod, restartCount, opts)),
 		Envs:        envs,
 	}
 	return expectedConfig
@@ -360,7 +360,7 @@ func TestGenerateLinuxContainerConfigNamespaces(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := m.generateLinuxContainerConfig(&tc.pod.Spec.Containers[0], tc.pod, nil, "", tc.target)
+			got := m.generateLinuxContainerConfig(&tc.pod.Spec.Containers[0], tc.pod, nil, "", tc.target, nil)
 			if diff := cmp.Diff(tc.want, got.SecurityContext.NamespaceOptions); diff != "" {
 				t.Errorf("%v: diff (-want +got):\n%v", t.Name(), diff)
 			}
