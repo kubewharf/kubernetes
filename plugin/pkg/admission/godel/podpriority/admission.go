@@ -220,10 +220,13 @@ func (p *Plugin) getDefaultPriorityClassByPriorityType(priorityType string) (*sc
 }
 
 func (p *Plugin) getDefaultPriorityForGodelPod(pod *api.Pod) (string, int32, string, error) {
-	priorityType := godel.GetPodPriorityType(pod)
+	resourceType := godel.GetPodResourceType(pod)
+	if resourceType == "" {
+		resourceType = godel.GuaranteedPod
+	}
 	canBePreempted := "false"
 	// get default priority class
-	dpc, err := p.getDefaultPriorityClassByPriorityType(priorityType)
+	dpc, err := p.getDefaultPriorityClassByPriorityType(resourceType)
 	if err != nil {
 		return "", 0, canBePreempted, err
 	}
@@ -234,45 +237,36 @@ func (p *Plugin) getDefaultPriorityForGodelPod(pod *api.Pod) (string, int32, str
 		return dpc.Name, dpc.Value, canBePreempted, nil
 	}
 
-	switch priorityType {
-	case godel.PriorityGuaranteedKublet:
-		return "", godel.MinPriorityForGuaranteedKublet, canBePreempted, nil
-	case godel.PriorityGuaranteedNodeManager:
-		return "", godel.MinPriorityForGuaranteedNodeManager, canBePreempted, nil
-	case godel.PriorityBestEffortKublet:
-		return "", godel.MinPriorityForBestEffortKublet, canBePreempted, nil
-	case godel.PriorityBestEffortNodeManager:
-		return "", godel.MinPriorityForBestEffortNodeManager, canBePreempted, nil
+	switch resourceType {
+	case godel.GuaranteedPod:
+		return "", godel.MinPriorityForGuaranteed, canBePreempted, nil
+	case godel.BestEffortPod:
+		return "", godel.MinPriorityForBestEffort, canBePreempted, nil
 	default:
 		return "", int32(scheduling.DefaultPriorityWhenNoDefaultClassExists), canBePreempted, nil
 	}
 }
 
 func passPodPriorityCheckForGodelPod(pod *api.Pod, pc *schedulingv1.PriorityClass) error {
-	priorityType := godel.GetPodPriorityType(pod)
+	resourceType := godel.GetPodResourceType(pod)
+	if resourceType == "" {
+		resourceType = godel.GuaranteedPod
+	}
 	var minValue, maxValue int32
-	switch priorityType {
-	case godel.PriorityGuaranteedKublet:
-		minValue = godel.MinPriorityForGuaranteedKublet
-		maxValue = godel.MaxPriorityForGuaranteedKublet
+	switch resourceType {
+	case godel.GuaranteedPod:
+		minValue = godel.MinPriorityForGuaranteed
+		maxValue = godel.MaxPriorityForGuaranteed
 		break
-	case godel.PriorityGuaranteedNodeManager:
-		minValue = godel.MinPriorityForGuaranteedNodeManager
-		maxValue = godel.MaxPriorityForGuaranteedNodeManager
-		break
-	case godel.PriorityBestEffortKublet:
-		minValue = godel.MinPriorityForBestEffortKublet
-		maxValue = godel.MaxPriorityForBestEffortKublet
-		break
-	case godel.PriorityBestEffortNodeManager:
-		minValue = godel.MinPriorityForBestEffortNodeManager
-		maxValue = godel.MaxPriorityForBestEffortNodeManager
+	case godel.BestEffortPod:
+		minValue = godel.MinPriorityForBestEffort
+		maxValue = godel.MaxPriorityForBestEffort
 		break
 	default:
 		return nil
 	}
 	if pc.Value < minValue || pc.Value > maxValue {
-		return fmt.Errorf("the priority value for type %s should be in range [%d, %d]", priorityType, minValue, maxValue)
+		return fmt.Errorf("the priority value for resource type %s should be in range [%d, %d]", resourceType, minValue, maxValue)
 	}
 	return nil
 }

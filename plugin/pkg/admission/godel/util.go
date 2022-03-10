@@ -33,21 +33,11 @@ const (
 	// value is the priority type which this priority class is default for
 	DefaultPriorityTypeAnnotationKey = "godel.bytedance.com/default-priority-type"
 
-	// determined by resource types and launchers, there are four priority types
-	PriorityGuaranteedKublet      = "guaranteed-kubelet"
-	PriorityGuaranteedNodeManager = "guaranteed-node-manager"
-	PriorityBestEffortKublet      = "best-effort-kubelet"
-	PriorityBestEffortNodeManager = "best-effort-node-manager"
-
 	// default priority value for each priority type when no default priority class exists
-	MinPriorityForGuaranteedKublet      int32 = 100
-	MaxPriorityForGuaranteedKublet      int32 = 120
-	MinPriorityForGuaranteedNodeManager int32 = 70
-	MaxPriorityForGuaranteedNodeManager int32 = 90
-	MinPriorityForBestEffortKublet      int32 = 40
-	MaxPriorityForBestEffortKublet      int32 = 60
-	MinPriorityForBestEffortNodeManager int32 = 10
-	MaxPriorityForBestEffortNodeManager int32 = 30
+	MinPriorityForGuaranteed int32 = 100
+	MaxPriorityForGuaranteed int32 = 120
+	MinPriorityForBestEffort int32 = 40
+	MaxPriorityForBestEffort int32 = 60
 
 	// pod launchers
 	PodLauncherKubelet     = "kubelet"
@@ -92,30 +82,6 @@ func setPodAnnotation(pod *api.Pod, key, value string) {
 		pod.Annotations = make(map[string]string)
 	}
 	pod.Annotations[key] = value
-}
-
-func GetPodPriorityType(pod *api.Pod) string {
-	resourceType := GetPodResourceType(pod)
-	if resourceType == "" {
-		resourceType = GuaranteedPod
-	}
-	launcher := GetPodLauncher(pod)
-	if launcher == "" {
-		launcher = PodLauncherKubelet
-	}
-
-	priorityType := ""
-	switch {
-	case resourceType == GuaranteedPod && launcher == PodLauncherKubelet:
-		priorityType = PriorityGuaranteedKublet
-	case resourceType == GuaranteedPod && launcher == PodLauncherNodeManager:
-		priorityType = PriorityGuaranteedNodeManager
-	case resourceType == BestEffortPod && launcher == PodLauncherKubelet:
-		priorityType = PriorityBestEffortKublet
-	case resourceType == BestEffortPod && launcher == PodLauncherNodeManager:
-		priorityType = PriorityBestEffortNodeManager
-	}
-	return priorityType
 }
 
 // PendingPod checks if the given pod is in pending state
