@@ -17,12 +17,16 @@ limitations under the License.
 package rest
 
 import (
+	"reflect"
 	"testing"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/apis/example"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
+	"k8s.io/client-go/tools/cache"
 )
 
 // TestFillObjectMetaSystemFields validates that system populated fields are set on an object
@@ -81,4 +85,63 @@ func TestValidNamespace(t *testing.T) {
 	if ns != "" {
 		t.Fatalf("Expected the empty string")
 	}
+}
+
+// TestFillObjectMetaLastUpdateAnnotation validates that only the lastUpdate annotation is added and no other fields changed
+func TestFillObjectMetaLastUpdateAnnotation(t *testing.T) {
+	resource := &example.Pod{}
+	resourceCopy := resource.DeepCopy()
+
+	FillObjectMetaLastUpdateAnnotation(resourceCopy, schema.GroupVersionKind{})
+	if _, ok := resourceCopy.Annotations[cache.LastUpdateAnnotation]; !ok {
+		t.Fatalf("expected %s annotation to be added", cache.LastUpdateAnnotation)
+	}
+	if len(resourceCopy.Annotations) != 1 {
+		t.Fatalf("expected only %s annotation to be added", cache.LastUpdateAnnotation)
+	}
+	resourceCopy.Annotations = nil
+	if !reflect.DeepEqual(resource, resourceCopy) {
+		t.Fatalf("expected rest of resource to be unchanged")
+	}
+
+	resource = examplePod()
+	resourceCopy = examplePod().DeepCopy()
+
+	FillObjectMetaLastUpdateAnnotation(resourceCopy, schema.GroupVersionKind{})
+	if _, ok := resourceCopy.Annotations[cache.LastUpdateAnnotation]; !ok {
+		t.Fatalf("expected %s annotation to be added", cache.LastUpdateAnnotation)
+	}
+	delete(resourceCopy.Annotations, cache.LastUpdateAnnotation)
+	if !reflect.DeepEqual(resource, resourceCopy) {
+		t.Fatalf("expected rest of resource to be unchanged")
+	}
+}
+
+func examplePod() *example.Pod {
+	t, _ := time.Parse("2022-02-23:53:32", time.RFC3339)
+	return &example.Pod{
+		TypeMeta: metav1.TypeMeta{Kind: "Pod", APIVersion: "v1"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "foo",
+			Namespace:         "other",
+			UID:               "979a4c94-4af4-4632-8370-8b5e1612e0b6",
+			ResourceVersion:   "51112",
+			Generation:        6,
+			CreationTimestamp: metav1.NewTime(t),
+			Labels:            map[string]string{"foo": "bar"},
+			Annotations:       map[string]string{"foo": "bar"},
+			OwnerReferences:   []metav1.OwnerReference{{Kind: "Deployment", Name: "foobar", UID: "873b4d04-4zp4-1222-8370-1l1t1623e0z8"}},
+		},
+		Spec: example.PodSpec{
+			RestartPolicy: "Always",
+			NodeName:      "bar",
+			Hostname:      "foobar",
+		},
+		Status: example.PodStatus{
+			Phase:  "Pending",
+			HostIP: "0.0.0.0",
+			PodIP:  "10.0.0.1",
+		},
+	}
+
 }
