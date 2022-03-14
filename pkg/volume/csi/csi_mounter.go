@@ -35,6 +35,7 @@ import (
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/features"
+	"k8s.io/kubernetes/pkg/kubelet/config"
 	"k8s.io/kubernetes/pkg/volume"
 	volumetypes "k8s.io/kubernetes/pkg/volume/util/types"
 	"k8s.io/utils/mount"
@@ -326,6 +327,22 @@ func (c *csiMountMgr) podAttributes() (map[string]string, error) {
 		"csi.storage.k8s.io/pod.uid":             string(c.pod.UID),
 		"csi.storage.k8s.io/serviceAccount.name": c.pod.Spec.ServiceAccountName,
 	}
+
+	userName := c.pod.Annotations[config.UserNameAnnotation]
+	if userName != "" {
+		attrs["csi.storage.k8s.io/user.name"] = userName
+	}
+
+	appName := c.pod.Labels[config.ApplicationNameLabel]
+	if userName != "" {
+		attrs["csi.storage.k8s.io/application.name"] = appName
+	}
+
+	ssdAffinity := c.pod.Annotations[config.SSDAfinityAnnotation]
+	if userName != "" {
+		attrs["csi.storage.k8s.io/ssd.affinity"] = ssdAffinity
+	}
+
 	if utilfeature.DefaultFeatureGate.Enabled(features.CSIInlineVolume) {
 		attrs["csi.storage.k8s.io/ephemeral"] = strconv.FormatBool(c.volumeLifecycleMode == storage.VolumeLifecycleEphemeral)
 	}
