@@ -1004,6 +1004,7 @@ type CRDRESTOptionsGetter struct {
 	StoragePrefix           string
 	EnableWatchCache        bool
 	DefaultWatchCacheSize   int
+	EnableEtcdProtection    bool
 	WatchCacheSizes         []string
 	EnableGarbageCollection bool
 	DeleteCollectionWorkers int
@@ -1027,7 +1028,7 @@ func (t CRDRESTOptionsGetter) GetRESTOptions(resource schema.GroupResource) (gen
 			}
 		}
 
-		ret.Decorator = genericregistry.StorageWithCacher(cacheSize, false)
+		ret.Decorator = genericregistry.StorageWithCacher(cacheSize, t.EnableEtcdProtection)
 	}
 	return ret, nil
 }
