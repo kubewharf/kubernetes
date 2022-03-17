@@ -280,7 +280,7 @@ func TestCPUManagerAdd(t *testing.T) {
 
 		pod := makePod("fakePod", "fakeContainer", "2", "2")
 		container := &pod.Spec.Containers[0]
-		mgr.activePods = func() []*v1.Pod { return []*v1.Pod{pod} }
+		mgr.activePods = func() []*v1.Pod { return nil }
 
 		err := mgr.Allocate(pod, container)
 		if !reflect.DeepEqual(err, testCase.expAllocateErr) {
@@ -1046,7 +1046,7 @@ func TestCPUManagerAddWithResvList(t *testing.T) {
 
 		pod := makePod("fakePod", "fakeContainer", "2", "2")
 		container := &pod.Spec.Containers[0]
-		mgr.activePods = func() []*v1.Pod { return []*v1.Pod{pod} }
+		mgr.activePods = func() []*v1.Pod { return nil }
 
 		err := mgr.Allocate(pod, container)
 		if !reflect.DeepEqual(err, testCase.expAllocateErr) {

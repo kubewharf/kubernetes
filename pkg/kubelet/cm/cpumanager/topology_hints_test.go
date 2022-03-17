@@ -269,6 +269,11 @@ func TestGetTopologyHints(t *testing.T) {
 		if len(tc.expectedHints) == 0 && len(hints) == 0 {
 			continue
 		}
+
+		if m.pendingAdmissionPod == nil {
+			t.Errorf("The pendingAdmissionPod should point to the current pod after the call to GetTopologyHints()")
+		}
+
 		sort.SliceStable(hints, func(i, j int) bool {
 			return hints[i].LessThan(hints[j])
 		})
