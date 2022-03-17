@@ -120,6 +120,9 @@ type manager struct {
 
 	// stateFileDirectory holds the directory where the state file for checkpoints is held.
 	stateFileDirectory string
+
+	// pendingAdmissionPod contain the pod during the admission phase
+	pendingAdmissionPod *v1.Pod
 }
 
 var _ Manager = &manager{}
@@ -221,6 +224,10 @@ func (m *manager) Start(activePods ActivePodsFunc, sourcesReady config.SourcesRe
 }
 
 func (m *manager) Allocate(p *v1.Pod, c *v1.Container) error {
+	// The pod is during the admission phase. We need to save the pod to avoid it
+	// being cleaned before the admission ended
+	m.setPodPendingAdmission(p)
+
 	// Garbage collect any stranded resources before allocating CPUs.
 	m.removeStaleState()
 
@@ -307,6 +314,9 @@ func (m *manager) State() state.Reader {
 }
 
 func (m *manager) GetTopologyHints(pod *v1.Pod, container *v1.Container) map[string][]topologymanager.TopologyHint {
+	// The pod is during the admission phase. We need to save the pod to avoid it
+	// being cleaned before the admission ended
+	m.setPodPendingAdmission(pod)
 	// Garbage collect any stranded resources before providing TopologyHints
 	m.removeStaleState()
 	// Delegate to active policy
@@ -335,11 +345,14 @@ func (m *manager) removeStaleState() {
 	defer m.Unlock()
 
 	// Get the list of active pods.
-	activePods := m.activePods()
+	activeAndAdmittedPods := m.activePods()
+	if m.pendingAdmissionPod != nil {
+		activeAndAdmittedPods = append(activeAndAdmittedPods, m.pendingAdmissionPod)
+	}
 
 	// Build a list of (podUID, containerName) pairs for all containers in all active Pods.
 	activeContainers := make(map[string]map[string]struct{})
-	for _, pod := range activePods {
+	for _, pod := range activeAndAdmittedPods {
 		activeContainers[string(pod.UID)] = make(map[string]struct{})
 		for _, container := range append(pod.Spec.InitContainers, pod.Spec.Containers...) {
 			activeContainers[string(pod.UID)][container.Name] = struct{}{}
@@ -482,4 +495,11 @@ func (m *manager) updateContainerCPUSet(containerID string, cpus cpuset.CPUSet) 
 func skipingPod(pod *v1.Pod) bool {
 	_, ok := pod.Annotations[SkipingPodAnnotationKey]
 	return ok
+}
+
+func (m *manager) setPodPendingAdmission(pod *v1.Pod) {
+	m.Lock()
+	defer m.Unlock()
+
+	m.pendingAdmissionPod = pod
 }
