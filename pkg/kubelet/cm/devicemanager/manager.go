@@ -740,6 +740,18 @@ func (m *ManagerImpl) UpdateAllocatedDevices() {
 	m.allocatedDevices = m.podDevices.devices()
 }
 
+// checkPodActive checks if the given pod is still in active list
+func (m *ManagerImpl) checkPodActive(pod *v1.Pod) bool {
+	activePods := m.activePods()
+	for _, activePod := range activePods {
+		if activePod.UID == pod.UID {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Returns list of device Ids we need to allocate with Allocate rpc call.
 // Returns empty list in case we don't need to issue the Allocate rpc call.
 func (m *ManagerImpl) devicesToAllocate(podUID, contName, resource string, required int, reusableDevices sets.String) (sets.String, error) {
@@ -1146,6 +1158,10 @@ func (m *ManagerImpl) GetDeviceRunContainerOptions(pod *v1.Pod, container *v1.Co
 		}
 	}
 	if needsReAllocate {
+		if !m.checkPodActive(pod) {
+			klog.Warningf(" pod %s has been deleted from active pods, should skip instead of reAllocate", podUID)
+		}
+
 		klog.V(2).Infof("needs re-allocate device plugin resources for pod %s, container %s", podUID, container.Name)
 		if err := m.Allocate(pod, container); err != nil {
 			return nil, err
