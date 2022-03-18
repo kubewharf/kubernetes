@@ -29,6 +29,7 @@ import (
 	"k8s.io/kubernetes/pkg/features"
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
+	"k8s.io/kubernetes/plugin/pkg/admission/godel"
 )
 
 var _ framework.PreFilterPlugin = &Fit{}
@@ -184,6 +185,10 @@ func isTCEDaemonPod(pod *v1.Pod) bool {
 		return true
 	}
 	return false
+}
+
+func IsGodelBEPod(pod *v1.Pod) bool {
+	return pod.Annotations[godel.PodResourceTypeAnnotationKey] == godel.BestEffortPod
 }
 
 func fitsRequest(podRequest *preFilterState, nodeInfo *schedulernodeinfo.NodeInfo, ignoredExtendedResources sets.String, isTCEDaemonPod bool) []InsufficientResource {
