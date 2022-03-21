@@ -105,6 +105,11 @@ func (pdev podDevices) removeContainerAllocatedResources(podUID, contName string
 	if !exists {
 		return
 	}
+
+	// if allocatedResources map is nil, skip removing logic
+	if allocatedResources == nil {
+		return
+	}
 	for resource, devices := range resources {
 		allocatedResources[resource] = allocatedResources[resource].Difference(devices.deviceIds)
 	}
