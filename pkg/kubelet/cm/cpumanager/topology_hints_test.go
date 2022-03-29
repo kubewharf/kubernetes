@@ -156,7 +156,10 @@ func TestGetTopologyHints(t *testing.T) {
 	tcases := returnTestCases()
 
 	for _, tc := range tcases {
-		topology, _ := topology.Discover(&machineInfo)
+
+		numaNodeInfo, _ := topology.GetNUMANodeInfo()
+
+		topology, _ := topology.Discover(&machineInfo, numaNodeInfo)
 
 		var activePods []*v1.Pod
 		for p := range tc.assignments {
@@ -204,7 +207,9 @@ func TestGetPodTopologyHints(t *testing.T) {
 	machineInfo := returnMachineInfo()
 
 	for _, tc := range returnTestCases() {
-		topology, _ := topology.Discover(&machineInfo)
+		numaNodeInfo, _ := topology.GetNUMANodeInfo()
+
+		topology, _ := topology.Discover(&machineInfo, numaNodeInfo)
 
 		var activePods []*v1.Pod
 		for p := range tc.assignments {

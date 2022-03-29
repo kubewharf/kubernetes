@@ -27,7 +27,7 @@ import (
 
 	cadvisorapiv1 "github.com/google/cadvisor/info/v1"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -453,17 +453,18 @@ func TestMachineInfo(t *testing.T) {
 	}
 
 	cases := []struct {
-		desc                         string
-		node                         *v1.Node
-		maxPods                      int
-		podsPerCore                  int
-		machineInfo                  *cadvisorapiv1.MachineInfo
-		machineInfoError             error
-		capacity                     v1.ResourceList
-		devicePluginResourceCapacity dprc
-		nodeAllocatableReservation   v1.ResourceList
-		expectNode                   *v1.Node
-		expectEvents                 []testEvent
+		desc                           string
+		node                           *v1.Node
+		maxPods                        int
+		podsPerCore                    int
+		machineInfo                    *cadvisorapiv1.MachineInfo
+		machineInfoError               error
+		capacity                       v1.ResourceList
+		devicePluginResourceCapacity   dprc
+		resourcePluginResourceCapacity dprc
+		nodeAllocatableReservation     v1.ResourceList
+		expectNode                     *v1.Node
+		expectEvents                   []testEvent
 	}{
 		{
 			desc:    "machine identifiers, basic capacity and allocatable",
@@ -699,6 +700,39 @@ func TestMachineInfo(t *testing.T) {
 			},
 		},
 		{
+			desc:    "resource plugin resources are reflected in capacity and allocatable",
+			node:    &v1.Node{},
+			maxPods: 110,
+			machineInfo: &cadvisorapiv1.MachineInfo{
+				NumCores:       2,
+				MemoryCapacity: 1024,
+			},
+			resourcePluginResourceCapacity: dprc{
+				capacity: v1.ResourceList{
+					"resource-plugin": *resource.NewQuantity(1, resource.BinarySI),
+				},
+				allocatable: v1.ResourceList{
+					"resource-plugin": *resource.NewQuantity(1, resource.BinarySI),
+				},
+			},
+			expectNode: &v1.Node{
+				Status: v1.NodeStatus{
+					Capacity: v1.ResourceList{
+						v1.ResourceCPU:    *resource.NewMilliQuantity(2000, resource.DecimalSI),
+						v1.ResourceMemory: *resource.NewQuantity(1024, resource.BinarySI),
+						v1.ResourcePods:   *resource.NewQuantity(110, resource.DecimalSI),
+						"resource-plugin": *resource.NewQuantity(1, resource.BinarySI),
+					},
+					Allocatable: v1.ResourceList{
+						v1.ResourceCPU:    *resource.NewMilliQuantity(2000, resource.DecimalSI),
+						v1.ResourceMemory: *resource.NewQuantity(1024, resource.BinarySI),
+						v1.ResourcePods:   *resource.NewQuantity(110, resource.DecimalSI),
+						"resource-plugin": *resource.NewQuantity(1, resource.BinarySI),
+					},
+				},
+			},
+		},
+		{
 			desc: "inactive device plugin resources should have their capacity set to 0",
 			node: &v1.Node{
 				Status: v1.NodeStatus{
@@ -713,6 +747,40 @@ func TestMachineInfo(t *testing.T) {
 				MemoryCapacity: 1024,
 			},
 			devicePluginResourceCapacity: dprc{
+				inactive: []string{"inactive"},
+			},
+			expectNode: &v1.Node{
+				Status: v1.NodeStatus{
+					Capacity: v1.ResourceList{
+						v1.ResourceCPU:    *resource.NewMilliQuantity(2000, resource.DecimalSI),
+						v1.ResourceMemory: *resource.NewQuantity(1024, resource.BinarySI),
+						v1.ResourcePods:   *resource.NewQuantity(110, resource.DecimalSI),
+						"inactive":        *resource.NewQuantity(0, resource.BinarySI),
+					},
+					Allocatable: v1.ResourceList{
+						v1.ResourceCPU:    *resource.NewMilliQuantity(2000, resource.DecimalSI),
+						v1.ResourceMemory: *resource.NewQuantity(1024, resource.BinarySI),
+						v1.ResourcePods:   *resource.NewQuantity(110, resource.DecimalSI),
+						"inactive":        *resource.NewQuantity(0, resource.BinarySI),
+					},
+				},
+			},
+		},
+		{
+			desc: "inactive resource plugin resources should have their capacity set to 0",
+			node: &v1.Node{
+				Status: v1.NodeStatus{
+					Capacity: v1.ResourceList{
+						"inactive": *resource.NewQuantity(1, resource.BinarySI),
+					},
+				},
+			},
+			maxPods: 110,
+			machineInfo: &cadvisorapiv1.MachineInfo{
+				NumCores:       2,
+				MemoryCapacity: 1024,
+			},
+			resourcePluginResourceCapacity: dprc{
 				inactive: []string{"inactive"},
 			},
 			expectNode: &v1.Node{
@@ -837,6 +905,10 @@ func TestMachineInfo(t *testing.T) {
 				c := tc.devicePluginResourceCapacity
 				return c.capacity, c.allocatable, c.inactive
 			}
+			resourcePluginResourceCapacityFunc := func() (v1.ResourceList, v1.ResourceList, []string) {
+				c := tc.resourcePluginResourceCapacity
+				return c.capacity, c.allocatable, c.inactive
+			}
 			nodeAllocatableReservationFunc := func() v1.ResourceList {
 				return tc.nodeAllocatableReservation
 			}
@@ -851,7 +923,8 @@ func TestMachineInfo(t *testing.T) {
 			}
 			// construct setter
 			setter := MachineInfo(nodeName, tc.maxPods, tc.podsPerCore, machineInfoFunc, capacityFunc,
-				devicePluginResourceCapacityFunc, nodeAllocatableReservationFunc, recordEventFunc)
+				devicePluginResourceCapacityFunc, resourcePluginResourceCapacityFunc,
+				nodeAllocatableReservationFunc, recordEventFunc)
 			// call setter on node
 			if err := setter(tc.node); err != nil {
 				t.Fatalf("unexpected error: %v", err)

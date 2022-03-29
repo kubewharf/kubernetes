@@ -4,6 +4,9 @@ import (
 	"math/rand"
 	"reflect"
 	"testing"
+
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/uuid"
 )
 
 func Test_getAvailablePorts(t *testing.T) {
@@ -210,7 +213,7 @@ func Test_getAvailablePorts(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := getAvailablePorts(tt.args.allocated, tt.args.base, tt.args.max, tt.args.arrangeBase, tt.args.portCount, tt.args.rander)
+			got, got1 := getAvailablePorts(transformAllocated(tt.args.allocated), tt.args.base, tt.args.max, tt.args.arrangeBase, tt.args.portCount, tt.args.rander)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getAvailablePorts() got = %v, want %v", got, tt.want)
 			}
@@ -219,4 +222,20 @@ func Test_getAvailablePorts(t *testing.T) {
 			}
 		})
 	}
+}
+
+func transformAllocated(allocated map[int]bool) map[int]types.UID {
+	if allocated == nil {
+		return nil
+	}
+
+	ret := make(map[int]types.UID)
+
+	for port, ok := range allocated {
+		if ok {
+			ret[port] = uuid.NewUUID()
+		}
+	}
+
+	return ret
 }
