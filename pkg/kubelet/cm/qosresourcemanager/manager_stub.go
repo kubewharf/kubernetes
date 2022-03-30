@@ -87,7 +87,7 @@ func (h *ManagerStub) ShouldResetExtendedResourceCapacity() bool {
 }
 
 // GetTopologyAwareResources returns nil, nil
-func (h *ManagerStub) GetTopologyAwareResources(podUID, containerName string) (*pluginapi.GetTopologyAwareResourcesResponse, error) {
+func (h *ManagerStub) GetTopologyAwareResources(pod *v1.Pod, container *v1.Container) (*pluginapi.GetTopologyAwareResourcesResponse, error) {
 	return nil, nil
 }
 

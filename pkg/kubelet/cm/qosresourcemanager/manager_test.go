@@ -239,10 +239,15 @@ func TestManagerAllocate(t *testing.T) {
 		resourceName:     "domain2.com/resource2",
 		resourceQuantity: *resource.NewQuantity(int64(2), resource.DecimalSI),
 	}
+	res3 := TestResource{
+		resourceName:     "domain3.com/resource3",
+		resourceQuantity: *resource.NewQuantity(int64(2), resource.DecimalSI),
+	}
 
 	testResources := []TestResource{
 		res1,
 		res2,
+		res3,
 	}
 
 	as := require.New(t)
@@ -255,6 +260,10 @@ func TestManagerAllocate(t *testing.T) {
 			v1.ResourceName(res1.resourceName): res1.resourceQuantity}),
 		makePod("Pod2", v1.ResourceList{
 			v1.ResourceName(res2.resourceName): res2.resourceQuantity}),
+		makePod("Pod3", v1.ResourceList{
+			v1.ResourceName(res3.resourceName): res3.resourceQuantity}),
+		makePod("Pod4", v1.ResourceList{
+			v1.ResourceName(res3.resourceName): res3.resourceQuantity}),
 	}
 
 	podsStub := activePodsStub{
@@ -268,8 +277,7 @@ func TestManagerAllocate(t *testing.T) {
 	as.Nil(err)
 
 	// test skipped pod
-	testPods[1].Annotations = make(map[string]string)
-	testPods[1].Annotations[apipod.TCEDaemonPodAnnotationKey] = "IsDaemonPod"
+	setPodAnnotation(testPods[1], apipod.TCEDaemonPodAnnotationKey, "IsDaemonPod")
 	err = testManager.Allocate(testPods[1], &testPods[1].Spec.Containers[0])
 	// runContainerOpts1 and err are both nil
 	runContainerOpts1, err := testManager.GetResourceRunContainerOptions(testPods[1], &testPods[1].Spec.Containers[0])
@@ -285,6 +293,7 @@ func TestManagerAllocate(t *testing.T) {
 	// endpoint isStopped
 	e1 := testManager.endpoints[res1.resourceName].e
 	e1.stop()
+	setPodAnnotation(testPods[1], pluginapi.PodTypeAnnotationKey, pluginapi.PodTypeBestEffort)
 	err = testManager.Allocate(testPods[1], &testPods[1].Spec.Containers[0])
 	as.NotNil(err)
 	klog.Errorf("stopped endpoint allocation error: %v", err)
@@ -322,6 +331,31 @@ func TestManagerAllocate(t *testing.T) {
 	as.Nil(err)
 	resourceAllocation2 = testManager.podResources.containerResource(string(testPods[2].UID), testPods[2].Spec.Containers[0].Name, res2.resourceName)
 	as.Equal(float64(3), resourceAllocation2.AllocatedQuantity)
+
+	// test skip endpoint error
+	err = testManager.Allocate(testPods[3], &testPods[3].Spec.Containers[0])
+	as.Nil(err)
+
+	// test not skipping endpoint error
+	setPodAnnotation(testPods[4], pluginapi.PodTypeAnnotationKey, pluginapi.PodTypeBestEffort)
+	err = testManager.Allocate(testPods[4], &testPods[4].Spec.Containers[0])
+	as.NotNil(err)
+}
+
+func setPodAnnotation(pod *v1.Pod, key, value string) {
+	if pod.Annotations == nil {
+		pod.Annotations = make(map[string]string)
+	}
+
+	pod.Annotations[key] = value
+}
+
+func setPodLabel(pod *v1.Pod, key, value string) {
+	if pod.Annotations == nil {
+		pod.Labels = make(map[string]string)
+	}
+
+	pod.Labels[key] = value
 }
 
 func TestReconcileState(t *testing.T) {
@@ -391,6 +425,23 @@ func TestReconcileState(t *testing.T) {
 	as.Equal(float64(1), resp.AllocatedQuantity)
 	err = rs.AssertCalls([]string{"UpdateContainerResources"})
 	as.Nil(err)
+
+	// ensures that reconcile do allocation for active pods without allocatation results
+	pod1 := makePod("Pod1", v1.ResourceList{v1.ResourceName(res1.resourceName): res1.resourceQuantity})
+	testPods = append(testPods, pod1)
+	podsStub.activePods = testPods
+	mockStatus = getMockStatusWithPods(testPods)
+	testManager.podStatusProvider = mockStatus
+	testManager.activePods = podsStub.getActivePods
+
+	resp = testManager.podResources.containerResource(string(pod1.UID), pod1.Spec.Containers[0].Name, res1.resourceName)
+	as.Nil(resp)
+
+	testManager.reconcileState()
+
+	resp = testManager.podResources.containerResource(string(pod1.UID), pod1.Spec.Containers[0].Name, res1.resourceName)
+	as.NotNil(resp)
+	as.Equal(float64(res1.resourceQuantity.Value()), resp.AllocatedQuantity)
 }
 
 func resourceStubAlloc() func(ctx context.Context, request *pluginapi.GetResourcesAllocationRequest) (*pluginapi.GetResourcesAllocationResponse, error) {
@@ -496,10 +547,9 @@ func TestUtils(t *testing.T) {
 	cont4.Name = "Cont4"
 	pod1.Spec.Containers = append(pod1.Spec.Containers, cont4)
 	_, err = GetContextWithSpecificInfo(pod1, &pod1.Spec.Containers[0])
-	as.NotNil(err)
+	as.Nil(err)
 
-	pod1.Labels = make(map[string]string)
-	pod1.Labels[PSMLabelKey] = "Value1"
+	setPodLabel(pod1, PSMLabelKey, "Value1")
 	Context2, err := GetContextWithSpecificInfo(pod1, &pod1.Spec.Containers[0])
 	as.Equal(metadata.NewOutgoingContext(context.Background(), metadata.Pairs("psm", "Value1")), Context2)
 }
@@ -685,7 +735,7 @@ func TestGetResourceRunContainerOptions(t *testing.T) {
 	}
 
 	res2 := TestResource{
-		resourceName:     "domain1.com/resource2",
+		resourceName:     "domain2.com/resource2",
 		resourceQuantity: *resource.NewQuantity(int64(2), resource.DecimalSI),
 	}
 
@@ -785,30 +835,29 @@ var flag int = 0
 func topologyStubAllocatable() func(ctx context.Context, request *pluginapi.GetTopologyAwareAllocatableResourcesRequest) (*pluginapi.GetTopologyAwareAllocatableResourcesResponse, error) {
 	return func(ctx context.Context, request *pluginapi.GetTopologyAwareAllocatableResourcesRequest) (*pluginapi.GetTopologyAwareAllocatableResourcesResponse, error) {
 		resp := new(pluginapi.GetTopologyAwareAllocatableResourcesResponse)
-		resp.AllocatableResources = new(pluginapi.TopologyAwareResources)
-		resp.AllocatableResources.TopologyAwareResources = make(map[string]*pluginapi.TopologyAwareResource)
+		resp.AllocatableResources = make(map[string]*pluginapi.AllocatableTopologyAwareResource)
 		if flag == 1 {
-			resp.AllocatableResources.TopologyAwareResources["domain1.com/resource1"] = new(pluginapi.TopologyAwareResource)
-			resp.AllocatableResources.TopologyAwareResources["domain1.com/resource1"].IsNodeResource = true
-			resp.AllocatableResources.TopologyAwareResources["domain1.com/resource1"].IsScalarResource = true
-			resp.AllocatableResources.TopologyAwareResources["domain1.com/resource1"].AggregatedQuantity = 3
+			resp.AllocatableResources["domain1.com/resource1"] = new(pluginapi.AllocatableTopologyAwareResource)
+			resp.AllocatableResources["domain1.com/resource1"].IsNodeResource = true
+			resp.AllocatableResources["domain1.com/resource1"].IsScalarResource = true
+			resp.AllocatableResources["domain1.com/resource1"].AggregatedQuantity = 3
 		}
 		if flag == 2 {
-			resp.AllocatableResources.TopologyAwareResources["domain1.com/resource1"] = new(pluginapi.TopologyAwareResource)
-			resp.AllocatableResources.TopologyAwareResources["domain1.com/resource1"].IsNodeResource = true
-			resp.AllocatableResources.TopologyAwareResources["domain1.com/resource1"].IsScalarResource = true
-			resp.AllocatableResources.TopologyAwareResources["domain1.com/resource1"].AggregatedQuantity = 3
-			resp.AllocatableResources.TopologyAwareResources["domain2.com/resource2"] = new(pluginapi.TopologyAwareResource)
-			resp.AllocatableResources.TopologyAwareResources["domain2.com/resource2"].IsNodeResource = true
-			resp.AllocatableResources.TopologyAwareResources["domain2.com/resource2"].IsScalarResource = true
-			resp.AllocatableResources.TopologyAwareResources["domain2.com/resource2"].AggregatedQuantity = 4
+			resp.AllocatableResources["domain1.com/resource1"] = new(pluginapi.AllocatableTopologyAwareResource)
+			resp.AllocatableResources["domain1.com/resource1"].IsNodeResource = true
+			resp.AllocatableResources["domain1.com/resource1"].IsScalarResource = true
+			resp.AllocatableResources["domain1.com/resource1"].AggregatedQuantity = 3
+			resp.AllocatableResources["domain2.com/resource2"] = new(pluginapi.AllocatableTopologyAwareResource)
+			resp.AllocatableResources["domain2.com/resource2"].IsNodeResource = true
+			resp.AllocatableResources["domain2.com/resource2"].IsScalarResource = true
+			resp.AllocatableResources["domain2.com/resource2"].AggregatedQuantity = 4
 		}
 		if flag == 3 {
-			resp.AllocatableResources.TopologyAwareResources["domain1.com/resource1"] = new(pluginapi.TopologyAwareResource)
-			resp.AllocatableResources.TopologyAwareResources["domain1.com/resource1"].IsNodeResource = false
-			resp.AllocatableResources.TopologyAwareResources["domain1.com/resource1"].IsScalarResource = true
-			resp.AllocatableResources.TopologyAwareResources["domain1.com/resource1"].AggregatedQuantity = 4
-			resp.AllocatableResources.TopologyAwareResources["domain1.com/resource1"].TopologyAwareQuantityList = []*pluginapi.TopologyAwareQuantity{
+			resp.AllocatableResources["domain1.com/resource1"] = new(pluginapi.AllocatableTopologyAwareResource)
+			resp.AllocatableResources["domain1.com/resource1"].IsNodeResource = false
+			resp.AllocatableResources["domain1.com/resource1"].IsScalarResource = true
+			resp.AllocatableResources["domain1.com/resource1"].AggregatedQuantity = 4
+			resp.AllocatableResources["domain1.com/resource1"].TopologyAwareQuantityList = []*pluginapi.TopologyAwareQuantity{
 				{ResourceValue: "0-1", Node: 0},
 				{ResourceValue: "2-3", Node: 1},
 			}
@@ -911,8 +960,8 @@ func TestGetTopologyAwareAllocatableResources(t *testing.T) {
 	resp, err := testManager.GetTopologyAwareAllocatableResources()
 	as.Nil(err)
 	as.NotNil(resp.AllocatableResources)
-	as.NotNil(resp.AllocatableResources.TopologyAwareResources["domain1.com/resource1"])
-	as.Equal(resp.AllocatableResources.TopologyAwareResources["domain1.com/resource1"], &pluginapi.TopologyAwareResource{
+	as.NotNil(resp.AllocatableResources["domain1.com/resource1"])
+	as.Equal(resp.AllocatableResources["domain1.com/resource1"], &pluginapi.AllocatableTopologyAwareResource{
 		IsNodeResource:     false,
 		IsScalarResource:   true,
 		AggregatedQuantity: 4,
@@ -936,7 +985,7 @@ func TestGetTopologyAwareResources(t *testing.T) {
 	}
 
 	res2 := TestResource{
-		resourceName:     "domain1.com/resource2",
+		resourceName:     "domain2.com/resource2",
 		resourceQuantity: *resource.NewQuantity(int64(2), resource.DecimalSI),
 	}
 
@@ -975,15 +1024,13 @@ func TestGetTopologyAwareResources(t *testing.T) {
 		PodNamespace: pod1.Namespace,
 		ContainerTopologyAwareResources: &pluginapi.ContainerTopologyAwareResources{
 			ContainerName: pod1.Spec.Containers[0].Name,
-			AllocatedResources: &pluginapi.TopologyAwareResources{
-				TopologyAwareResources: map[string]*pluginapi.TopologyAwareResource{
-					res1.resourceName: {
-						IsNodeResource:     res1Allocation.IsNodeResource,
-						IsScalarResource:   res1Allocation.IsScalarResource,
-						AggregatedQuantity: res1Allocation.AllocatedQuantity,
-						TopologyAwareQuantityList: []*pluginapi.TopologyAwareQuantity{
-							{ResourceValue: res1Allocation.AllocatationResult, Node: 0},
-						},
+			AllocatedResources: map[string]*pluginapi.TopologyAwareResource{
+				res1.resourceName: {
+					IsNodeResource:     res1Allocation.IsNodeResource,
+					IsScalarResource:   res1Allocation.IsScalarResource,
+					AggregatedQuantity: res1Allocation.AllocatedQuantity,
+					TopologyAwareQuantityList: []*pluginapi.TopologyAwareQuantity{
+						{ResourceValue: res1Allocation.AllocatationResult, Node: 0},
 					},
 				},
 			},
@@ -996,15 +1043,13 @@ func TestGetTopologyAwareResources(t *testing.T) {
 		PodNamespace: pod2.Namespace,
 		ContainerTopologyAwareResources: &pluginapi.ContainerTopologyAwareResources{
 			ContainerName: pod2.Spec.Containers[0].Name,
-			AllocatedResources: &pluginapi.TopologyAwareResources{
-				TopologyAwareResources: map[string]*pluginapi.TopologyAwareResource{
-					res2.resourceName: {
-						IsNodeResource:     res2Allocation.IsNodeResource,
-						IsScalarResource:   res2Allocation.IsScalarResource,
-						AggregatedQuantity: res2Allocation.AllocatedQuantity,
-						TopologyAwareQuantityList: []*pluginapi.TopologyAwareQuantity{
-							{ResourceValue: res2Allocation.AllocatationResult, Node: 1},
-						},
+			AllocatedResources: map[string]*pluginapi.TopologyAwareResource{
+				res2.resourceName: {
+					IsNodeResource:     res2Allocation.IsNodeResource,
+					IsScalarResource:   res2Allocation.IsScalarResource,
+					AggregatedQuantity: res2Allocation.AllocatedQuantity,
+					TopologyAwareQuantityList: []*pluginapi.TopologyAwareQuantity{
+						{ResourceValue: res2Allocation.AllocatationResult, Node: 1},
 					},
 				},
 			},
@@ -1043,11 +1088,11 @@ func TestGetTopologyAwareResources(t *testing.T) {
 		return nil, nil
 	}})
 
-	resp1, err := testManager.GetTopologyAwareResources(string(pod1.UID), pod1.Spec.Containers[0].Name)
+	resp1, err := testManager.GetTopologyAwareResources(pod1, &pod1.Spec.Containers[0])
 	as.Nil(err)
 	as.Equal(resp1, pod1Resp)
 
-	resp2, err := testManager.GetTopologyAwareResources(string(pod2.UID), pod2.Spec.Containers[0].Name)
+	resp2, err := testManager.GetTopologyAwareResources(pod2, &pod2.Spec.Containers[0])
 	as.Nil(err)
 	as.Equal(resp2, pod2Resp)
 }
@@ -1246,38 +1291,50 @@ func registerEndpointByRes(manager *ManagerImpl, testRes []TestResource) error {
 		var OciPropertyName string
 		if res.resourceName == "domain1.com/resource1" {
 			OciPropertyName = "CpusetCpus"
-		} else if res.resourceName == "domain1.com/resource2" {
+		} else if res.resourceName == "domain2.com/resource2" {
 			OciPropertyName = "CpusetMems"
 		}
 
 		curResourceName := res.resourceName
 
-		manager.registerEndpoint(curResourceName, &pluginapi.ResourcePluginOptions{
-			PreStartRequired:      true,
-			WithTopologyAlignment: true,
-			NeedReconcile:         true,
-		}, &MockEndpoint{
-			allocateFunc: func(req *pluginapi.ResourceRequest) (*pluginapi.ResourceAllocationResponse, error) {
-				if req == nil {
-					return nil, fmt.Errorf("allocateFunc got nil request")
-				}
+		if res.resourceName == "domain1.com/resource1" || res.resourceName == "domain2.com/resource2" {
+			manager.registerEndpoint(curResourceName, &pluginapi.ResourcePluginOptions{
+				PreStartRequired:      true,
+				WithTopologyAlignment: true,
+				NeedReconcile:         true,
+			}, &MockEndpoint{
+				allocateFunc: func(req *pluginapi.ResourceRequest) (*pluginapi.ResourceAllocationResponse, error) {
+					if req == nil {
+						return nil, fmt.Errorf("allocateFunc got nil request")
+					}
 
-				resp := new(pluginapi.ResourceAllocationResponse)
-				resp.AllocatationResult = new(pluginapi.ResourceAllocation)
-				resp.AllocatationResult.ResourceAllocation = make(map[string]*pluginapi.ResourceAllocationInfo)
-				resp.AllocatationResult.ResourceAllocation[curResourceName] = new(pluginapi.ResourceAllocationInfo)
-				resp.AllocatationResult.ResourceAllocation[curResourceName].Envs = make(map[string]string)
-				resp.AllocatationResult.ResourceAllocation[curResourceName].Envs[fmt.Sprintf("key%d", i)] = fmt.Sprintf("val%d", i)
-				resp.AllocatationResult.ResourceAllocation[curResourceName].Annotations = make(map[string]string)
-				resp.AllocatationResult.ResourceAllocation[curResourceName].Annotations[fmt.Sprintf("key%d", i)] = fmt.Sprintf("val%d", i)
-				resp.AllocatationResult.ResourceAllocation[curResourceName].IsScalarResource = true
-				resp.AllocatationResult.ResourceAllocation[curResourceName].IsNodeResource = true
-				resp.AllocatationResult.ResourceAllocation[curResourceName].AllocatedQuantity = req.ResourceRequests[curResourceName]
-				resp.AllocatationResult.ResourceAllocation[curResourceName].AllocatationResult = "0-1"
-				resp.AllocatationResult.ResourceAllocation[curResourceName].OciPropertyName = OciPropertyName
-				return resp, nil
-			},
-		})
+					resp := new(pluginapi.ResourceAllocationResponse)
+					resp.AllocatationResult = new(pluginapi.ResourceAllocation)
+					resp.AllocatationResult.ResourceAllocation = make(map[string]*pluginapi.ResourceAllocationInfo)
+					resp.AllocatationResult.ResourceAllocation[curResourceName] = new(pluginapi.ResourceAllocationInfo)
+					resp.AllocatationResult.ResourceAllocation[curResourceName].Envs = make(map[string]string)
+					resp.AllocatationResult.ResourceAllocation[curResourceName].Envs[fmt.Sprintf("key%d", i)] = fmt.Sprintf("val%d", i)
+					resp.AllocatationResult.ResourceAllocation[curResourceName].Annotations = make(map[string]string)
+					resp.AllocatationResult.ResourceAllocation[curResourceName].Annotations[fmt.Sprintf("key%d", i)] = fmt.Sprintf("val%d", i)
+					resp.AllocatationResult.ResourceAllocation[curResourceName].IsScalarResource = true
+					resp.AllocatationResult.ResourceAllocation[curResourceName].IsNodeResource = true
+					resp.AllocatationResult.ResourceAllocation[curResourceName].AllocatedQuantity = req.ResourceRequests[curResourceName]
+					resp.AllocatationResult.ResourceAllocation[curResourceName].AllocatationResult = "0-1"
+					resp.AllocatationResult.ResourceAllocation[curResourceName].OciPropertyName = OciPropertyName
+					return resp, nil
+				},
+			})
+		} else if res.resourceName == "domain3.com/resource3" {
+			manager.registerEndpoint(curResourceName, &pluginapi.ResourcePluginOptions{
+				PreStartRequired:      true,
+				WithTopologyAlignment: true,
+				NeedReconcile:         true,
+			}, &MockEndpoint{
+				allocateFunc: func(req *pluginapi.ResourceRequest) (*pluginapi.ResourceAllocationResponse, error) {
+					return nil, fmt.Errorf("mock error")
+				},
+			})
+		}
 	}
 
 	return nil

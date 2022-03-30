@@ -248,6 +248,10 @@ func (m *ManagerImpl) Start(activePods ActivePodsFunc, sourcesReady config.Sourc
 		defer func() {
 			m.wg.Done()
 			cancel()
+
+			if err := recover(); err != nil {
+				klog.Fatalf("[qosresourcemanager] Start recover from err: %v", err)
+			}
 		}()
 		m.server.Serve(s)
 	}()
@@ -335,10 +339,9 @@ func (m *ManagerImpl) isVersionCompatibleWithPlugin(versions []string) bool {
 func (m *ManagerImpl) Allocate(pod *v1.Pod, container *v1.Container) error {
 	if pod == nil || container == nil {
 		return fmt.Errorf("Allocate got nil pod: %v or container: %v", pod, container)
-	}
-
-	if isSkippedPod(pod) {
-		klog.V(4).Infof("[qosresourcemanager] skip pod resource allocation")
+	} else if isSkippedPod(pod) {
+		klog.V(4).Infof("[qosresourcemanager] skip pod: %s/%s, container: %s resource allocation",
+			pod.Namespace, pod.Name, container.Name)
 		return nil
 	}
 
@@ -352,6 +355,22 @@ func (m *ManagerImpl) Allocate(pod *v1.Pod, container *v1.Container) error {
 		return err
 	}
 	return nil
+}
+
+func (m *ManagerImpl) isContainerRequestResourcePluginResource(container *v1.Container) bool {
+	if container == nil {
+		return false
+	}
+
+	for k, _ := range container.Resources.Requests {
+		resource := string(k)
+
+		if m.isResourcePluginResource(resource) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // allocateContainerResources attempts to allocate all of required resource
@@ -467,7 +486,18 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 		resp, err := eI.e.allocate(ctx, resourceReq)
 		metrics.ResourcePluginAllocationDuration.WithLabelValues(resource).Observe(metrics.SinceInSeconds(startRPCTime))
 		if err != nil {
-			return err
+			errMsg := fmt.Sprintf("allocate for resources %s for pod: %s/%s, container: %s got error: %v",
+				resource, pod.Namespace, pod.Name, container.Name, err)
+			klog.Errorf("[qosresourcemanager] %s", errMsg)
+
+			// is case of endpoint not working, pass some types of pods don't necessarily require resource allocation.
+			if canSkipEndpointError(pod, resource) {
+				klog.Warningf("[qosresourcemanager] pod: %s/%s, container: %s skip %s endpoint allocation error",
+					pod.Namespace, pod.Name, container.Name, resource)
+				continue
+			}
+
+			return fmt.Errorf(errMsg)
 		}
 
 		// Update internal cached podResources state.
@@ -597,8 +627,19 @@ func (m *ManagerImpl) addEndpoint(r *pluginapi.RegisterRequest, success chan<- b
 	success <- true
 }
 
-func (m *ManagerImpl) GetTopologyAwareResources(podUID, containerName string) (*pluginapi.GetTopologyAwareResourcesResponse, error) {
+func (m *ManagerImpl) GetTopologyAwareResources(pod *v1.Pod, container *v1.Container) (*pluginapi.GetTopologyAwareResourcesResponse, error) {
 	var resp *pluginapi.GetTopologyAwareResourcesResponse
+
+	if pod == nil || container == nil {
+		return nil, fmt.Errorf("GetTopologyAwareResources got nil pod: %v or container: %v", pod, container)
+	} else if isSkippedPod(pod) {
+		klog.V(4).Infof("[qosresourcemanager] skip pod: %s/%s, container: %s GetTopologyAwareResources",
+			pod.Namespace, pod.Name, container.Name)
+		return nil, nil
+	}
+
+	podUID := string(pod.UID)
+	containerName := string(container.Name)
 
 	m.mutex.Lock()
 	for resourceName, eI := range m.endpoints {
@@ -636,16 +677,12 @@ func (m *ManagerImpl) GetTopologyAwareResources(podUID, containerName string) (*
 			}
 
 			if resp.ContainerTopologyAwareResources.AllocatedResources == nil {
-				resp.ContainerTopologyAwareResources.AllocatedResources = &pluginapi.TopologyAwareResources{}
-			}
-
-			if resp.ContainerTopologyAwareResources.AllocatedResources.TopologyAwareResources == nil {
-				resp.ContainerTopologyAwareResources.AllocatedResources.TopologyAwareResources = make(map[string]*pluginapi.TopologyAwareResource)
+				resp.ContainerTopologyAwareResources.AllocatedResources = make(map[string]*pluginapi.TopologyAwareResource)
 			}
 		} else if curResp.ContainerTopologyAwareResources != nil && curResp.ContainerTopologyAwareResources.AllocatedResources != nil {
-			for resourceName, topologyAwareResource := range curResp.ContainerTopologyAwareResources.AllocatedResources.TopologyAwareResources {
+			for resourceName, topologyAwareResource := range curResp.ContainerTopologyAwareResources.AllocatedResources {
 				if topologyAwareResource != nil {
-					resp.ContainerTopologyAwareResources.AllocatedResources.TopologyAwareResources[resourceName] = proto.Clone(topologyAwareResource).(*pluginapi.TopologyAwareResource)
+					resp.ContainerTopologyAwareResources.AllocatedResources[resourceName] = proto.Clone(topologyAwareResource).(*pluginapi.TopologyAwareResource)
 				}
 			}
 		} else {
@@ -684,17 +721,12 @@ func (m *ManagerImpl) GetTopologyAwareAllocatableResources() (*pluginapi.GetTopo
 			resp = curResp
 
 			if resp.AllocatableResources == nil {
-				resp.AllocatableResources = &pluginapi.TopologyAwareResources{}
+				resp.AllocatableResources = make(map[string]*pluginapi.AllocatableTopologyAwareResource)
 			}
-
-			if resp.AllocatableResources.TopologyAwareResources == nil {
-				resp.AllocatableResources.TopologyAwareResources = make(map[string]*pluginapi.TopologyAwareResource)
-			}
-
 		} else if curResp.AllocatableResources != nil {
-			for resourceName, topologyAwareResource := range curResp.AllocatableResources.TopologyAwareResources {
+			for resourceName, topologyAwareResource := range curResp.AllocatableResources {
 				if topologyAwareResource != nil {
-					resp.AllocatableResources.TopologyAwareResources[resourceName] = proto.Clone(topologyAwareResource).(*pluginapi.TopologyAwareResource)
+					resp.AllocatableResources[resourceName] = proto.Clone(topologyAwareResource).(*pluginapi.AllocatableTopologyAwareResource)
 				}
 			}
 		} else {
@@ -749,7 +781,7 @@ func (m *ManagerImpl) GetCapacity() (v1.ResourceList, v1.ResourceList, []string)
 				allocatable[v1.ResourceName(resourceName)] = *resource.NewQuantity(0, resource.DecimalSI)
 			} else if resp == nil ||
 				resp.AllocatableResources == nil ||
-				len(resp.AllocatableResources.TopologyAwareResources) == 0 {
+				len(resp.AllocatableResources) == 0 {
 				klog.Warningf("[qosresourcemanager] getTopologyAwareAllocatableResources for resource: %s got nil response or empty content in response", resourceName)
 				if !implicitIsNodeResource {
 					klog.Infof("[qosresourcemanager] skip GetCapacity for resource: %s with implicitIsNodeResource: %v", resourceName, implicitIsNodeResource)
@@ -758,7 +790,7 @@ func (m *ManagerImpl) GetCapacity() (v1.ResourceList, v1.ResourceList, []string)
 				capacity[v1.ResourceName(resourceName)] = *resource.NewQuantity(0, resource.DecimalSI)
 				allocatable[v1.ResourceName(resourceName)] = *resource.NewQuantity(0, resource.DecimalSI)
 			} else {
-				for accResourceName, taResource := range resp.AllocatableResources.TopologyAwareResources {
+				for accResourceName, taResource := range resp.AllocatableResources {
 
 					if taResource == nil {
 						klog.Errorf("[qosresourcemanager] accResourceName: %s with nil topology aware resource", accResourceName)
@@ -881,8 +913,11 @@ func (m *ManagerImpl) UpdateAllocatedResources() {
 // for the passed-in <pod, container> and returns its ResourceRunContainerOptions
 // for the found one. An empty struct is returned in case no cached state is found.
 func (m *ManagerImpl) GetResourceRunContainerOptions(pod *v1.Pod, container *v1.Container) (*kubecontainer.ResourceRunContainerOptions, error) {
-	if isSkippedPod(pod) {
-		klog.V(4).Infof("[qosresourcemanager] skip get resource run container options")
+	if pod == nil || container == nil {
+		return nil, fmt.Errorf("GetResourceRunContainerOptions got nil pod: %v or container: %v", pod, container)
+	} else if isSkippedPod(pod) {
+		klog.V(4).Infof("[qosresourcemanager] skip pod: %s/%s, container: %s resource allocation",
+			pod.Namespace, pod.Name, container.Name)
 		return nil, nil
 	}
 
@@ -911,12 +946,12 @@ func (m *ManagerImpl) GetResourceRunContainerOptions(pod *v1.Pod, container *v1.
 		// This is a resource plugin resource yet we don't have cached
 		// resource state. This is likely due to a race during node
 		// restart. We re-issue allocate request to cover this race.
-		if resources[resourceName] == nil && !isSkippedContainer(pod, container) {
+		if resources[resourceName] == nil {
 			needsReAllocate = true
 		}
 	}
-	if needsReAllocate {
-		klog.V(2).Infof("[qosresourcemanager] needs re-allocate resource plugin resources for pod %s, container %s", podUID, container.Name)
+	if needsReAllocate && !isSkippedContainer(pod, container) {
+		klog.V(2).Infof("[qosresourcemanager] needs re-allocate resource plugin resources for pod %s, container %s during GetResourceRunContainerOptions", podUID, container.Name)
 		if err := m.Allocate(pod, container); err != nil {
 			return nil, err
 		}
@@ -1045,8 +1080,16 @@ func (m *ManagerImpl) reconcileState() {
 	m.mutex.Unlock()
 
 	for _, pod := range activePods {
-		if isSkippedPod(pod) {
-			klog.V(4).Infof("[qosresourcemanager] skip active pod reconcile")
+		if pod == nil {
+			continue
+		} else if isSkippedPod(pod) {
+			klog.V(4).Infof("[qosresourcemanager] skip active pod: %s/%s reconcile", pod.Namespace, pod.Name)
+			continue
+		}
+
+		pstatus, ok := m.podStatusProvider.GetPodStatus(pod.UID)
+		if !ok {
+			klog.Warningf("[qosresourcemanager.reconcileState] reconcileState: skipping pod; status not found (pod: %s/%s)", pod.Namespace, pod.Name)
 			continue
 		}
 
@@ -1055,12 +1098,6 @@ func (m *ManagerImpl) reconcileState() {
 			podUID := string(pod.UID)
 			containerName := pod.Spec.Containers[i].Name
 
-			pstatus, ok := m.podStatusProvider.GetPodStatus(pod.UID)
-			if !ok {
-				klog.Warningf("[qosresourcemanager.reconcileState] reconcileState: skipping pod; status not found (pod: %s/%s, container: %s)", pod.Namespace, pod.Name, containerName)
-				continue
-			}
-
 			containerID, err := findContainerIDByName(&pstatus, containerName)
 			if err != nil {
 				klog.Warningf("[qosresourcemanager.reconcileState] reconcileState: skipping container; ID not found in pod status (pod: %s/%s, container: %s, error: %v)",
@@ -1068,12 +1105,24 @@ func (m *ManagerImpl) reconcileState() {
 				continue
 			}
 
+			needsReAllocate := m.isContainerRequestResourcePluginResource(&pod.Spec.Containers[i])
 			for _, resp := range resourceAllocationResps {
 				if resp != nil && resp.PodResources[podUID] != nil && resp.PodResources[podUID].ContainerResources[containerName] != nil {
+					needsReAllocate = false
 					resourceAllocations := resp.PodResources[podUID].ContainerResources[containerName]
 					for resourceName, resourceAllocationInfo := range resourceAllocations.ResourceAllocation {
 						m.podResources.insert(podUID, containerName, resourceName, resourceAllocationInfo)
 					}
+				}
+			}
+
+			if needsReAllocate && !isSkippedContainer(pod, &pod.Spec.Containers[i]) {
+				klog.Infof("[qosresourcemanager] needs re-allocate resource plugin resources for pod %s/%s, container %s during reconcileState",
+					pod.Namespace, pod.Name, containerName)
+				if err := m.Allocate(pod, &pod.Spec.Containers[i]); err != nil {
+					klog.Errorf("[qosresourcemanager] re-allocate resource plugin resources for pod %s/%s, container %s during reconcileState failed with error: %v",
+						pod.Namespace, pod.Name, containerName, err)
+					continue
 				}
 			}
 
@@ -1104,7 +1153,6 @@ func (m *ManagerImpl) updateContainerResources(podUID, containerName, containerI
 	if err != nil {
 		return fmt.Errorf("updateContainerResources failed with error: %v", err)
 	} else if opts == nil {
-		// [TODO]: should we judge reallocation here to aviod entry of the container in podResources is missing
 		klog.Warningf("[qosresourcemanager.updateContainerResources] there is no resources opts for pod: %s, container: %s",
 			podUID, containerName)
 		return nil

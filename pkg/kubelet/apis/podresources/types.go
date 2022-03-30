@@ -57,7 +57,7 @@ type ResourcesProvider interface {
 	// UpdateAllocatedResources frees any Resources that are bound to terminated pods.
 	UpdateAllocatedResources()
 	// GetResources returns information about the resources assigned to pods and containers in topology aware format
-	GetTopologyAwareResources(podUID, containerName string) []*podresourcesapi.TopologyAwareResource
+	GetTopologyAwareResources(pod *v1.Pod, container *v1.Container) []*podresourcesapi.TopologyAwareResource
 	// GetAllocatableResources returns information about all the resources known to the manager in topology aware format
-	GetTopologyAwareAllocatableResources() []*podresourcesapi.TopologyAwareResource
+	GetTopologyAwareAllocatableResources() []*podresourcesapi.AllocatableTopologyAwareResource
 }

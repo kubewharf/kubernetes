@@ -74,7 +74,7 @@ func (p *v1PodResourcesServer) List(ctx context.Context, req *v1.ListPodResource
 				Devices:   p.devicesProvider.GetDevices(string(pod.UID), container.Name),
 				CpuIds:    p.cpusProvider.GetCPUs(string(pod.UID), container.Name),
 				Memory:    p.memoryProvider.GetMemory(string(pod.UID), container.Name),
-				Resources: p.resourcesProvider.GetTopologyAwareResources(string(pod.UID), container.Name),
+				Resources: p.resourcesProvider.GetTopologyAwareResources(pod, &container),
 			}
 		}
 		podResources[i] = &pRes

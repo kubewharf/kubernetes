@@ -1389,6 +1389,10 @@ func (kl *Kubelet) initializeRuntimeDependentModules() {
 
 	// Adding Registration Callback function for handlers provided by Container Manager
 	for handlerType, handler := range kl.containerManager.GetPluginRegistrationHandler() {
+		if handler == nil {
+			klog.Warningf("handlerType: %s has nil handler, skip it", handlerType)
+			continue
+		}
 		kl.pluginManager.AddHandler(handlerType, handler)
 	}
 

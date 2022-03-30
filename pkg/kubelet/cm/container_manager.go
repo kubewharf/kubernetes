@@ -208,53 +208,74 @@ func ParseQOSReserved(m map[string]string) (*map[v1.ResourceName]int64, error) {
 	return &reservations, nil
 }
 
-func convertTopologyAwareResourceToPodResourceApi(topologyAwareResources map[string]*resourcepluginapi.TopologyAwareResource) []*podresourcesapi.TopologyAwareResource {
-	result := make([]*podresourcesapi.TopologyAwareResource, 0, len(topologyAwareResources))
+func containerResourcesFromResourceManagerAllocatableResponse(res *resourcepluginapi.GetTopologyAwareAllocatableResourcesResponse) []*podresourcesapi.AllocatableTopologyAwareResource {
+	if res == nil {
+		return nil
+	}
 
-	for resourceName, resource := range topologyAwareResources {
+	result := make([]*podresourcesapi.AllocatableTopologyAwareResource, 0, len(res.AllocatableResources))
+
+	for resourceName, resource := range res.AllocatableResources {
 		if resource == nil {
 			continue
 		}
 
-		topologyAwareQuantityList := make([]*podresourcesapi.TopologyAwareQuantity, 0, len(resource.TopologyAwareQuantityList))
-
-		for _, topologyAwareQuantity := range resource.TopologyAwareQuantityList {
-			if topologyAwareQuantity != nil {
-				topologyAwareQuantityList = append(topologyAwareQuantityList, &podresourcesapi.TopologyAwareQuantity{
-					ResourceValue: topologyAwareQuantity.ResourceValue,
-					Node:          topologyAwareQuantity.Node,
-				})
-			}
-		}
-
-		result = append(result, &podresourcesapi.TopologyAwareResource{
+		result = append(result, &podresourcesapi.AllocatableTopologyAwareResource{
 			ResourceName:              resourceName,
 			IsNodeResource:            resource.IsNodeResource,
 			IsScalarResource:          resource.IsScalarResource,
 			AggregatedQuantity:        resource.AggregatedQuantity,
-			TopologyAwareQuantityList: topologyAwareQuantityList,
+			TopologyAwareQuantityList: transformTopologyAwareQuantity(resource.TopologyAwareQuantityList),
 		})
 	}
 
 	return result
 }
 
-func containerResourcesFromResourceManagerAllocatableResponse(res *resourcepluginapi.GetTopologyAwareAllocatableResourcesResponse) []*podresourcesapi.TopologyAwareResource {
-	if res == nil || res.AllocatableResources == nil {
-		return nil
-	}
-
-	return convertTopologyAwareResourceToPodResourceApi(res.AllocatableResources.TopologyAwareResources)
-}
-
 func containerResourcesFromResourceManagerResponse(res *resourcepluginapi.GetTopologyAwareResourcesResponse) []*podresourcesapi.TopologyAwareResource {
 	if res == nil ||
-		res.ContainerTopologyAwareResources == nil ||
-		res.ContainerTopologyAwareResources.AllocatedResources == nil {
+		res.ContainerTopologyAwareResources == nil {
 		return nil
 	}
 
-	return convertTopologyAwareResourceToPodResourceApi(res.ContainerTopologyAwareResources.AllocatedResources.TopologyAwareResources)
+	result := make([]*podresourcesapi.TopologyAwareResource, 0, len(res.ContainerTopologyAwareResources.AllocatedResources))
+
+	for resourceName, resource := range res.ContainerTopologyAwareResources.AllocatedResources {
+		if resource == nil {
+			continue
+		}
+
+		result = append(result, &podresourcesapi.TopologyAwareResource{
+			ResourceName:                      resourceName,
+			IsNodeResource:                    resource.IsNodeResource,
+			IsScalarResource:                  resource.IsScalarResource,
+			AggregatedQuantity:                resource.AggregatedQuantity,
+			OriginalAggregatedQuantity:        resource.OriginalAggregatedQuantity,
+			TopologyAwareQuantityList:         transformTopologyAwareQuantity(resource.TopologyAwareQuantityList),
+			OriginalTopologyAwareQuantityList: transformTopologyAwareQuantity(resource.OriginalTopologyAwareQuantityList),
+		})
+	}
+
+	return result
+}
+
+func transformTopologyAwareQuantity(pluginAPITopologyAwareQuantityList []*resourcepluginapi.TopologyAwareQuantity) []*podresourcesapi.TopologyAwareQuantity {
+	if pluginAPITopologyAwareQuantityList == nil {
+		return nil
+	}
+
+	topologyAwareQuantityList := make([]*podresourcesapi.TopologyAwareQuantity, 0, len(pluginAPITopologyAwareQuantityList))
+
+	for _, topologyAwareQuantity := range pluginAPITopologyAwareQuantityList {
+		if topologyAwareQuantity != nil {
+			topologyAwareQuantityList = append(topologyAwareQuantityList, &podresourcesapi.TopologyAwareQuantity{
+				ResourceValue: topologyAwareQuantity.ResourceValue,
+				Node:          topologyAwareQuantity.Node,
+			})
+		}
+	}
+
+	return topologyAwareQuantityList
 }
 
 func containerDevicesFromResourceDeviceInstances(devs devicemanager.ResourceDeviceInstances) []*podresourcesapi.ContainerDevices {

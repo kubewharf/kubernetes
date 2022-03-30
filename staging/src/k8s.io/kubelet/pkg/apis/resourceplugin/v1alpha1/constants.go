@@ -44,10 +44,20 @@ const (
 	KubeletResourcePluginGetTopologyAwareResourcesRPCTimeoutInSecs = 10
 	// Timeout duration in secs for GetTopologyAwareAllocatableResources RPC
 	KubeletResourcePluginGetTopologyAwareAllocatableResourcesRPCTimeoutInSecs = 10
+
 	// [TODO](sunjianyu) make role, type identifiers more general
 	// label to identity pod role
 	PodRoleLabelKey      = "bytedance.com/pod-role"
 	PodTypeAnnotationKey = "godel.bytedance.com/pod-resource-type"
+
+	PodRoleWorker          = "worker"
+	PodRoleParameterServer = "ps"
+	PodRoleParameterSocket = "socket"
+	PodRoleMicroService    = "micro-service"
+	PodRoleSocketService   = "socket-service"
+
+	PodTypeBestEffort = "best-effort"
+	PodTypeGuaranteed = "guaranteed"
 )
 
 var SupportedVersions = [...]string{"v1alpha1"}

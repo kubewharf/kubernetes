@@ -256,7 +256,7 @@ func assembleOciResourceConfig(podUID, containerName string, opts *kubecontainer
 
 	for resourceName, resourceAllocationInfo := range resources {
 		if resourceAllocationInfo == nil {
-			klog.Warningf("[assembleOciResourceConfig] resource: %s with nil resourceAllocationInfo", resourceName)
+			klog.Warningf("[qosresourcemanager.assembleOciResourceConfig] resource: %s with nil resourceAllocationInfo", resourceName)
 			continue
 		}
 
@@ -274,7 +274,7 @@ func assembleOciResourceConfig(podUID, containerName string, opts *kubecontainer
 					resourceAllocationInfo.OciPropertyName, resourceName, resourceAllocationInfo.AllocatationResult, sErr)
 			}
 
-			klog.Infof("podUID: %s, containerName: %s, set oci property: %s for resource: %s to value: %s in OCI resource config ",
+			klog.Infof("[qosresourcemanager.assembleOciResourceConfig] podUID: %s, containerName: %s, set oci property: %s for resource: %s to value: %s in OCI resource config ",
 				podUID, containerName, resourceAllocationInfo.OciPropertyName, resourceName, resourceAllocationInfo.AllocatationResult)
 		}
 	}
@@ -340,13 +340,14 @@ func (pres *podResourcesChk) resourceRunContainerOptions(podUID, contName string
 	for _, resourceAllocationInfo := range resources {
 		for k, v := range resourceAllocationInfo.Envs {
 			if e, ok := envsMap[k]; ok {
-				klog.V(4).Infof("Skip existing env %s %s", k, v)
+				klog.V(4).Infof("[qosresourcemanager] skip existing env %s %s for pod: %s, container: %s", k, v, podUID, contName)
 				if e != v {
-					klog.Errorf("Environment variable %s has conflicting setting: %s and %s", k, e, v)
+					klog.Errorf("[qosresourcemanager] environment variable %s has conflicting setting: %s and %s for for pod: %s, container: %s",
+						k, e, v, podUID, contName)
 				}
 				continue
 			}
-			klog.V(4).Infof("Add env %s %s", k, v)
+			klog.V(4).Infof("[qosresourcemanager] add env %s %s for pod: %s, container: %s", k, v, podUID, contName)
 			envsMap[k] = v
 			opts.Envs = append(opts.Envs, kubecontainer.EnvVar{Name: k, Value: v})
 		}
@@ -354,13 +355,13 @@ func (pres *podResourcesChk) resourceRunContainerOptions(podUID, contName string
 		// Updates for Annotations
 		for k, v := range resourceAllocationInfo.Annotations {
 			if e, ok := annotationsMap[k]; ok {
-				klog.V(4).Infof("Skip existing annotation %s %s", k, v)
+				klog.V(4).Infof("[qosresourcemanager] skip existing annotation %s %s for pod: %s, container: %s", k, v, podUID, contName)
 				if e != v {
-					klog.Errorf("Annotation %s has conflicting setting: %s and %s", k, e, v)
+					klog.Errorf("[qosresourcemanager] annotation %s has conflicting setting: %s and %s for pod: %s, container: %s", k, e, v, podUID, contName)
 				}
 				continue
 			}
-			klog.V(4).Infof("Add annotation %s %s", k, v)
+			klog.V(4).Infof("[qosresourcemanager] add annotation %s %s for pod: %s, container: %s", k, v, podUID, contName)
 			annotationsMap[k] = v
 			opts.Annotations = append(opts.Annotations, kubecontainer.Annotation{Name: k, Value: v})
 		}

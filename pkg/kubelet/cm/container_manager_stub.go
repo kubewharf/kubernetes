@@ -155,11 +155,11 @@ func (cm *containerManagerStub) GetNodeAllocatableAbsolute() v1.ResourceList {
 	return nil
 }
 
-func (cm *containerManagerStub) GetTopologyAwareResources(podUID, containerName string) []*podresourcesapi.TopologyAwareResource {
+func (cm *containerManagerStub) GetTopologyAwareResources(pod *v1.Pod, container *v1.Container) []*podresourcesapi.TopologyAwareResource {
 	return nil
 }
 
-func (cm *containerManagerStub) GetTopologyAwareAllocatableResources() []*podresourcesapi.TopologyAwareResource {
+func (cm *containerManagerStub) GetTopologyAwareAllocatableResources() []*podresourcesapi.AllocatableTopologyAwareResource {
 	return nil
 }
 

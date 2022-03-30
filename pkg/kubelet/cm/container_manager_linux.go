@@ -1025,20 +1025,25 @@ func (cm *containerManagerImpl) GetResourceRunContainerOptions(pod *v1.Pod, cont
 	return cm.qosResourceManager.GetResourceRunContainerOptions(pod, container)
 }
 
-// GetResources returns information about the resources assigned to pods and containers in topology aware format
-func (cm *containerManagerImpl) GetTopologyAwareResources(podUID, containerName string) []*podresourcesapi.TopologyAwareResource {
-	resp, err := cm.qosResourceManager.GetTopologyAwareResources(podUID, containerName)
+// GetTopologyAwareResources returns information about the resources assigned to pods and containers in topology aware format
+func (cm *containerManagerImpl) GetTopologyAwareResources(pod *v1.Pod, container *v1.Container) []*podresourcesapi.TopologyAwareResource {
+	if pod == nil || container == nil {
+		klog.Errorf("GetTopologyAwareResources got nil pod: %v or container: %v", pod, container)
+		return nil
+	}
+
+	resp, err := cm.qosResourceManager.GetTopologyAwareResources(pod, container)
 
 	if err != nil {
-		klog.Errorf("qos resource manager GetTopologyAwareResources for pod: %s container: %s failed with error: %v", podUID, containerName, err)
+		klog.Errorf("qos resource manager GetTopologyAwareResources for pod: %s container: %s failed with error: %v", pod.UID, container.Name, err)
 		return nil
 	}
 
 	return containerResourcesFromResourceManagerResponse(resp)
 }
 
-// GetAllocatableResources returns information about all the resources known to the manager in topology aware format
-func (cm *containerManagerImpl) GetTopologyAwareAllocatableResources() []*podresourcesapi.TopologyAwareResource {
+// GetTopologyAwareAllocatableResources returns information about all the resources known to the manager in topology aware format
+func (cm *containerManagerImpl) GetTopologyAwareAllocatableResources() []*podresourcesapi.AllocatableTopologyAwareResource {
 	resp, err := cm.qosResourceManager.GetTopologyAwareAllocatableResources()
 
 	if err != nil {

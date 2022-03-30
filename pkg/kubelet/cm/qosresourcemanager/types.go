@@ -80,7 +80,7 @@ type Manager interface {
 
 	// GetTopologyAwareResources returns information about the resources assigned to pods and containers
 	// and organized as topology aware format.
-	GetTopologyAwareResources(podUID, containerName string) (*pluginapi.GetTopologyAwareResourcesResponse, error)
+	GetTopologyAwareResources(pod *v1.Pod, container *v1.Container) (*pluginapi.GetTopologyAwareResourcesResponse, error)
 
 	// GetTopologyAwareAllocatableResources returns information about the resources assigned to pods and containers
 	// and organized as topology aware format.

@@ -192,9 +192,26 @@ func GetContextWithSpecificInfo(pod *v1.Pod, container *v1.Container) (context.C
 	psm := pod.Labels[PSMLabelKey]
 
 	if psm == "" {
-		return context.Background(), fmt.Errorf("pod: %s/%s, container: %s with empty psm label", pod.Namespace, pod.Name, container.Name)
+		return context.Background(), nil
 	}
 
 	md := metadata.Pairs("psm", psm)
 	return metadata.NewOutgoingContext(context.Background(), md), nil
+}
+
+func canSkipEndpointError(pod *v1.Pod, resource string) bool {
+	if pod == nil {
+		return false
+	}
+
+	if pod.Annotations[pluginapi.PodTypeAnnotationKey] == pluginapi.PodTypeBestEffort {
+		return false
+	}
+
+	// [TODO](sunjianyu): to exclude socket pods
+	if pod.Annotations[pluginapi.PodRoleLabelKey] == "" || pod.Annotations[pluginapi.PodTypeAnnotationKey] == pluginapi.PodRoleMicroService {
+		return true
+	}
+
+	return false
 }
