@@ -1,7 +1,7 @@
 // To regenerate api.pb.go run hack/update-generated-resource-plugin.sh
 syntax = 'proto3';
 
-package v1alpha1;
+package resourceplugin.v1alpha1;
 
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 
@@ -12,6 +12,8 @@ option (gogoproto.marshaler_all) = true;
 option (gogoproto.sizer_all) = true;
 option (gogoproto.unmarshaler_all) = true;
 option (gogoproto.goproto_unrecognized_all) = false;
+
+option go_package = "v1alpha1";
 
 
 // Registration is the service advertised by the Kubelet
@@ -157,18 +159,16 @@ message GetTopologyAwareResourcesResponse {
 
 message ContainerTopologyAwareResources {
     string container_name = 1;
-    TopologyAwareResources allocated_resources = 2;
-}
-
-message TopologyAwareResources {
-    map<string, TopologyAwareResource> topology_aware_resources = 1;
+    map<string, TopologyAwareResource> allocated_resources = 2;
 }
 
 message TopologyAwareResource {
     bool is_node_resource = 1;
     bool is_scalar_resource = 2;
     double aggregated_quantity = 3; 
-    repeated TopologyAwareQuantity topology_aware_quantity_list = 4;
+    double original_aggregated_quantity = 4; 
+    repeated TopologyAwareQuantity topology_aware_quantity_list = 5;
+    repeated TopologyAwareQuantity original_topology_aware_quantity_list = 6;
 }
 
 message TopologyAwareQuantity {
@@ -179,8 +179,16 @@ message TopologyAwareQuantity {
 message GetTopologyAwareAllocatableResourcesRequest {
 }
 
+
 message GetTopologyAwareAllocatableResourcesResponse {
-    TopologyAwareResources allocatable_resources = 1;
+    map<string, AllocatableTopologyAwareResource> allocatable_resources = 1;
+}
+
+message AllocatableTopologyAwareResource {
+    bool is_node_resource = 1;
+    bool is_scalar_resource = 2;
+    double aggregated_quantity = 3; 
+    repeated TopologyAwareQuantity topology_aware_quantity_list = 4;
 }
 
 // - PreStartContainer is expected to be called before each container start if indicated by plugin during registration phase.

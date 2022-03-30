@@ -22,6 +22,8 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -78,11 +80,13 @@ func TestListPodResourcesV1(t *testing.T) {
 		expectedResponse *podresourcesapi.ListPodResourcesResponse
 	}{
 		{
-			desc:             "no pods",
-			pods:             []*v1.Pod{},
-			devices:          []*podresourcesapi.ContainerDevices{},
-			cpus:             []int64{},
-			expectedResponse: &podresourcesapi.ListPodResourcesResponse{},
+			desc:    "no pods",
+			pods:    []*v1.Pod{},
+			devices: []*podresourcesapi.ContainerDevices{},
+			cpus:    []int64{},
+			expectedResponse: &podresourcesapi.ListPodResourcesResponse{
+				PodResources: []*podresourcesapi.PodResources{},
+			},
 		},
 		{
 			desc: "pod without devices and resources",
@@ -113,6 +117,7 @@ func TestListPodResourcesV1(t *testing.T) {
 							{
 								Name:    containerName,
 								Devices: []*podresourcesapi.ContainerDevices{},
+								CpuIds:  []int64{},
 							},
 						},
 					},
@@ -137,8 +142,9 @@ func TestListPodResourcesV1(t *testing.T) {
 					},
 				},
 			},
-			devices: devs,
-			cpus:    cpus,
+			devices:   devs,
+			cpus:      cpus,
+			resources: resources,
 			expectedResponse: &podresourcesapi.ListPodResourcesResponse{
 				PodResources: []*podresourcesapi.PodResources{
 					{
@@ -162,19 +168,27 @@ func TestListPodResourcesV1(t *testing.T) {
 			m.On("GetPods").Return(tc.pods)
 			m.On("GetDevices", string(podUID), containerName).Return(tc.devices)
 			m.On("GetCPUs", string(podUID), containerName).Return(tc.cpus)
-			m.On("GetTopologyAwareResources", string(podUID), containerName).Return(tc.resources)
 			m.On("UpdateAllocatedDevices").Return()
 			m.On("UpdateAllocatedResources").Return()
 			m.On("GetAllocatableCPUs").Return(cpuset.CPUSet{})
 			m.On("GetAllocatableDevices").Return(devicemanager.NewResourceDeviceInstances())
+
+			for i := 0; i < len(tc.pods); i++ {
+				m.On("GetTopologyAwareResources", tc.pods[i], &tc.pods[i].Spec.Containers[0]).Return(tc.resources)
+			}
+
 			server := NewV1PodResourcesServer(m, m, m, m)
 			resp, err := server.List(context.TODO(), &podresourcesapi.ListPodResourcesRequest{})
 			if err != nil {
 				t.Errorf("want err = %v, got %q", nil, err)
 			}
-			if !equalListResponse(tc.expectedResponse, resp) {
-				t.Errorf("want resp = %s, got %s", tc.expectedResponse.String(), resp.String())
-			}
+
+			as := require.New(t)
+			as.Equal(tc.expectedResponse, resp)
+
+			//if !equalListResponse(tc.expectedResponse, resp) {
+			//	t.Errorf("want resp = %s, got %s", tc.expectedResponse.String(), resp.String())
+			//}
 		})
 	}
 }
@@ -182,7 +196,7 @@ func TestListPodResourcesV1(t *testing.T) {
 func TestAllocatableResources(t *testing.T) {
 	defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, pkgfeatures.KubeletPodResourcesGetAllocatable, true)()
 
-	allResources := []*podresourcesapi.TopologyAwareResource{
+	allResources := []*podresourcesapi.AllocatableTopologyAwareResource{
 		{
 			ResourceName:       "resource",
 			IsNodeResource:     false,
@@ -261,7 +275,7 @@ func TestAllocatableResources(t *testing.T) {
 		desc                                 string
 		allCPUs                              []int64
 		allDevices                           []*podresourcesapi.ContainerDevices
-		allResources                         []*podresourcesapi.TopologyAwareResource
+		allResources                         []*podresourcesapi.AllocatableTopologyAwareResource
 		expectedAllocatableResourcesResponse *podresourcesapi.AllocatableResourcesResponse
 	}{
 		{
@@ -285,7 +299,7 @@ func TestAllocatableResources(t *testing.T) {
 			allResources: allResources,
 			expectedAllocatableResourcesResponse: &podresourcesapi.AllocatableResourcesResponse{
 				CpuIds: allCPUs,
-				Resources: []*podresourcesapi.TopologyAwareResource{
+				Resources: []*podresourcesapi.AllocatableTopologyAwareResource{
 					{
 						ResourceName:       "resource",
 						IsNodeResource:     false,

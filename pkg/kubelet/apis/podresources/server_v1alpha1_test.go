@@ -67,14 +67,14 @@ func (m *mockProvider) UpdateAllocatedResources() {
 	m.Called()
 }
 
-func (m *mockProvider) GetTopologyAwareResources(podUID, containerName string) []*podresourcesapi.TopologyAwareResource {
-	args := m.Called(podUID, containerName)
+func (m *mockProvider) GetTopologyAwareResources(pod *v1.Pod, container *v1.Container) []*podresourcesapi.TopologyAwareResource {
+	args := m.Called(pod, container)
 	return args.Get(0).([]*podresourcesapi.TopologyAwareResource)
 }
 
-func (m *mockProvider) GetTopologyAwareAllocatableResources() []*podresourcesapi.TopologyAwareResource {
+func (m *mockProvider) GetTopologyAwareAllocatableResources() []*podresourcesapi.AllocatableTopologyAwareResource {
 	args := m.Called()
-	return args.Get(0).([]*podresourcesapi.TopologyAwareResource)
+	return args.Get(0).([]*podresourcesapi.AllocatableTopologyAwareResource)
 }
 
 func TestListPodResourcesV1alpha1(t *testing.T) {

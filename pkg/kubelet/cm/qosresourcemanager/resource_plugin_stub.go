@@ -108,7 +108,13 @@ func (m *Stub) Start() error {
 	watcherapi.RegisterRegistrationServer(m.server, m)
 
 	go func() {
-		defer m.wg.Done()
+		defer func() {
+			m.wg.Done()
+
+			if err := recover(); err != nil {
+				log.Fatalf("Start recover from err: %v", err)
+			}
+		}()
 		m.server.Serve(sock)
 	}()
 	_, conn, err := dial(m.socket)

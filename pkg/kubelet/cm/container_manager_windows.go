@@ -215,12 +215,12 @@ func (cm *containerManagerImpl) GetAllocatableCPUs() []int64 {
 }
 
 // GetResources returns information about the resources assigned to pods and containers in topology aware format
-func (cm *containerManagerImpl) GetTopologyAwareResources(podUID, containerName string) []*podresourcesapi.TopologyAwareResource {
+func (cm *containerManagerImpl) GetTopologyAwareResources(pod *v1.Pod, container *v1.Container) []*podresourcesapi.TopologyAwareResource {
 	return nil
 }
 
 // GetAllocatableResources returns information about all the resources known to the manager in topology aware format
-func (cm *containerManagerImpl) GetTopologyAwareAllocatableResources() []*podresourcesapi.TopologyAwareResource {
+func (cm *containerManagerImpl) GetTopologyAwareAllocatableResources() []*podresourcesapi.AllocatableTopologyAwareResource {
 	return nil
 }
 
