@@ -1182,7 +1182,7 @@ func filterWithAttrsAndPrefixFunction(key string, p storage.SelectionPredicate) 
 			return false
 		}
 		if p.Sharding != nil {
-			return p.MatchesSharding(label)
+			return p.MatchesSharding(label) && p.MatchesObjectAttributes(label, field)
 		}
 		return p.MatchesObjectAttributes(label, field)
 	}
