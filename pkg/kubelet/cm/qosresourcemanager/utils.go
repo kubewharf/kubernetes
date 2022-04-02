@@ -118,6 +118,7 @@ func isSkippedPod(pod *v1.Pod) bool {
 		return true
 	}
 
+	// customize for tce
 	return isDaemonPod(pod)
 }
 
@@ -187,8 +188,8 @@ func GetContextWithSpecificInfo(pod *v1.Pod, container *v1.Container) (context.C
 		return context.Background(), fmt.Errorf("got nil pod: %v or container: %v", pod, container)
 	}
 
+	// customize for tce
 	// currently we only get psm from pod and may get more infomation later
-
 	psm := pod.Labels[PSMLabelKey]
 
 	if psm == "" {
@@ -204,10 +205,12 @@ func canSkipEndpointError(pod *v1.Pod, resource string) bool {
 		return false
 	}
 
+	// customize for tce
 	if pod.Annotations[pluginapi.PodTypeAnnotationKey] == pluginapi.PodTypeBestEffort {
 		return false
 	}
 
+	// customize for tce
 	// [TODO](sunjianyu): to exclude socket pods
 	if pod.Annotations[pluginapi.PodRoleLabelKey] == "" || pod.Annotations[pluginapi.PodTypeAnnotationKey] == pluginapi.PodRoleMicroService {
 		return true
