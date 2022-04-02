@@ -451,12 +451,13 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 			ParseQuantityToFloat64(v), resource, pod.Namespace, pod.Name, container.Name)
 
 		resourceReq := &pluginapi.ResourceRequest{
-			PodUid:           string(pod.GetUID()),
-			PodNamespace:     pod.GetNamespace(),
-			PodName:          pod.GetName(),
-			ContainerName:    container.Name,
-			ContainerType:    containerType,
-			ContainerIndex:   containerIndex,
+			PodUid:         string(pod.GetUID()),
+			PodNamespace:   pod.GetNamespace(),
+			PodName:        pod.GetName(),
+			ContainerName:  container.Name,
+			ContainerType:  containerType,
+			ContainerIndex: containerIndex,
+			// customize for tce, PodRole and PodType should be identified by more general annotations
 			PodRole:          pod.Labels[pluginapi.PodRoleLabelKey],
 			PodType:          pod.Annotations[pluginapi.PodTypeAnnotationKey],
 			ResourceName:     resource,
