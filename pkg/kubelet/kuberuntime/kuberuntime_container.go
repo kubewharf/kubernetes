@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"google.golang.org/grpc"
 	"io"
 	"math/rand"
 	"net/url"
@@ -31,6 +30,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"google.golang.org/grpc"
 
 	grpcstatus "google.golang.org/grpc/status"
 
