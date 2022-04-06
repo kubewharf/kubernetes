@@ -43,6 +43,7 @@ go_test(
         "//staging/src/k8s.io/kubelet/pkg/apis/podresources/v1:go_default_library",
         "//staging/src/k8s.io/kubelet/pkg/apis/podresources/v1alpha1:go_default_library",
         "//vendor/github.com/stretchr/testify/mock:go_default_library",
+        "//vendor/github.com/stretchr/testify/require:go_default_library",
     ],
 )
 

@@ -138,7 +138,7 @@ func TestGetTopologyHints(t *testing.T) {
 			},
 			endpoints: map[string]endpointInfo{"mock_res_1": e2},
 			expectedHints: map[string][]topologymanager.TopologyHint{
-				"mock_res_1": []topologymanager.TopologyHint{
+				"mock_res_1": {
 					{NUMANodeAffinity: hint0, Preferred: true},
 					{NUMANodeAffinity: hint1, Preferred: true},
 					{NUMANodeAffinity: hint2, Preferred: false},
