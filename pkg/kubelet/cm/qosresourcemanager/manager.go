@@ -362,7 +362,7 @@ func (m *ManagerImpl) isContainerRequestResourcePluginResource(container *v1.Con
 		return false
 	}
 
-	for k, _ := range container.Resources.Requests {
+	for k := range container.Resources.Requests {
 		resource := string(k)
 
 		if m.isResourcePluginResource(resource) {
