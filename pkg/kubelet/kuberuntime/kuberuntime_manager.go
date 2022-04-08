@@ -772,9 +772,10 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 			return
 		}
 
-		// If we ever allow updating a pod from non-host-network to
-		// host-network, we may use a stale IP.
-		if !kubecontainer.IsHostNetworkPod(pod) {
+		// case 1: If we ever allow updating a pod from non-host-network to
+		//    host-network, we may use a stale IP.
+		// case 2: update pod status ip from sandbox status when netns is specified by annotation.
+		if _, ok := pod.Annotations[types.PodNetNSAnnotationKey]; !kubecontainer.IsHostNetworkPod(pod) || ok {
 			// Overwrite the podIPs passed in the pod status, since we just started the pod sandbox.
 			podIPs = m.determinePodSandboxIPs(pod.Namespace, pod.Name, podSandboxStatus)
 			klog.V(4).Infof("Determined the ip %v for pod %q after sandbox changed", podIPs, format.Pod(pod))
