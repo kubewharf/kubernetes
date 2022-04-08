@@ -18,7 +18,6 @@ package features
 
 import (
 	"k8s.io/apimachinery/pkg/util/runtime"
-
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/component-base/featuregate"
 )
@@ -155,6 +154,12 @@ const (
 	//
 	// Enables collection of watch lag metrics by recording the timestamps of each API object operation
 	WatchLag featuregate.Feature = "WatchLag"
+
+	// owner: @zoumo
+	// alpha: v1.18
+	//
+	// Return list from cache when listOptions.ResurceVersion is unset
+	DisableListPenetration featuregate.Feature = "DisableListPenetration"
 )
 
 func init() {
@@ -182,4 +187,5 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 	RemoveSelfLink:          {Default: false, PreRelease: featuregate.Alpha},
 	SelectorIndex:           {Default: false, PreRelease: featuregate.Alpha},
 	WatchLag:                {Default: false, PreRelease: featuregate.Alpha},
+	DisableListPenetration:  {Default: false, PreRelease: featuregate.Alpha},
 }
