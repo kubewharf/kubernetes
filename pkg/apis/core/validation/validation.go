@@ -3808,7 +3808,7 @@ func ValidatePodUpdate(newPod, oldPod *core.Pod, opts PodValidationOptions) fiel
 		}
 	}
 
-	if !utilpod.IsYodelPod(oldPod.ObjectMeta.Annotations) && !autoport && !socketUpdate && !apiequality.Semantic.DeepEqual(mungedPod.Spec, oldPod.Spec) {
+	if !autoport && !socketUpdate && !apiequality.Semantic.DeepEqual(mungedPod.Spec, oldPod.Spec) && !utilpod.IsYodelPod(oldPod.ObjectMeta.Annotations) && !utilpod.IsArceePod(oldPod.ObjectMeta.Annotations) {
 		// This diff isn't perfect, but it's a helluva lot better an "I'm not going to tell you what the difference is".
 		//TODO: Pinpoint the specific field that causes the invalid error after we have strategic merge diff
 		specDiff := diff.ObjectDiff(mungedPod.Spec, oldPod.Spec)

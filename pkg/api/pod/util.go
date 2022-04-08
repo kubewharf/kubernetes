@@ -105,6 +105,8 @@ const (
 	PodLauncherNodeManager = "node-manager"
 
 	PodOperatorResourceManager = "resource-manager"
+
+	PodArceeAppNameAnnotationKey = "arcee.bytedance.com/application-name"
 )
 
 func GetOverridePorts(pod *v1.Pod) sets.String {
@@ -799,6 +801,14 @@ func LauncherIsNodeManager(annotations map[string]string) bool {
 // TODO: remove node-manager launcher check
 func IsYodelPod(annotations map[string]string) bool {
 	return annotations[PodOperatorAnnotationKey] == PodOperatorResourceManager || LauncherIsNodeManager(annotations)
+}
+
+//IsArceePod returns whether pod is managed by arcee controller.
+func IsArceePod(annotations map[string]string) bool {
+	if _, ok := annotations[PodArceeAppNameAnnotationKey]; ok {
+		return true
+	}
+	return false
 }
 
 //LauncherIsSet returns whether pod launcher is set
