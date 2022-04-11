@@ -28,6 +28,7 @@ import (
 	"k8s.io/klog"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
+	"k8s.io/kubernetes/pkg/kubelet/util"
 	"k8s.io/kubernetes/pkg/kubelet/util/format"
 	"k8s.io/kubernetes/pkg/security/apparmor"
 	utilio "k8s.io/utils/io"
@@ -169,6 +170,23 @@ func (a *appArmorAdmitHandler) Admit(attrs *PodAdmitAttributes) PodAdmitResult {
 		Reason:  "AppArmor",
 		Message: fmt.Sprintf("Cannot enforce AppArmor: %v", err),
 	}
+}
+
+func NewPodLauncherAdmitHandler() PodAdmitHandler {
+	return &podLauncherAdmitHandler{}
+}
+
+type podLauncherAdmitHandler struct{}
+
+func (a *podLauncherAdmitHandler) Admit(attrs *PodAdmitAttributes) PodAdmitResult {
+	if !util.AdmitForKubelet(attrs.Pod) {
+		return PodAdmitResult{
+			Admit:   false,
+			Reason:  "IllegalPodLauncher",
+			Message: fmt.Sprintf("pod launcher is illegal for the pending pod %v", format.Pod(attrs.Pod)),
+		}
+	}
+	return PodAdmitResult{Admit: true}
 }
 
 func NewNoNewPrivsAdmitHandler(runtime kubecontainer.Runtime) PodAdmitHandler {

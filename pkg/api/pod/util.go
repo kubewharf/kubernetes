@@ -85,16 +85,21 @@ func VisitContainers(podSpec *api.PodSpec, mask ContainerType, visitor Container
 }
 
 const (
-	PodAutoPortAnnotation             = "pod.tce.kubernetes.io/autoport"
-	PodAutoPortHighPriorityAnnotation = "pod.tce.kubernetes.io/autoportHighPriority"
-	PodPortAnnotation                 = "pod.tce.kubernetes.io/autoportList"
-	PodHostPathTemplateAnnotation     = "pod.tce.kubernetes.io/hostPathTemplate"
-	PodHostUniqueToleranceAnnotation  = "pod.tce.kubernetes.io/host-unique-tolerance-count"
-	TCEDaemonPodAnnotationKey         = "pod.tce.kubernetes.io/tce-daemon"
-	PodOrphanAnnotation               = "pod.tce.kubernetes.io/orphan"
-	PodRootFSVolumeNameAnnotation     = "pod.tce.kubernetes.io/rootfs-volume-name"
-	PodExplicitDeletionAnnotation     = "pod.kubernetes.io/explicit.deletion"
-	PodGCGracefulSecondsAnnotation    = "pod.kubernetes.io/gc-graceful-secs"
+	PodAutoPortAnnotation               = "pod.tce.kubernetes.io/autoport"
+	PodAutoPortHighPriorityAnnotation   = "pod.tce.kubernetes.io/autoportHighPriority"
+	PodPortAnnotation                   = "pod.tce.kubernetes.io/autoportList"
+	PodHostPathTemplateAnnotation       = "pod.tce.kubernetes.io/hostPathTemplate"
+	PodHostUniqueToleranceAnnotation    = "pod.tce.kubernetes.io/host-unique-tolerance-count"
+	TCEDaemonPodAnnotationKey           = "pod.tce.kubernetes.io/tce-daemon"
+	PodOrphanAnnotation                 = "pod.tce.kubernetes.io/orphan"
+	PodRootFSVolumeNameAnnotation       = "pod.tce.kubernetes.io/rootfs-volume-name"
+	PodExplicitDeletionAnnotation       = "pod.kubernetes.io/explicit.deletion"
+	PodGCGracefulSecondsAnnotation      = "pod.kubernetes.io/gc-graceful-secs"
+	PodLauncherAnnotationKey            = "godel.bytedance.com/pod-launcher"
+	PodAutoMountLocalDisksAnnotationKey = "pod.tce.kubernetes.io/auto-mount-local-disks"
+
+	PodLauncherKubelet     = "kubelet"
+	PodLauncherNodeManager = "node-manager"
 )
 
 func GetOverridePorts(pod *v1.Pod) sets.String {
@@ -773,4 +778,19 @@ func EnablePodExplicitDeletion(annotations map[string]string) bool {
 	}
 
 	return false
+}
+
+// LauncherIsKubelet returns whether pod launcher is kubelet
+func LauncherIsKubelet(annotations map[string]string) bool {
+	return annotations[PodLauncherAnnotationKey] == PodLauncherKubelet
+}
+
+//LauncherIsNodeManager returns whether pod launcher is node manager
+func LauncherIsNodeManager(annotations map[string]string) bool {
+	return annotations[PodLauncherAnnotationKey] == PodLauncherNodeManager
+}
+
+//LauncherIsSet returns whether pod launcher is set
+func LauncherIsSet(annotations map[string]string) bool {
+	return len(annotations[PodLauncherAnnotationKey]) != 0
 }

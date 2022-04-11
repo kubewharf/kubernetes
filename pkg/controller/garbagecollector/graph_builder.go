@@ -34,6 +34,7 @@ import (
 	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+	utilpod "k8s.io/kubernetes/pkg/api/pod"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/kubernetes/pkg/controller/garbagecollector/metaonly"
 )
@@ -539,6 +540,10 @@ func (gb *GraphBuilder) processGraphChanges() bool {
 	accessor, err := meta.Accessor(obj)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("cannot access obj: %v", err))
+		return true
+	}
+	if event.gvk.Kind == "Pod" && utilpod.LauncherIsNodeManager(accessor.GetAnnotations()) {
+		klog.V(5).Infof("GraphBuilder ignore pod: %s/%s, as its launcher is node manager", accessor.GetNamespace(), accessor.GetName())
 		return true
 	}
 	klog.V(5).Infof("GraphBuilder process object: %s/%s, namespace %s, name %s, uid %s, event type %v", event.gvk.GroupVersion().String(), event.gvk.Kind, accessor.GetNamespace(), accessor.GetName(), string(accessor.GetUID()), event.eventType)

@@ -17,11 +17,26 @@ limitations under the License.
 package util
 
 import (
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilpod "k8s.io/kubernetes/pkg/api/pod"
 )
 
 // FromApiserverCache modifies <opts> so that the GET request will
 // be served from apiserver cache instead of from etcd.
 func FromApiserverCache(opts *metav1.GetOptions) {
 	opts.ResourceVersion = "0"
+}
+
+func AdmitForKubelet(pod *v1.Pod) bool {
+	if !utilpod.LauncherIsSet(pod.Annotations) {
+		return true
+	}
+	if utilpod.LauncherIsNodeManager(pod.Annotations) {
+		return false
+	}
+	if !utilpod.LauncherIsKubelet(pod.Annotations) {
+		return false
+	}
+	return true
 }

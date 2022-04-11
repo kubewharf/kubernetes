@@ -673,6 +673,12 @@ const (
 	//
 	// Enable qos resource managers to make NUMA aligned decisions for resources which aren't devices
 	QoSResourceManager featuregate.Feature = "QoSResourceManager"
+
+	// owner: @zhangyadong.0808
+	// alpha: v1.18
+	//
+	// if enabled, localDisks path such as /dataXX will be injected into container as volumeMounts.
+	AutoMountLocalDisks featuregate.Feature = "AutoMountLocalDisks"
 )
 
 func init() {
@@ -778,7 +784,7 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 	AutoNICNumaAffinity:                            {Default: false, PreRelease: featuregate.Alpha},
 	KubeletPodResourcesGetAllocatable:              {Default: false, PreRelease: featuregate.Alpha},
 	QoSResourceManager:                             {Default: false, PreRelease: featuregate.Alpha},
-
+	AutoMountLocalDisks:                            {Default: false, PreRelease: featuregate.Alpha},
 	// inherited features from generic apiserver, relisted here to get a conflict if it is changed
 	// unintentionally on either side:
 	genericfeatures.StreamingProxyRedirects: {Default: true, PreRelease: featuregate.Deprecated},
