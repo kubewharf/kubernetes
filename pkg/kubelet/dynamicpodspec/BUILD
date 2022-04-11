@@ -28,6 +28,10 @@ go_test(
     name = "go_default_test",
     srcs = ["ports_test.go"],
     embed = [":go_default_library"],
+    deps = [
+        "//staging/src/k8s.io/apimachinery/pkg/types:go_default_library",
+        "//staging/src/k8s.io/apimachinery/pkg/util/uuid:go_default_library",
+    ],
 )
 
 filegroup(

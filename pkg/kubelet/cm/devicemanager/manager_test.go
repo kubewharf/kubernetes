@@ -39,6 +39,9 @@ import (
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 	watcherapi "k8s.io/kubelet/pkg/apis/pluginregistration/v1"
 	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager"
+	cputopology "k8s.io/kubernetes/pkg/kubelet/cm/cpumanager/topology"
+	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
+	"k8s.io/kubernetes/pkg/kubelet/cm/devicemanager/checkpoint"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	"k8s.io/kubernetes/pkg/kubelet/config"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
@@ -432,10 +435,10 @@ func TestUpdateCapacityAllocatable(t *testing.T) {
 	as.True(testManager.isDevicePluginResource(resourceName2))
 }
 
-func constructDevices(devices []string) sets.String {
-	ret := sets.NewString()
+func constructDevices(devices []string) checkpoint.DevicesPerNUMA {
+	ret := checkpoint.DevicesPerNUMA{}
 	for _, dev := range devices {
-		ret.Insert(dev)
+		ret[0] = append(ret[0], dev)
 	}
 	return ret
 }
@@ -476,7 +479,7 @@ func TestCheckpoint(t *testing.T) {
 		healthyDevices:    make(map[string]sets.String),
 		unhealthyDevices:  make(map[string]sets.String),
 		allocatedDevices:  make(map[string]sets.String),
-		podDevices:        make(podDevices),
+		podDevices:        newPodDevices(),
 		checkpointManager: ckm,
 	}
 
@@ -515,12 +518,12 @@ func TestCheckpoint(t *testing.T) {
 	err = testManager.writeCheckpoint()
 
 	as.Nil(err)
-	testManager.podDevices = make(podDevices)
+	testManager.podDevices = newPodDevices()
 	err = testManager.readCheckpoint()
 	as.Nil(err)
 
-	as.Equal(len(expectedPodDevices), len(testManager.podDevices))
-	for podUID, containerDevices := range expectedPodDevices {
+	as.Equal(expectedPodDevices.size(), testManager.podDevices.size())
+	for podUID, containerDevices := range expectedPodDevices.devs {
 		for conName, resources := range containerDevices {
 			for resource := range resources {
 				expDevices := expectedPodDevices.containerDevices(podUID, conName, resource)
@@ -578,6 +581,9 @@ func (m *MockEndpoint) isStopped() bool { return false }
 func (m *MockEndpoint) stopGracePeriodExpired() bool { return false }
 
 func (e *MockEndpoint) getPreferredAllocation(available, mustInclude []string, size int) (*pluginapi.PreferredAllocationResponse, error) {
+	if e.getPreferredAllocationFunc != nil {
+		return e.getPreferredAllocationFunc(available, mustInclude, size)
+	}
 	return nil, nil
 }
 
@@ -611,19 +617,17 @@ func getTestManager(tmpDir string, activePods ActivePodsFunc, testRes []TestReso
 		unhealthyDevices:      make(map[string]sets.String),
 		allocatedDevices:      make(map[string]sets.String),
 		endpoints:             make(map[string]endpointInfo),
-		podDevices:            make(podDevices),
+		podDevices:            newPodDevices(),
 		devicesToReuse:        make(PodReusableDevices),
 		topologyAffinityStore: topologymanager.NewFakeManager(),
 		activePods:            activePods,
 		sourcesReady:          &sourcesReadyStub{},
 		checkpointManager:     ckm,
+		allDevices:            NewResourceDeviceInstances(),
 	}
 
 	for _, res := range testRes {
-		testManager.healthyDevices[res.resourceName] = sets.NewString()
-		for _, dev := range res.devs {
-			testManager.healthyDevices[res.resourceName].Insert(dev)
-		}
+		testManager.healthyDevices[res.resourceName] = sets.NewString(res.devs.Devices().UnsortedList()...)
 		if res.resourceName == "domain1.com/resource1" {
 			testManager.endpoints[res.resourceName] = endpointInfo{
 				e:    &MockEndpoint{allocateFunc: allocateStubFunc()},
@@ -653,6 +657,8 @@ func getTestManager(tmpDir string, activePods ActivePodsFunc, testRes []TestReso
 				opts: nil,
 			}
 		}
+		testManager.allDevices[res.resourceName] = makeDevice(res.devs, res.topology)
+
 	}
 	return testManager, nil
 }
@@ -660,19 +666,22 @@ func getTestManager(tmpDir string, activePods ActivePodsFunc, testRes []TestReso
 type TestResource struct {
 	resourceName     string
 	resourceQuantity resource.Quantity
-	devs             []string
+	devs             checkpoint.DevicesPerNUMA
+	topology         bool
 }
 
 func TestPodContainerDeviceAllocation(t *testing.T) {
 	res1 := TestResource{
 		resourceName:     "domain1.com/resource1",
 		resourceQuantity: *resource.NewQuantity(int64(2), resource.DecimalSI),
-		devs:             []string{"dev1", "dev2"},
+		devs:             checkpoint.DevicesPerNUMA{0: []string{"dev1", "dev2"}},
+		topology:         true,
 	}
 	res2 := TestResource{
 		resourceName:     "domain2.com/resource2",
 		resourceQuantity: *resource.NewQuantity(int64(1), resource.DecimalSI),
-		devs:             []string{"dev3", "dev4"},
+		devs:             checkpoint.DevicesPerNUMA{0: []string{"dev3", "dev4"}},
+		topology:         false,
 	}
 	testResources := make([]TestResource, 2)
 	testResources = append(testResources, res1)
@@ -763,12 +772,14 @@ func TestInitContainerDeviceAllocation(t *testing.T) {
 	res1 := TestResource{
 		resourceName:     "domain1.com/resource1",
 		resourceQuantity: *resource.NewQuantity(int64(2), resource.DecimalSI),
-		devs:             []string{"dev1", "dev2"},
+		devs:             checkpoint.DevicesPerNUMA{0: []string{"dev1", "dev2"}},
+		topology:         false,
 	}
 	res2 := TestResource{
 		resourceName:     "domain2.com/resource2",
 		resourceQuantity: *resource.NewQuantity(int64(1), resource.DecimalSI),
-		devs:             []string{"dev3", "dev4"},
+		devs:             checkpoint.DevicesPerNUMA{0: []string{"dev3", "dev4"}},
+		topology:         true,
 	}
 	testResources := make([]TestResource, 2)
 	testResources = append(testResources, res1)
@@ -877,10 +888,10 @@ func TestUpdatePluginResources(t *testing.T) {
 		callback:          monitorCallback,
 		allocatedDevices:  make(map[string]sets.String),
 		healthyDevices:    make(map[string]sets.String),
-		podDevices:        make(podDevices),
+		podDevices:        newPodDevices(),
 		checkpointManager: ckm,
 	}
-	testManager.podDevices[string(pod.UID)] = make(containerDevices)
+	testManager.podDevices.devs[string(pod.UID)] = make(containerDevices)
 
 	// require one of resource1 and one of resource2
 	testManager.allocatedDevices[resourceName1] = sets.NewString()
@@ -915,7 +926,8 @@ func TestDevicePreStartContainer(t *testing.T) {
 	res1 := TestResource{
 		resourceName:     "domain1.com/resource1",
 		resourceQuantity: *resource.NewQuantity(int64(2), resource.DecimalSI),
-		devs:             []string{"dev1", "dev2"},
+		devs:             checkpoint.DevicesPerNUMA{0: []string{"dev1", "dev2"}},
+		topology:         false,
 	}
 	as := require.New(t)
 	podsStub := activePodsStub{
@@ -955,7 +967,7 @@ func TestDevicePreStartContainer(t *testing.T) {
 
 	as.Contains(initializedDevs, "dev1")
 	as.Contains(initializedDevs, "dev2")
-	as.Equal(len(initializedDevs), len(res1.devs))
+	as.Equal(len(initializedDevs), res1.devs.Devices().Len())
 
 	expectedResps, err := allocateStubFunc()([]string{"dev1", "dev2"})
 	as.Nil(err)
@@ -977,7 +989,7 @@ func TestResetExtendedResource(t *testing.T) {
 		healthyDevices:    make(map[string]sets.String),
 		unhealthyDevices:  make(map[string]sets.String),
 		allocatedDevices:  make(map[string]sets.String),
-		podDevices:        make(podDevices),
+		podDevices:        newPodDevices(),
 		checkpointManager: ckm,
 	}
 
@@ -1050,4 +1062,42 @@ func allocateStubFunc() func(devs []string) (*pluginapi.AllocateResponse, error)
 		resps.ContainerResponses = append(resps.ContainerResponses, resp)
 		return resps, nil
 	}
+}
+
+func makeDevice(devOnNUMA checkpoint.DevicesPerNUMA, topology bool) map[string]pluginapi.Device {
+	res := make(map[string]pluginapi.Device)
+	var topologyInfo *pluginapi.TopologyInfo
+	for node, devs := range devOnNUMA {
+		if topology {
+			topologyInfo = &pluginapi.TopologyInfo{Nodes: []*pluginapi.NUMANode{{ID: node}}}
+		} else {
+			topologyInfo = nil
+		}
+		for idx := range devs {
+			res[devs[idx]] = pluginapi.Device{ID: devs[idx], Topology: topologyInfo}
+		}
+	}
+	return res
+}
+
+const deviceManagerCheckpointFilename = "kubelet_internal_checkpoint"
+
+var oldCheckpoint string = `{"Data":{"PodDeviceEntries":[{"PodUID":"13ac2284-0d19-44b7-b94f-055b032dba9b","ContainerName":"centos","ResourceName":"example.com/deviceA","DeviceIDs":["DevA3"],"AllocResp":"CiIKHUVYQU1QTEVDT01ERVZJQ0VBX0RFVkEzX1RUWTEwEgEwGhwKCi9kZXYvdHR5MTASCi9kZXYvdHR5MTAaAnJ3"},{"PodUID":"86b9a017-c9ca-4069-815f-46ca3e53c1e4","ContainerName":"centos","ResourceName":"example.com/deviceA","DeviceIDs":["DevA4"],"AllocResp":"CiIKHUVYQU1QTEVDT01ERVZJQ0VBX0RFVkE0X1RUWTExEgEwGhwKCi9kZXYvdHR5MTESCi9kZXYvdHR5MTEaAnJ3"}],"RegisteredDevices":{"example.com/deviceA":["DevA1","DevA2","DevA3","DevA4"]}},"Checksum":405612085}`
+
+func TestReadPreNUMACheckpoint(t *testing.T) {
+	socketDir, socketName, _, err := tmpSocketDir()
+	require.NoError(t, err)
+	defer os.RemoveAll(socketDir)
+
+	err = ioutil.WriteFile(filepath.Join(socketDir, deviceManagerCheckpointFilename), []byte(oldCheckpoint), 0644)
+	require.NoError(t, err)
+
+	topologyStore := topologymanager.NewFakeManager()
+	nodes := cputopology.NUMANodeInfo{0: cpuset.CPUSet{}}
+	m, err := newManagerImpl(socketName, nodes, topologyStore)
+	require.NoError(t, err)
+
+	// TODO: we should not calling private methods, but among the existing tests we do anyway
+	err = m.readCheckpoint()
+	require.NoError(t, err)
 }

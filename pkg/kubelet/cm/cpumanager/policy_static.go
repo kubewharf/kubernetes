@@ -27,6 +27,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager/bitmask"
+	"k8s.io/kubernetes/pkg/kubelet/util/format"
 )
 
 // PolicyStatic is the name of the static policy
@@ -186,8 +187,8 @@ func (p *staticPolicy) validateState(s state.State) error {
 	return nil
 }
 
-// assignableCPUs returns the set of unassigned CPUs minus the reserved set.
-func (p *staticPolicy) assignableCPUs(s state.State) cpuset.CPUSet {
+// GetAllocatableCPUs returns the set of unassigned CPUs minus the reserved set.
+func (p *staticPolicy) GetAllocatableCPUs(s state.State) cpuset.CPUSet {
 	return s.GetDefaultCPUSet().Difference(p.reserved)
 }
 
@@ -257,6 +258,9 @@ func (p *staticPolicy) RemoveContainer(s state.State, podUID string, containerNa
 func (p *staticPolicy) allocateCPUs(s state.State, numCPUs int, numaAffinity bitmask.BitMask, reusableCPUs cpuset.CPUSet) (cpuset.CPUSet, error) {
 	klog.Infof("[cpumanager] allocateCpus: (numCPUs: %d, socket: %v)", numCPUs, numaAffinity)
 
+	allocatableCPUs := p.GetAllocatableCPUs(s).Union(reusableCPUs)
+
+	// If there are aligned CPUs in numaAffinity, attempt to take those first.
 	result := cpuset.NewCPUSet()
 	takeFromReusableCPUs := numCPUs
 	if reusableCPUs.Size() <= takeFromReusableCPUs {
@@ -269,13 +273,11 @@ func (p *staticPolicy) allocateCPUs(s state.State, numCPUs int, numaAffinity bit
 	}
 	result = result.Union(allocatedReusableCPUs)
 
-	assignableCPUs := p.assignableCPUs(s).Union(reusableCPUs).Difference(result)
-
 	// If there are aligned CPUs in numaAffinity, then attempt to take those.
 	if numaAffinity != nil {
 		alignedCPUs := cpuset.NewCPUSet()
 		for _, numaNodeID := range numaAffinity.GetBits() {
-			alignedCPUs = alignedCPUs.Union(assignableCPUs.Intersection(p.topology.CPUDetails.CPUsInNUMANodes(numaNodeID)))
+			alignedCPUs = alignedCPUs.Union(allocatableCPUs.Intersection(p.topology.CPUDetails.CPUsInNUMANodes(numaNodeID)))
 		}
 
 		numAlignedToAlloc := alignedCPUs.Size()
@@ -292,7 +294,7 @@ func (p *staticPolicy) allocateCPUs(s state.State, numCPUs int, numaAffinity bit
 	}
 
 	// Get any remaining CPUs from what's leftover after attempting to grab aligned ones.
-	remainingCPUs, err := takeByTopology(p.topology, assignableCPUs.Difference(result), numCPUs-result.Size())
+	remainingCPUs, err := takeByTopology(p.topology, allocatableCPUs.Difference(result), numCPUs-result.Size())
 	if err != nil {
 		return cpuset.NewCPUSet(), err
 	}
@@ -319,20 +321,41 @@ func (p *staticPolicy) guaranteedCPUs(pod *v1.Pod, container *v1.Container) int 
 	return int(cpuQuantity.Value())
 }
 
-func (p *staticPolicy) GetTopologyHints(s state.State, pod *v1.Pod, container *v1.Container) map[string][]topologymanager.TopologyHint {
-	// If there are no CPU resources requested for this container, we do not
-	// generate any topology hints.
-	if _, ok := container.Resources.Requests[v1.ResourceCPU]; !ok {
-		return nil
+func (p *staticPolicy) podGuaranteedCPUs(pod *v1.Pod) int {
+	// The maximum of requested CPUs by init containers.
+	requestedByInitContainers := 0
+	for _, container := range pod.Spec.InitContainers {
+		if _, ok := container.Resources.Requests[v1.ResourceCPU]; !ok {
+			continue
+		}
+		requestedCPU := p.guaranteedCPUs(pod, &container)
+		if requestedCPU > requestedByInitContainers {
+			requestedByInitContainers = requestedCPU
+		}
+	}
+	// The sum of requested CPUs by app containers.
+	requestedByAppContainers := 0
+	for _, container := range pod.Spec.Containers {
+		if _, ok := container.Resources.Requests[v1.ResourceCPU]; !ok {
+			continue
+		}
+		requestedByAppContainers += p.guaranteedCPUs(pod, &container)
 	}
 
+	if requestedByInitContainers > requestedByAppContainers {
+		return requestedByInitContainers
+	}
+	return requestedByAppContainers
+}
+
+func (p *staticPolicy) GetTopologyHints(s state.State, pod *v1.Pod, container *v1.Container) map[string][]topologymanager.TopologyHint {
 	// Get a count of how many guaranteed CPUs have been requested.
 	requested := p.guaranteedCPUs(pod, container)
 
-	// If there are no guaranteed CPUs being requested, we do not generate
-	// any topology hints. This can happen, for example, because init
-	// containers don't have to have guaranteed CPUs in order for the pod
-	// to still be in the Guaranteed QOS tier.
+	// Number of required CPUs is not an integer or a container is not part of the Guaranteed QoS class.
+	// It will be treated by the TopologyManager as having no preference and cause it to ignore this
+	// resource when considering pod alignment.
+	// In terms of hints, this is equal to: TopologyHints[NUMANodeAffinity: nil, Preferred: true].
 	if requested == 0 {
 		return nil
 	}
@@ -342,7 +365,10 @@ func (p *staticPolicy) GetTopologyHints(s state.State, pod *v1.Pod, container *v
 	// kubelet restart, for example.
 	if allocated, exists := s.GetCPUSet(string(pod.UID), container.Name); exists {
 		if allocated.Size() != requested {
-			klog.Errorf("[cpumanager] CPUs already allocated to (pod %v, container %v) with different number than request: requested: %d, allocated: %d", string(pod.UID), container.Name, requested, allocated.Size())
+			klog.Errorf("[cpumanager] CPUs already allocated to (pod %v, container %v) with different number than request: requested: %d, allocated: %d", format.Pod(pod), container.Name, requested, allocated.Size())
+			// An empty list of hints will be treated as a preference that cannot be satisfied.
+			// In definition of hints this is equal to: TopologyHint[NUMANodeAffinity: nil, Preferred: false].
+			// For all but the best-effort policy, the Topology Manager will throw a pod-admission error.
 			return map[string][]topologymanager.TopologyHint{
 				string(v1.ResourceCPU): {},
 			}
@@ -354,12 +380,73 @@ func (p *staticPolicy) GetTopologyHints(s state.State, pod *v1.Pod, container *v
 	}
 
 	// Get a list of available CPUs.
-	available := p.assignableCPUs(s)
+	available := p.GetAllocatableCPUs(s)
+
+	// Get a list of reusable CPUs (e.g. CPUs reused from initContainers).
+	// It should be an empty CPUSet for a newly created pod.
 	reusable := p.cpusToReuse[string(pod.UID)]
 
 	// Generate hints.
 	cpuHints := p.generateCPUTopologyHints(available, reusable, requested)
 	klog.Infof("[cpumanager] TopologyHints generated for pod '%v', container '%v': %v", pod.Name, container.Name, cpuHints)
+
+	return map[string][]topologymanager.TopologyHint{
+		string(v1.ResourceCPU): cpuHints,
+	}
+}
+
+func (p *staticPolicy) GetPodTopologyHints(s state.State, pod *v1.Pod) map[string][]topologymanager.TopologyHint {
+	// Get a count of how many guaranteed CPUs have been requested by Pod.
+	requested := p.podGuaranteedCPUs(pod)
+
+	// Number of required CPUs is not an integer or a pod is not part of the Guaranteed QoS class.
+	// It will be treated by the TopologyManager as having no preference and cause it to ignore this
+	// resource when considering pod alignment.
+	// In terms of hints, this is equal to: TopologyHints[NUMANodeAffinity: nil, Preferred: true].
+	if requested == 0 {
+		return nil
+	}
+
+	assignedCPUs := cpuset.NewCPUSet()
+	for _, container := range append(pod.Spec.InitContainers, pod.Spec.Containers...) {
+		requestedByContainer := p.guaranteedCPUs(pod, &container)
+		// Short circuit to regenerate the same hints if there are already
+		// guaranteed CPUs allocated to the Container. This might happen after a
+		// kubelet restart, for example.
+		if allocated, exists := s.GetCPUSet(string(pod.UID), container.Name); exists {
+			if allocated.Size() != requestedByContainer {
+				klog.Errorf("[cpumanager] CPUs already allocated to (pod %v, container %v) with different number than request: requested: %d, allocated: %d", format.Pod(pod), container.Name, requestedByContainer, allocated.Size())
+				// An empty list of hints will be treated as a preference that cannot be satisfied.
+				// In definition of hints this is equal to: TopologyHint[NUMANodeAffinity: nil, Preferred: false].
+				// For all but the best-effort policy, the Topology Manager will throw a pod-admission error.
+				return map[string][]topologymanager.TopologyHint{
+					string(v1.ResourceCPU): {},
+				}
+			}
+			// A set of CPUs already assigned to containers in this pod
+			assignedCPUs = assignedCPUs.Union(allocated)
+		}
+	}
+	if assignedCPUs.Size() == requested {
+		klog.Infof("[cpumanager] Regenerating TopologyHints for CPUs already allocated to pod %v", format.Pod(pod))
+		return map[string][]topologymanager.TopologyHint{
+			string(v1.ResourceCPU): p.generateCPUTopologyHints(assignedCPUs, cpuset.CPUSet{}, requested),
+		}
+	}
+
+	// Get a list of available CPUs.
+	available := p.GetAllocatableCPUs(s)
+
+	// Get a list of reusable CPUs (e.g. CPUs reused from initContainers).
+	// It should be an empty CPUSet for a newly created pod.
+	reusable := p.cpusToReuse[string(pod.UID)]
+
+	// Ensure any CPUs already assigned to containers in this pod are included as part of the hint generation.
+	reusable = reusable.Union(assignedCPUs)
+
+	// Generate hints.
+	cpuHints := p.generateCPUTopologyHints(available, reusable, requested)
+	klog.Infof("[cpumanager] TopologyHints generated for pod '%v' : %v", format.Pod(pod), cpuHints)
 
 	return map[string][]topologymanager.TopologyHint{
 		string(v1.ResourceCPU): cpuHints,

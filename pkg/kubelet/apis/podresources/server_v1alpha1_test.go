@@ -22,10 +22,12 @@ import (
 
 	"github.com/stretchr/testify/mock"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/kubelet/apis/podresources/v1alpha1"
+	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"
+	podresourcesv1 "k8s.io/kubelet/pkg/apis/podresources/v1"
+	"k8s.io/kubelet/pkg/apis/podresources/v1alpha1"
 )
 
 type mockProvider struct {
@@ -37,22 +39,51 @@ func (m *mockProvider) GetPods() []*v1.Pod {
 	return args.Get(0).([]*v1.Pod)
 }
 
-func (m *mockProvider) GetDevices(podUID, containerName string) []*v1alpha1.ContainerDevices {
+func (m *mockProvider) GetDevices(podUID, containerName string) []*podresourcesv1.ContainerDevices {
 	args := m.Called(podUID, containerName)
-	return args.Get(0).([]*v1alpha1.ContainerDevices)
+	return args.Get(0).([]*podresourcesv1.ContainerDevices)
+}
+
+func (m *mockProvider) GetCPUs(podUID, containerName string) []int64 {
+	args := m.Called(podUID, containerName)
+	return args.Get(0).([]int64)
 }
 
 func (m *mockProvider) UpdateAllocatedDevices() {
 	m.Called()
 }
 
-func TestListPodResources(t *testing.T) {
+func (m *mockProvider) GetAllocatableDevices() []*podresourcesv1.ContainerDevices {
+	args := m.Called()
+	return args.Get(0).([]*podresourcesv1.ContainerDevices)
+}
+
+func (m *mockProvider) GetAllocatableCPUs() []int64 {
+	args := m.Called()
+	return args.Get(0).([]int64)
+}
+
+func (m *mockProvider) UpdateAllocatedResources() {
+	m.Called()
+}
+
+func (m *mockProvider) GetTopologyAwareResources(pod *v1.Pod, container *v1.Container) []*podresourcesapi.TopologyAwareResource {
+	args := m.Called(pod, container)
+	return args.Get(0).([]*podresourcesapi.TopologyAwareResource)
+}
+
+func (m *mockProvider) GetTopologyAwareAllocatableResources() []*podresourcesapi.AllocatableTopologyAwareResource {
+	args := m.Called()
+	return args.Get(0).([]*podresourcesapi.AllocatableTopologyAwareResource)
+}
+
+func TestListPodResourcesV1alpha1(t *testing.T) {
 	podName := "pod-name"
 	podNamespace := "pod-namespace"
 	podUID := types.UID("pod-uid")
 	containerName := "container-name"
 
-	devs := []*v1alpha1.ContainerDevices{
+	devs := []*podresourcesv1.ContainerDevices{
 		{
 			ResourceName: "resource",
 			DeviceIds:    []string{"dev0", "dev1"},
@@ -62,13 +93,13 @@ func TestListPodResources(t *testing.T) {
 	for _, tc := range []struct {
 		desc             string
 		pods             []*v1.Pod
-		devices          []*v1alpha1.ContainerDevices
+		devices          []*podresourcesv1.ContainerDevices
 		expectedResponse *v1alpha1.ListPodResourcesResponse
 	}{
 		{
 			desc:             "no pods",
 			pods:             []*v1.Pod{},
-			devices:          []*v1alpha1.ContainerDevices{},
+			devices:          []*podresourcesv1.ContainerDevices{},
 			expectedResponse: &v1alpha1.ListPodResourcesResponse{},
 		},
 		{
@@ -89,7 +120,7 @@ func TestListPodResources(t *testing.T) {
 					},
 				},
 			},
-			devices: []*v1alpha1.ContainerDevices{},
+			devices: []*podresourcesv1.ContainerDevices{},
 			expectedResponse: &v1alpha1.ListPodResourcesResponse{
 				PodResources: []*v1alpha1.PodResources{
 					{
@@ -132,7 +163,7 @@ func TestListPodResources(t *testing.T) {
 						Containers: []*v1alpha1.ContainerResources{
 							{
 								Name:    containerName,
-								Devices: devs,
+								Devices: v1DevicesToAlphaV1(devs),
 							},
 						},
 					},
@@ -145,7 +176,7 @@ func TestListPodResources(t *testing.T) {
 			m.On("GetPods").Return(tc.pods)
 			m.On("GetDevices", string(podUID), containerName).Return(tc.devices)
 			m.On("UpdateAllocatedDevices").Return()
-			server := NewPodResourcesServer(m, m)
+			server := NewV1alpha1PodResourcesServer(m, m)
 			resp, err := server.List(context.TODO(), &v1alpha1.ListPodResourcesRequest{})
 			if err != nil {
 				t.Errorf("want err = %v, got %q", nil, err)

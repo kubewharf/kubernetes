@@ -48,14 +48,16 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	internalapi "k8s.io/cri-api/pkg/apis"
+	pluginwatcherapi "k8s.io/kubelet/pkg/apis/pluginregistration/v1"
+	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"
 	v1resource "k8s.io/kubernetes/pkg/api/v1/resource"
 	kubefeatures "k8s.io/kubernetes/pkg/features"
-	podresourcesapi "k8s.io/kubernetes/pkg/kubelet/apis/podresources/v1alpha1"
 	"k8s.io/kubernetes/pkg/kubelet/cadvisor"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpumanager"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpumanager/containermap"
 	cputopology "k8s.io/kubernetes/pkg/kubelet/cm/cpumanager/topology"
 	"k8s.io/kubernetes/pkg/kubelet/cm/devicemanager"
+	"k8s.io/kubernetes/pkg/kubelet/cm/qosresourcemanager"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	cmutil "k8s.io/kubernetes/pkg/kubelet/cm/util"
 	"k8s.io/kubernetes/pkg/kubelet/config"
@@ -139,6 +141,8 @@ type containerManagerImpl struct {
 	qosContainerManager QOSContainerManager
 	// Interface for exporting and allocating devices reported by device plugins.
 	deviceManager devicemanager.Manager
+	// Interface for exporting and allocating resources reported by resource plugins.
+	qosResourceManager qosresourcemanager.Manager
 	// Interface for CPU affinity management.
 	cpuManager cpumanager.Manager
 	// Interface for Topology resource co-ordination
@@ -366,6 +370,18 @@ func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.I
 		}
 		aepCsiHintProvider := topologymanager.NewAepCSIHintProvider(kubeclient, numaBits, cm.topologyManager)
 		cm.topologyManager.AddHintProvider(aepCsiHintProvider)
+	}
+
+	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.QoSResourceManager) {
+		klog.Infof("QosResourceManager enabled, added as a provider for topology manager")
+		cm.qosResourceManager, err = qosresourcemanager.NewManagerImpl(numaNodeInfo, cm.topologyManager, nodeConfig.ExperimentalQoSResourceManagerReconcilePeriod)
+		if err != nil {
+			klog.Errorf("failed to initialize qos resource manager: %v", err)
+			return nil, err
+		}
+		cm.topologyManager.AddHintProvider(cm.qosResourceManager)
+	} else {
+		cm.qosResourceManager, err = qosresourcemanager.NewManagerStub()
 	}
 	return cm, nil
 }
@@ -633,6 +649,13 @@ func (cm *containerManagerImpl) Start(node *v1.Node,
 		}
 	}
 
+	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.QoSResourceManager) {
+		err := cm.qosResourceManager.Start(qosresourcemanager.ActivePodsFunc(activePods), sourcesReady, podStatusProvider, runtimeService)
+		if err != nil {
+			return fmt.Errorf("start QoSResourceManager error: %v", err)
+		}
+	}
+
 	// cache the node Info including resource capacity and
 	// allocatable of the node
 	cm.nodeInfo = node
@@ -700,8 +723,11 @@ func (cm *containerManagerImpl) Start(node *v1.Node,
 	return nil
 }
 
-func (cm *containerManagerImpl) GetPluginRegistrationHandler() cache.PluginHandler {
-	return cm.deviceManager.GetWatcherHandler()
+func (cm *containerManagerImpl) GetPluginRegistrationHandler() map[string]cache.PluginHandler {
+	return map[string]cache.PluginHandler{
+		pluginwatcherapi.DevicePlugin:   cm.deviceManager.GetWatcherHandler(),
+		pluginwatcherapi.ResourcePlugin: cm.qosResourceManager.GetWatcherHandler(),
+	}
 }
 
 // TODO: move the GetResources logic to PodContainerManager.
@@ -1088,6 +1114,10 @@ func (cm *containerManagerImpl) GetCapacity() v1.ResourceList {
 	return cm.capacity
 }
 
+func (cm *containerManagerImpl) GetResourcePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string) {
+	return cm.qosResourceManager.GetCapacity()
+}
+
 func (cm *containerManagerImpl) GetDevicePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string) {
 	return cm.deviceManager.GetCapacity()
 }
@@ -1097,13 +1127,63 @@ func (cm *containerManagerImpl) GetDevicePluginRefinedResource() devicemanager.D
 }
 
 func (cm *containerManagerImpl) GetDevices(podUID, containerName string) []*podresourcesapi.ContainerDevices {
-	return cm.deviceManager.GetDevices(podUID, containerName)
+	return containerDevicesFromResourceDeviceInstances(cm.deviceManager.GetDevices(podUID, containerName))
+}
+
+func (cm *containerManagerImpl) GetAllocatableDevices() []*podresourcesapi.ContainerDevices {
+	return containerDevicesFromResourceDeviceInstances(cm.deviceManager.GetAllocatableDevices())
+}
+
+func (cm *containerManagerImpl) GetCPUs(podUID, containerName string) []int64 {
+	return cm.cpuManager.GetCPUs(podUID, containerName).ToSliceNoSortInt64()
+}
+
+func (cm *containerManagerImpl) GetAllocatableCPUs() []int64 {
+	return cm.cpuManager.GetAllocatableCPUs().ToSliceNoSortInt64()
 }
 
 func (cm *containerManagerImpl) ShouldResetExtendedResourceCapacity() bool {
-	return cm.deviceManager.ShouldResetExtendedResourceCapacity()
+	// [TODO](sunjianyu): need we identify resources managed by device manager or qos resource manager and deal with them respectively?
+	return cm.deviceManager.ShouldResetExtendedResourceCapacity() || cm.qosResourceManager.ShouldResetExtendedResourceCapacity()
 }
 
 func (cm *containerManagerImpl) UpdateAllocatedDevices() {
 	cm.deviceManager.UpdateAllocatedDevices()
+}
+
+func (cm *containerManagerImpl) GetResourceRunContainerOptions(pod *v1.Pod, container *v1.Container) (*kubecontainer.ResourceRunContainerOptions, error) {
+	return cm.qosResourceManager.GetResourceRunContainerOptions(pod, container)
+}
+
+// GetTopologyAwareResources returns information about the resources assigned to pods and containers in topology aware format
+func (cm *containerManagerImpl) GetTopologyAwareResources(pod *v1.Pod, container *v1.Container) []*podresourcesapi.TopologyAwareResource {
+	if pod == nil || container == nil {
+		klog.Errorf("GetTopologyAwareResources got nil pod: %v or container: %v", pod, container)
+		return nil
+	}
+
+	resp, err := cm.qosResourceManager.GetTopologyAwareResources(pod, container)
+
+	if err != nil {
+		klog.Errorf("qos resource manager GetTopologyAwareResources for pod: %s container: %s failed with error: %v", pod.UID, container.Name, err)
+		return nil
+	}
+
+	return containerResourcesFromResourceManagerResponse(resp)
+}
+
+// GetTopologyAwareAllocatableResources returns information about all the resources known to the manager in topology aware format
+func (cm *containerManagerImpl) GetTopologyAwareAllocatableResources() []*podresourcesapi.AllocatableTopologyAwareResource {
+	resp, err := cm.qosResourceManager.GetTopologyAwareAllocatableResources()
+
+	if err != nil {
+		klog.Errorf("qos resource manager GetTopologyAwareAllocatableResources failed with error: %v", err)
+		return nil
+	}
+
+	return containerResourcesFromResourceManagerAllocatableResponse(resp)
+}
+
+func (cm *containerManagerImpl) UpdateAllocatedResources() {
+	cm.qosResourceManager.UpdateAllocatedResources()
 }

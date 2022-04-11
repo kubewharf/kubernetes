@@ -22,7 +22,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 	internalapi "k8s.io/cri-api/pkg/apis"
-	podresourcesapi "k8s.io/kubernetes/pkg/kubelet/apis/podresources/v1alpha1"
+	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpumanager"
 	"k8s.io/kubernetes/pkg/kubelet/cm/devicemanager"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
@@ -82,11 +82,15 @@ func (cm *containerManagerStub) GetCapacity() v1.ResourceList {
 	return c
 }
 
-func (cm *containerManagerStub) GetPluginRegistrationHandler() cache.PluginHandler {
+func (cm *containerManagerStub) GetPluginRegistrationHandler() map[string]cache.PluginHandler {
 	return nil
 }
 
 func (cm *containerManagerStub) GetDevicePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string) {
+	return nil, nil, []string{}
+}
+
+func (cm *containerManagerStub) GetResourcePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string) {
 	return nil, nil, []string{}
 }
 
@@ -118,6 +122,10 @@ func (cm *containerManagerStub) GetDevices(_, _ string) []*podresourcesapi.Conta
 	return nil
 }
 
+func (cm *containerManagerStub) GetAllocatableDevices() []*podresourcesapi.ContainerDevices {
+	return nil
+}
+
 func (cm *containerManagerStub) ShouldResetExtendedResourceCapacity() bool {
 	return cm.shouldResetExtendedResourceCapacity
 }
@@ -128,6 +136,29 @@ func (cm *containerManagerStub) GetAllocateResourcesPodAdmitHandler() lifecycle.
 
 func (cm *containerManagerStub) UpdateAllocatedDevices() {
 	return
+}
+
+func (cm *containerManagerStub) GetResourceRunContainerOptions(pod *v1.Pod, container *v1.Container) (*kubecontainer.ResourceRunContainerOptions, error) {
+	return &kubecontainer.ResourceRunContainerOptions{}, nil
+}
+
+func (cm *containerManagerStub) GetCPUs(_, _ string) []int64 {
+	return nil
+}
+
+func (cm *containerManagerStub) GetAllocatableCPUs() []int64 {
+	return nil
+}
+
+func (cm *containerManagerStub) GetTopologyAwareResources(pod *v1.Pod, container *v1.Container) []*podresourcesapi.TopologyAwareResource {
+	return nil
+}
+
+func (cm *containerManagerStub) GetTopologyAwareAllocatableResources() []*podresourcesapi.AllocatableTopologyAwareResource {
+	return nil
+}
+
+func (cm *containerManagerStub) UpdateAllocatedResources() {
 }
 
 func NewStubContainerManager() ContainerManager {

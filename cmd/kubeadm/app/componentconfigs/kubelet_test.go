@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/lithammer/dedent"
 
@@ -74,6 +75,7 @@ var kubeletMarshalCases = []struct {
 			kind: KubeletConfiguration
 			nodeStatusReportFrequency: 0s
 			nodeStatusUpdateFrequency: 0s
+			qosResourceManagerReconcilePeriod: 0s
 			runtimeRequestTimeout: 0s
 			streamingConnectionIdleTimeout: 0s
 			syncFrequency: 0s
@@ -84,9 +86,10 @@ var kubeletMarshalCases = []struct {
 		name: "Non empty config",
 		obj: &kubeletConfig{
 			config: kubeletconfig.KubeletConfiguration{
-				Address:            "1.2.3.4",
-				Port:               12345,
-				RotateCertificates: true,
+				Address:                           "1.2.3.4",
+				Port:                              12345,
+				RotateCertificates:                true,
+				QoSResourceManagerReconcilePeriod: metav1.Duration{5 * time.Second},
 			},
 		},
 		yaml: dedent.Dedent(`
@@ -116,6 +119,7 @@ var kubeletMarshalCases = []struct {
 			nodeStatusReportFrequency: 0s
 			nodeStatusUpdateFrequency: 0s
 			port: 12345
+			qosResourceManagerReconcilePeriod: 5s
 			rotateCertificates: true
 			runtimeRequestTimeout: 0s
 			streamingConnectionIdleTimeout: 0s

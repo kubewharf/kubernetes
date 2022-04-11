@@ -430,6 +430,13 @@ type KubeletConfiguration struct {
 	// Default: "10s"
 	// +optional
 	CPUManagerReconcilePeriod metav1.Duration `json:"cpuManagerReconcilePeriod,omitempty"`
+	// QoS Resource Manager reconciliation period.
+	// Requires the QoSResourceManager feature gate to be enabled.
+	// Dynamic Kubelet Config (beta): If dynamically updating this field, consider that
+	// shortening the period may carry a performance impact.
+	// Default: "3s"
+	// +optional
+	QoSResourceManagerReconcilePeriod metav1.Duration `json:"qosResourceManagerReconcilePeriod,omitempty"`
 	// TopologyManagerPolicy is the name of the policy to use.
 	// Policies other than "none" require the TopologyManager feature gate to be enabled.
 	// Dynamic Kubelet Config (beta): This field should not be updated without a full node

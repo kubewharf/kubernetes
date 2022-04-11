@@ -40,7 +40,6 @@ import (
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	"k8s.io/kubernetes/pkg/features"
-	podresourcesapi "k8s.io/kubernetes/pkg/kubelet/apis/podresources/v1alpha1"
 	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager"
 	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager/errors"
 	cputopology "k8s.io/kubernetes/pkg/kubelet/cm/cpumanager/topology"
@@ -88,8 +87,8 @@ type ManagerImpl struct {
 	// e.g. a new device is advertised, two old devices are deleted and a running device fails.
 	callback monitorCallback
 
-	// allDevices is a map by resource name of all the devices currently registered to the device manager
-	allDevices map[string]map[string]pluginapi.Device
+	// allDevices holds all the devices currently registered to the device manager
+	allDevices ResourceDeviceInstances
 
 	// healthyDevices contains all of the registered healthy resourceNames and their exported device IDs.
 	healthyDevices map[string]sets.String
@@ -109,7 +108,7 @@ type ManagerImpl struct {
 	allocatedDevices map[string]sets.String
 
 	// podDevices contains pod to allocated device mapping.
-	podDevices        podDevices
+	podDevices        *podDevices
 	checkpointManager checkpointmanager.CheckpointManager
 
 	// List of NUMA Nodes available on the underlying machine
@@ -181,11 +180,11 @@ func newManagerImpl(socketPath string, numaNodeInfo cputopology.NUMANodeInfo, to
 
 		socketname:            file,
 		socketdir:             dir,
-		allDevices:            make(map[string]map[string]pluginapi.Device),
+		allDevices:            NewResourceDeviceInstances(),
 		healthyDevices:        make(map[string]sets.String),
 		unhealthyDevices:      make(map[string]sets.String),
 		allocatedDevices:      make(map[string]sets.String),
-		podDevices:            make(podDevices),
+		podDevices:            newPodDevices(),
 		numaNodes:             numaNodes,
 		topologyAffinityStore: topologyAffinityStore,
 		devicesToReuse:        make(PodReusableDevices),
@@ -229,6 +228,15 @@ func (m *ManagerImpl) genericDeviceUpdateCallback(resourceName string, devices [
 		}
 	}
 	m.mutex.Unlock()
+
+	reAllocatePods := m.podDevices.allAllocatedDevicesHealthy(resourceName, m.healthyDevices[resourceName])
+	if reAllocatePods.Len() > 0 {
+		m.podDevices.delete(reAllocatePods.UnsortedList())
+		m.mutex.Lock()
+		m.allocatedDevices = m.podDevices.devices()
+		m.mutex.Unlock()
+	}
+
 	if err := m.writeCheckpoint(); err != nil {
 		klog.Errorf("writing checkpoint encountered %v", err)
 	}
@@ -459,11 +467,8 @@ func (m *ManagerImpl) Allocate(pod *v1.Pod, container *v1.Container) error {
 func (m *ManagerImpl) UpdatePluginResources(node *schedulernodeinfo.NodeInfo, attrs *lifecycle.PodAdmitAttributes) error {
 	pod := attrs.Pod
 
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-
 	// quick return if no pluginResources requested
-	if _, podRequireDevicePluginResource := m.podDevices[string(pod.UID)]; !podRequireDevicePluginResource {
+	if !m.podDevices.hasPod(string(pod.UID)) {
 		return nil
 	}
 
@@ -676,20 +681,33 @@ func (m *ManagerImpl) writeCheckpoint() error {
 // Reads device to container allocation information from disk, and populates
 // m.allocatedDevices accordingly.
 func (m *ManagerImpl) readCheckpoint() error {
-	registeredDevs := make(map[string][]string)
-	devEntries := make([]checkpoint.PodDevicesEntry, 0)
-	cp := checkpoint.New(devEntries, registeredDevs)
-	err := m.checkpointManager.GetCheckpoint(kubeletDeviceManagerCheckpoint, cp)
+	// the vast majority of time we restore a compatible checkpoint, so we try
+	// the current version first. Trying to restore older format checkpoints is
+	// relevant only in the kubelet upgrade flow, which happens once in a
+	// (long) while.
+	cp, err := m.getCheckpointV2()
 	if err != nil {
 		if err == errors.ErrCheckpointNotFound {
-			klog.Warningf("Failed to retrieve checkpoint for %q: %v", kubeletDeviceManagerCheckpoint, err)
+			// no point in trying anything else
+			klog.Infof("Failed to read data from checkpoint: %s, err: %s", kubeletDeviceManagerCheckpoint, err)
 			return nil
 		}
-		return err
+
+		var errv1 error
+		// one last try: maybe it's a old format checkpoint?
+		cp, errv1 = m.getCheckpointV1()
+		if errv1 != nil {
+			klog.Infof("Failed to read checkpoint V1 file, err: %v", errv1)
+			// intentionally return the parent error. We expect to restore V1 checkpoints
+			// a tiny fraction of time, so what matters most is the current checkpoint read error.
+			return err
+		}
+		klog.Infof("Read data from a V1 checkpoint: %s", kubeletDeviceManagerCheckpoint)
 	}
+
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	podDevices, registeredDevs := cp.GetData()
+	podDevices, registeredDevs := cp.GetDataInLatestFormat()
 	m.podDevices.fromCheckpointData(podDevices)
 	m.allocatedDevices = m.podDevices.devices()
 	for resource := range registeredDevs {
@@ -700,6 +718,22 @@ func (m *ManagerImpl) readCheckpoint() error {
 		m.endpoints[resource] = endpointInfo{e: newStoppedEndpointImpl(resource), opts: nil}
 	}
 	return nil
+}
+
+func (m *ManagerImpl) getCheckpointV2() (checkpoint.DeviceManagerCheckpoint, error) {
+	registeredDevs := make(map[string][]string)
+	devEntries := make([]checkpoint.PodDevicesEntry, 0)
+	cp := checkpoint.New(devEntries, registeredDevs)
+	err := m.checkpointManager.GetCheckpoint(kubeletDeviceManagerCheckpoint, cp)
+	return cp, err
+}
+
+func (m *ManagerImpl) getCheckpointV1() (checkpoint.DeviceManagerCheckpoint, error) {
+	registeredDevs := make(map[string][]string)
+	devEntries := make([]checkpoint.PodDevicesEntryV1, 0)
+	cp := checkpoint.NewV1(devEntries, registeredDevs)
+	err := m.checkpointManager.GetCheckpoint(kubeletDeviceManagerCheckpoint, cp)
+	return cp, err
 }
 
 // UpdateAllocatedDevices frees any Devices that are bound to terminated pods.
@@ -1090,10 +1124,21 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 			return fmt.Errorf("no containers return in allocation response %v", resp)
 		}
 
+		allocDevicesWithNUMA := checkpoint.NewDevicesPerNUMA()
 		// Update internal cached podDevices state.
 		m.mutex.Lock()
-		m.podDevices.insert(podUID, contName, resource, allocDevices, resp.ContainerResponses[0])
+		for dev := range allocDevices {
+			if m.allDevices[resource][dev].Topology == nil || len(m.allDevices[resource][dev].Topology.Nodes) == 0 {
+				allocDevicesWithNUMA[0] = append(allocDevicesWithNUMA[0], dev)
+				continue
+			}
+			for idx := range m.allDevices[resource][dev].Topology.Nodes {
+				node := m.allDevices[resource][dev].Topology.Nodes[idx]
+				allocDevicesWithNUMA[node.ID] = append(allocDevicesWithNUMA[node.ID], dev)
+			}
+		}
 		m.mutex.Unlock()
+		m.podDevices.insert(podUID, contName, resource, allocDevicesWithNUMA, resp.ContainerResponses[0])
 	}
 
 	// Checkpoints device to container allocation information.
@@ -1156,8 +1201,6 @@ func (m *ManagerImpl) GetDeviceRunContainerOptions(pod *v1.Pod, container *v1.Co
 			return nil, err
 		}
 	}
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
 	return m.podDevices.deviceRunContainerOptions(string(pod.UID), container.Name), nil
 }
 
@@ -1230,6 +1273,9 @@ func (m *ManagerImpl) sanitizeNodeAllocatable(node *schedulernodeinfo.NodeInfo) 
 	if allocatableResource.ScalarResources == nil {
 		allocatableResource.ScalarResources = make(map[v1.ResourceName]int64)
 	}
+
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	for resource, devices := range m.allocatedDevices {
 		needed := devices.Len()
 		quant, ok := allocatableResource.ScalarResources[v1.ResourceName(resource)]
@@ -1249,6 +1295,8 @@ func (m *ManagerImpl) sanitizeNodeAllocatable(node *schedulernodeinfo.NodeInfo) 
 }
 
 func (m *ManagerImpl) isDevicePluginResource(resource string) bool {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	_, registeredResource := m.healthyDevices[resource]
 	_, allocatedResource := m.allocatedDevices[resource]
 	// Return true if this is either an active device plugin resource or
@@ -1259,10 +1307,17 @@ func (m *ManagerImpl) isDevicePluginResource(resource string) bool {
 	return false
 }
 
-// GetDevices returns the devices used by the specified container
-func (m *ManagerImpl) GetDevices(podUID, containerName string) []*podresourcesapi.ContainerDevices {
+// GetAllocatableDevices returns information about all the devices known to the manager
+func (m *ManagerImpl) GetAllocatableDevices() ResourceDeviceInstances {
 	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	resp := m.allDevices.Clone()
+	m.mutex.Unlock()
+	klog.V(4).Infof("known devices: %d", len(resp))
+	return resp
+}
+
+// GetDevices returns the devices used by the specified container
+func (m *ManagerImpl) GetDevices(podUID, containerName string) ResourceDeviceInstances {
 	return m.podDevices.getContainerDevices(podUID, containerName)
 }
 
