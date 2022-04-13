@@ -20,6 +20,7 @@ go_library(
     ],
     importpath = "k8s.io/kubernetes/pkg/controller/garbagecollector",
     deps = [
+        "//pkg/api/pod:go_default_library",
         "//pkg/controller:go_default_library",
         "//pkg/controller/garbagecollector/metaonly:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/api/errors:go_default_library",

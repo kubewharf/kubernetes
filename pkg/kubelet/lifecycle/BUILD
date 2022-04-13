@@ -20,6 +20,7 @@ go_library(
         "//pkg/apis/core/v1/helper:go_default_library",
         "//pkg/kubelet/container:go_default_library",
         "//pkg/kubelet/types:go_default_library",
+        "//pkg/kubelet/util:go_default_library",
         "//pkg/kubelet/util/format:go_default_library",
         "//pkg/scheduler/framework/plugins/helper:go_default_library",
         "//pkg/scheduler/framework/plugins/nodeaffinity:go_default_library",
