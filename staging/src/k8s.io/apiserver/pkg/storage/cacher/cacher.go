@@ -678,6 +678,13 @@ func (c *Cacher) List(ctx context.Context, key string, resourceVersion string, p
 	pagingEnabled := utilfeature.DefaultFeatureGate.Enabled(features.APIListChunking)
 	hasContinuation := pagingEnabled && len(pred.Continue) > 0
 	hasLimit := pagingEnabled && pred.Limit > 0 && resourceVersion != "0"
+
+	if utilfeature.DefaultFeatureGate.Enabled(features.DisableListPenetration) &&
+		resourceVersion == "" {
+		// change resourceVersion to "0" to read list from cache when no paging
+		resourceVersion = "0"
+	}
+
 	if resourceVersion == "" || hasContinuation || hasLimit {
 		// If resourceVersion is not specified, serve it from underlying
 		// storage (for backward compatibility). If a continuation is
