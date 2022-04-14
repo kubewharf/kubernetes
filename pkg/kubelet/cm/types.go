@@ -96,9 +96,10 @@ type CgroupManager interface {
 
 // QOSContainersInfo stores the names of containers per qos
 type QOSContainersInfo struct {
-	Guaranteed CgroupName
-	BestEffort CgroupName
-	Burstable  CgroupName
+	Guaranteed        CgroupName
+	BestEffort        CgroupName
+	Burstable         CgroupName
+	OfflineBestEffort CgroupName
 }
 
 // PodContainerManager stores and manages pod level containers

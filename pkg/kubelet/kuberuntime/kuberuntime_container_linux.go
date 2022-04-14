@@ -105,21 +105,27 @@ func (m *kubeGenericRuntimeManager) generateLinuxContainerConfig(container *v1.C
 	memoryLimit := container.Resources.Limits.Memory().Value()
 	oomScoreAdj := int64(qos.GetContainerOOMScoreAdjust(pod, container,
 		int64(m.machineInfo.MemoryCapacity)))
-	// If request is not specified, but limit is, we want request to default to limit.
+	// If pod specify resource-type as best-effort explicitly, use min-shares. Otherwise,
+	// if request is not specified, but limit is, we want request to default to limit.
 	// API server does this for new containers, but we repeat this logic in Kubelet
 	// for containers running on existing Kubernetes clusters.
-	if cpuRequest.IsZero() && !cpuLimit.IsZero() {
-		cpuShares = milliCPUToShares(cpuLimit.MilliValue())
+	if pod.Annotations[v1.PodResourceTypeAnnotationKey] == v1.ResourceTypeBestEffort {
+		cpuShares = minShares
 	} else {
-		burstCpuRequest, err := types.GetBurstRequest(pod, v1.ResourceCPU)
-		if err == nil && burstCpuRequest.Cmp(*cpuRequest) != 0 {
-			cpuRequest = burstCpuRequest
-			klog.V(2).Infof("cpu request of pod %s(%s) is bursted to %d", pod.Name, pod.UID, burstCpuRequest.MilliValue())
+		if cpuRequest.IsZero() && !cpuLimit.IsZero() {
+			cpuShares = milliCPUToShares(cpuLimit.MilliValue())
+		} else {
+			burstCpuRequest, err := types.GetBurstRequest(pod, v1.ResourceCPU)
+			if err == nil && burstCpuRequest.Cmp(*cpuRequest) != 0 {
+				cpuRequest = burstCpuRequest
+				klog.V(2).Infof("cpu request of pod %s(%s) is bursted to %d", pod.Name, pod.UID, burstCpuRequest.MilliValue())
+			}
+			// if cpuRequest.Amount is nil, then milliCPUToShares will return the minimal number
+			// of CPU shares.
+			cpuShares = milliCPUToShares(cpuRequest.MilliValue())
 		}
-		// if cpuRequest.Amount is nil, then milliCPUToShares will return the minimal number
-		// of CPU shares.
-		cpuShares = milliCPUToShares(cpuRequest.MilliValue())
 	}
+
 	lc.Resources.CpuShares = cpuShares
 	if memoryLimit != 0 {
 		lc.Resources.MemoryLimitInBytes = memoryLimit

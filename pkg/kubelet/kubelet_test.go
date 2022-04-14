@@ -715,10 +715,10 @@ func TestHandlePluginResources(t *testing.T) {
 	fittingPodSpec := v1.PodSpec{NodeName: string(kl.nodeName),
 		Containers: []v1.Container{{Resources: v1.ResourceRequirements{
 			Limits: v1.ResourceList{
-				adjustedResource: resourceQuantity2,
+				adjustedResource: resourceQuantity1,
 			},
 			Requests: v1.ResourceList{
-				adjustedResource: resourceQuantity2,
+				adjustedResource: resourceQuantity1,
 			},
 		}}},
 	}

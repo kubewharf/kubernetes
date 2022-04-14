@@ -88,15 +88,16 @@ func (m *qosContainerManagerImpl) Start(getNodeAllocatable func() v1.ResourceLis
 	// Top level for Qos containers are created only for Burstable
 	// and Best Effort classes
 	qosClasses := map[v1.PodQOSClass]CgroupName{
-		v1.PodQOSBurstable:  NewCgroupName(rootContainer, strings.ToLower(string(v1.PodQOSBurstable))),
-		v1.PodQOSBestEffort: NewCgroupName(rootContainer, strings.ToLower(string(v1.PodQOSBestEffort))),
+		v1.PodQOSBurstable:         NewCgroupName(rootContainer, strings.ToLower(string(v1.PodQOSBurstable))),
+		v1.PodQOSBestEffort:        NewCgroupName(rootContainer, strings.ToLower(string(v1.PodQOSBestEffort))),
+		v1.PodQOSOfflineBestEffort: NewCgroupName(rootContainer, strings.ToLower(string(v1.PodQOSOfflineBestEffort))),
 	}
 
 	// Create containers for both qos classes
 	for qosClass, containerName := range qosClasses {
 		resourceParameters := &ResourceConfig{}
 		// the BestEffort QoS class has a statically configured minShares value
-		if qosClass == v1.PodQOSBestEffort {
+		if qosClass == v1.PodQOSBestEffort || qosClass == v1.PodQOSOfflineBestEffort {
 			minShares := uint64(MinShares)
 			resourceParameters.CpuShares = &minShares
 		}
@@ -124,9 +125,10 @@ func (m *qosContainerManagerImpl) Start(getNodeAllocatable func() v1.ResourceLis
 	}
 	// Store the top level qos container names
 	m.qosContainersInfo = QOSContainersInfo{
-		Guaranteed: rootContainer,
-		Burstable:  qosClasses[v1.PodQOSBurstable],
-		BestEffort: qosClasses[v1.PodQOSBestEffort],
+		Guaranteed:        rootContainer,
+		Burstable:         qosClasses[v1.PodQOSBurstable],
+		BestEffort:        qosClasses[v1.PodQOSBestEffort],
+		OfflineBestEffort: qosClasses[v1.PodQOSOfflineBestEffort],
 	}
 	m.getNodeAllocatable = getNodeAllocatable
 	m.activePods = activePods
@@ -190,6 +192,9 @@ func (m *qosContainerManagerImpl) setCPUCgroupConfig(configs map[v1.PodQOSClass]
 	// make sure best effort is always 2 shares
 	bestEffortCPUShares := uint64(MinShares)
 	configs[v1.PodQOSBestEffort].ResourceParameters.CpuShares = &bestEffortCPUShares
+
+	offlineBestEffortCPUShares := uint64(MinShares)
+	configs[v1.PodQOSOfflineBestEffort].ResourceParameters.CpuShares = &offlineBestEffortCPUShares
 
 	// set burstable shares based on current observe state
 	burstableCPUShares := MilliCPUToShares(burstablePodCPURequest)
@@ -283,6 +288,10 @@ func (m *qosContainerManagerImpl) UpdateCgroups() error {
 		},
 		v1.PodQOSBestEffort: {
 			Name:               m.qosContainersInfo.BestEffort,
+			ResourceParameters: &ResourceConfig{},
+		},
+		v1.PodQOSOfflineBestEffort: {
+			Name:               m.qosContainersInfo.OfflineBestEffort,
 			ResourceParameters: &ResourceConfig{},
 		},
 	}

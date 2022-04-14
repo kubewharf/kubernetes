@@ -115,6 +115,8 @@ func (m *podContainerManagerImpl) GetPodContainerName(pod *v1.Pod) (CgroupName, 
 		parentContainer = m.qosContainersInfo.Burstable
 	case v1.PodQOSBestEffort:
 		parentContainer = m.qosContainersInfo.BestEffort
+	case v1.PodQOSOfflineBestEffort:
+		parentContainer = m.qosContainersInfo.OfflineBestEffort
 	}
 	podContainer := GetPodCgroupNameSuffix(pod.UID)
 
@@ -211,7 +213,7 @@ func (m *podContainerManagerImpl) ReduceCPULimits(podCgroup CgroupName) error {
 func (m *podContainerManagerImpl) IsPodCgroup(cgroupfs string) (bool, types.UID) {
 	// convert the literal cgroupfs form to the driver specific value
 	cgroupName := m.cgroupManager.CgroupName(cgroupfs)
-	qosContainersList := [3]CgroupName{m.qosContainersInfo.BestEffort, m.qosContainersInfo.Burstable, m.qosContainersInfo.Guaranteed}
+	qosContainersList := [4]CgroupName{m.qosContainersInfo.BestEffort, m.qosContainersInfo.Burstable, m.qosContainersInfo.Guaranteed, m.qosContainersInfo.OfflineBestEffort}
 	basePath := ""
 	for _, qosContainerName := range qosContainersList {
 		// a pod cgroup is a direct child of a qos node, so check if its a match
@@ -237,7 +239,7 @@ func (m *podContainerManagerImpl) IsPodCgroup(cgroupfs string) (bool, types.UID)
 func (m *podContainerManagerImpl) GetAllPodsFromCgroups() (map[types.UID]CgroupName, error) {
 	// Map for storing all the found pods on the disk
 	foundPods := make(map[types.UID]CgroupName)
-	qosContainersList := [3]CgroupName{m.qosContainersInfo.BestEffort, m.qosContainersInfo.Burstable, m.qosContainersInfo.Guaranteed}
+	qosContainersList := [4]CgroupName{m.qosContainersInfo.BestEffort, m.qosContainersInfo.Burstable, m.qosContainersInfo.Guaranteed, m.qosContainersInfo.OfflineBestEffort}
 	// Scan through all the subsystem mounts
 	// and through each QoS cgroup directory for each subsystem mount
 	// If a pod cgroup exists in even a single subsystem mount

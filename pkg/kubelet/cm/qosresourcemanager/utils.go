@@ -109,6 +109,12 @@ func isDaemonPod(pod *v1.Pod) bool {
 		return true
 	}
 
+	for i := 0; i < len(pod.OwnerReferences); i++ {
+		if pod.OwnerReferences[i].Kind == DaemonsetKind {
+			return true
+		}
+	}
+
 	return false
 }
 

@@ -305,7 +305,7 @@ func podMatchesScopeFunc(selector corev1.ScopedResourceSelectorRequirement, obje
 	case corev1.ResourceQuotaScopeBestEffort:
 		return isBestEffort(pod), nil
 	case corev1.ResourceQuotaScopeNotBestEffort:
-		return !isBestEffort(pod), nil
+		return !isBestEffort(pod) && !isOfflineBestEffort(pod), nil
 	case corev1.ResourceQuotaScopePriorityClass:
 		return podMatchesSelector(pod, selector)
 	}
@@ -357,6 +357,10 @@ func PodUsageFunc(obj runtime.Object, clock clock.Clock) (corev1.ResourceList, e
 
 func isBestEffort(pod *corev1.Pod) bool {
 	return qos.GetPodQOS(pod) == corev1.PodQOSBestEffort
+}
+
+func isOfflineBestEffort(pod *corev1.Pod) bool {
+	return qos.GetPodQOS(pod) == corev1.PodQOSOfflineBestEffort
 }
 
 func isTerminating(pod *corev1.Pod) bool {

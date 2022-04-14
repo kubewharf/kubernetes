@@ -33,10 +33,14 @@ func isSupportedQoSComputeResource(name v1.ResourceName) bool {
 }
 
 // GetPodQOS returns the QoS class of a pod.
+// A pod is offline-besteffort if the pod has best-effort resource type annotation.
 // A pod is besteffort if none of its containers have specified any requests or limits.
 // A pod is guaranteed only when requests and limits are specified for all the containers and they are equal.
 // A pod is burstable if limits and requests do not match across all containers.
 func GetPodQOS(pod *v1.Pod) v1.PodQOSClass {
+	if pod.Annotations[core.PodResourceTypeAnnotationKey] == core.ResourceTypeBestEffort {
+		return v1.PodQOSOfflineBestEffort
+	}
 	requests := v1.ResourceList{}
 	limits := v1.ResourceList{}
 	zeroQuantity := resource.MustParse("0")

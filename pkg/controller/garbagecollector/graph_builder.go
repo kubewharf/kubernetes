@@ -542,8 +542,8 @@ func (gb *GraphBuilder) processGraphChanges() bool {
 		utilruntime.HandleError(fmt.Errorf("cannot access obj: %v", err))
 		return true
 	}
-	if event.gvk.Kind == "Pod" && utilpod.LauncherIsNodeManager(accessor.GetAnnotations()) {
-		klog.V(5).Infof("GraphBuilder ignore pod: %s/%s, as its launcher is node manager", accessor.GetNamespace(), accessor.GetName())
+	if event.gvk.Kind == "Pod" && utilpod.IsYodelPod(accessor.GetAnnotations()) {
+		klog.V(5).Infof("GraphBuilder ignore pod: %s/%s, as it is managed by yodel resource-manager", accessor.GetNamespace(), accessor.GetName())
 		return true
 	}
 	klog.V(5).Infof("GraphBuilder process object: %s/%s, namespace %s, name %s, uid %s, event type %v", event.gvk.GroupVersion().String(), event.gvk.Kind, accessor.GetNamespace(), accessor.GetName(), string(accessor.GetUID()), event.eventType)

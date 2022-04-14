@@ -30,6 +30,7 @@ go_library(
         "//pkg/kubelet/container:go_default_library",
         "//pkg/kubelet/events:go_default_library",
         "//pkg/kubelet/types:go_default_library",
+        "//pkg/kubelet/util:go_default_library",
         "//pkg/kubelet/util/format:go_default_library",
         "//pkg/util/config:go_default_library",
         "//pkg/util/hash:go_default_library",

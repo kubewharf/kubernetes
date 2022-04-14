@@ -226,13 +226,27 @@ func GeneralPredicates(pod *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo) ([]Pre
 	}
 
 	var reasons []PredicateFailureReason
-	for _, r := range noderesources.Fits(pod, nodeInfo, nil) {
-		reasons = append(reasons, &InsufficientResourceError{
-			ResourceName: r.ResourceName,
-			Requested:    r.Requested,
-			Used:         r.Used,
-			Capacity:     r.Capacity,
-		})
+
+	// TODO: fit with node cnr resource for best-effort pod
+	if !noderesources.IsGodelBEPod(pod) {
+		// Godel be pods use cnr resource, should not calculate them into node requestedResource.
+		var podsWithoutBE []*v1.Pod
+		for _, otherPod := range nodeInfo.Pods() {
+			if !noderesources.IsGodelBEPod(otherPod) {
+				podsWithoutBE = append(podsWithoutBE, otherPod)
+			}
+		}
+		newNodeInfo := schedulernodeinfo.NewNodeInfo(podsWithoutBE...)
+		newNodeInfo.SetNode(nodeInfo.Node())
+
+		for _, r := range noderesources.Fits(pod, newNodeInfo, nil) {
+			reasons = append(reasons, &InsufficientResourceError{
+				ResourceName: r.ResourceName,
+				Requested:    r.Requested,
+				Used:         r.Used,
+				Capacity:     r.Capacity,
+			})
+		}
 	}
 
 	if !pluginhelper.PodMatchesNodeSelectorAndAffinityTerms(pod, nodeInfo.Node()) {

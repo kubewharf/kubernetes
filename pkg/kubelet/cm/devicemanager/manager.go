@@ -1093,6 +1093,9 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 		devs := allocDevices.UnsortedList()
 		cpuRequirement, memoryRequirement := getCPUAndMemoryRequirementFromContainer(container)
 		podRole := getRoleFromPod(pod)
+		userName := getUserName(pod)
+		applicationName := getApplicationName(pod)
+		ssdAffinity := getSSDAffinity(pod)
 		// TODO: refactor this part of code to just append a ContainerAllocationRequest
 		// in a passed in AllocateRequest pointer, and issues a single Allocate call per pod.
 		klog.V(3).Infof("Making allocation request for devices %v for device plugin %s; pod: %s/%s; container: %s; cpuRequirement: %d; memoryRequirement: %d",
@@ -1103,7 +1106,10 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 			"container", container.Name,
 			"cpu_requirement", fmt.Sprintf("%d", cpuRequirement),
 			"memory_requirement", fmt.Sprintf("%d", memoryRequirement),
-			"role", podRole)
+			"role", podRole,
+			"user_name", userName,
+			"application_name", applicationName,
+			"ssd_affinity", ssdAffinity)
 		if utilfeature.DefaultFeatureGate.Enabled(features.AutoNICNumaAffinity) {
 			md.Append("affinity_devices", "nic")
 		}
@@ -1162,6 +1168,32 @@ func getRoleFromPod(pod *v1.Pod) (role string) {
 	}
 
 	role = pod.Labels[config.PodRoleLabel]
+	return
+}
+
+func getUserName(pod *v1.Pod) (userName string) {
+	if pod == nil {
+		return ""
+	}
+
+	userName = pod.Annotations[config.UserNameAnnotation]
+	return
+}
+func getApplicationName(pod *v1.Pod) (appName string) {
+	if pod == nil {
+		return ""
+	}
+
+	appName = pod.Labels[config.ApplicationNameLabel]
+	return
+}
+
+func getSSDAffinity(pod *v1.Pod) (ssdAffinity string) {
+	if pod == nil {
+		return ""
+	}
+
+	ssdAffinity = pod.Annotations[config.SSDAfinityAnnotation]
 	return
 }
 
