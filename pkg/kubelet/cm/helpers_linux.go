@@ -207,6 +207,16 @@ func ResourceConfigForPod(pod *v1.Pod, enforceCPULimits bool, cpuPeriod uint64) 
 		if memoryLimitsDeclared {
 			result.Memory = &memoryLimits
 		}
+	} else if qosClass == v1.PodQOSOfflineBestEffort {
+		shares := uint64(MinShares)
+		result.CpuShares = &shares
+		if cpuLimitsDeclared {
+			result.CpuQuota = &cpuQuota
+			result.CpuPeriod = &cpuPeriod
+		}
+		if memoryLimitsDeclared {
+			result.Memory = &memoryLimits
+		}
 	} else {
 		shares := uint64(MinShares)
 		result.CpuShares = &shares
