@@ -34,10 +34,10 @@ const (
 	DefaultPriorityTypeAnnotationKey = "godel.bytedance.com/default-priority-type"
 
 	// default priority value for each priority type when no default priority class exists
-	MinPriorityForGuaranteed int32 = 100
-	MaxPriorityForGuaranteed int32 = 120
-	MinPriorityForBestEffort int32 = 40
-	MaxPriorityForBestEffort int32 = 60
+	DefaultPriorityForDaemonSet  int32 = 200
+	DefaultPriorityForGuaranteed int32 = 100
+	DefaultPriorityForBestEffort int32 = 40
+	PriorityBoundary             int32 = 80
 
 	// pod launchers
 	PodLauncherKubelet     = "kubelet"

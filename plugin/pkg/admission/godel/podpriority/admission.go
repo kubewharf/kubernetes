@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -237,11 +238,16 @@ func (p *Plugin) getDefaultPriorityForGodelPod(pod *api.Pod) (string, int32, str
 		return dpc.Name, dpc.Value, canBePreempted, nil
 	}
 
+	for _, ownerRef := range pod.ObjectMeta.OwnerReferences {
+		if ownerRef.Kind == "DaemonSet" {
+			return "", godel.DefaultPriorityForDaemonSet, canBePreempted, nil
+		}
+	}
 	switch resourceType {
 	case godel.GuaranteedPod:
-		return "", godel.MinPriorityForGuaranteed, canBePreempted, nil
+		return "", godel.DefaultPriorityForGuaranteed, canBePreempted, nil
 	case godel.BestEffortPod:
-		return "", godel.MinPriorityForBestEffort, canBePreempted, nil
+		return "", godel.DefaultPriorityForBestEffort, canBePreempted, nil
 	default:
 		return "", int32(scheduling.DefaultPriorityWhenNoDefaultClassExists), canBePreempted, nil
 	}
@@ -255,12 +261,12 @@ func passPodPriorityCheckForGodelPod(pod *api.Pod, pc *schedulingv1.PriorityClas
 	var minValue, maxValue int32
 	switch resourceType {
 	case godel.GuaranteedPod:
-		minValue = godel.MinPriorityForGuaranteed
-		maxValue = godel.MaxPriorityForGuaranteed
+		minValue = godel.PriorityBoundary
+		maxValue = math.MaxInt32
 		break
 	case godel.BestEffortPod:
-		minValue = godel.MinPriorityForBestEffort
-		maxValue = godel.MaxPriorityForBestEffort
+		minValue = math.MinInt32
+		maxValue = godel.PriorityBoundary
 		break
 	default:
 		return nil
