@@ -464,6 +464,7 @@ loop:
 				utilruntime.HandleError(fmt.Errorf("%s: unable to understand watch event %#v", r.name, event))
 				continue
 			}
+			r.emitWatchLag(event, meta)
 			newResourceVersion := meta.GetResourceVersion()
 			switch event.Type {
 			case watch.Added:
@@ -489,21 +490,6 @@ loop:
 			default:
 				utilruntime.HandleError(fmt.Errorf("%s: unable to understand watch event %#v", r.name, event))
 			}
-			// add watch lag metrics
-			switch event.Type {
-			case watch.Added, watch.Modified, watch.Deleted:
-				// ignore object already deleted
-				if meta.GetDeletionTimestamp() != nil {
-					break
-				}
-				// check last update annotation
-				if updateTimeStr, ok := meta.GetAnnotations()[LastUpdateAnnotation]; ok {
-					lastUpdateTime, err := strconv.ParseInt(updateTimeStr, 0, 64)
-					if err == nil {
-						metrics.WatchLag.ObserveLag(r.expectedType.String(), r.name, time.Unix(0, lastUpdateTime))
-					}
-				}
-			}
 			*resourceVersion = newResourceVersion
 			r.setLastSyncResourceVersion(newResourceVersion)
 			eventCount++
@@ -516,6 +502,24 @@ loop:
 	}
 	klog.V(4).Infof("%s: Watch close - %v total %v items received", r.name, r.expectedTypeName, eventCount)
 	return nil
+}
+
+func (r *Reflector) emitWatchLag(event watch.Event, meta metav1.Object) {
+	// add watch lag metrics
+	switch event.Type {
+	case watch.Added, watch.Modified, watch.Deleted:
+		// ignore object already deleted
+		if meta.GetDeletionTimestamp() != nil {
+			break
+		}
+		// check last update annotation
+		if updateTimeStr, ok := meta.GetAnnotations()[LastUpdateAnnotation]; ok {
+			lastUpdateTime, err := strconv.ParseInt(updateTimeStr, 0, 64)
+			if err == nil {
+				metrics.WatchLag.ObserveLag(r.expectedType.String(), r.name, time.Unix(0, lastUpdateTime))
+			}
+		}
+	}
 }
 
 // LastSyncResourceVersion is the resource version observed when last sync with the underlying store
