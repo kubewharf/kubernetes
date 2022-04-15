@@ -99,8 +99,8 @@ func (p *Plugin) Admit(ctx context.Context, a admission.Attributes, o admission.
 		extraTolerations = ts
 	}
 
-	// TODO(zhangyadong.0808): add this toleration for offline-besteffort pod?
-	if qoshelper.GetPodQOS(pod) == api.PodQOSBestEffort {
+	podQOS := qoshelper.GetPodQOS(pod)
+	if podQOS == api.PodQOSBestEffort || podQOS == api.PodQOSOfflineBestEffort {
 		extraTolerations = append(extraTolerations, api.Toleration{
 			Key:      corev1.TaintNodeMemoryPressure,
 			Operator: api.TolerationOpExists,
