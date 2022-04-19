@@ -157,7 +157,6 @@ func (m *kubeGenericRuntimeManager) generatePodSandboxConfig(pod *v1.Pod, attemp
 			for _, annotation := range opts.Annotations {
 				if passthroughAnnoSets.Has(annotation.Name) {
 					podSandboxConfig.Annotations[annotation.Name] = annotation.Value
-					break
 				}
 			}
 		}
