@@ -1,19 +1,24 @@
-package hostdualstackip
+package dynamicpodspec
 
 import (
 	"fmt"
-	"net"
 	"sort"
 
-	"k8s.io/klog"
+	"net"
 
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
+	netutil "k8s.io/apimachinery/pkg/util/net"
+	"k8s.io/klog"
+	podutil "k8s.io/kubernetes/pkg/api/pod"
+	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 )
 
 const (
 	familyIPv4 int = nl.FAMILY_V4
 	familyIPv6 int = nl.FAMILY_V6
+
+	ForbiddenReason = "GetNodeHostInterfaceError"
 )
 
 type sortableRoutes []*netlink.Route
@@ -28,6 +33,81 @@ func (r sortableRoutes) Less(i, j int) bool {
 
 func (r sortableRoutes) Swap(i, j int) {
 	r[i], r[j] = r[j], r[i]
+}
+
+var (
+	dualStackHostIPv4 net.IP
+	dualStackHostIPv6 net.IP
+	dualStackIPErr    error
+)
+
+type PodAnnotationsAdmitHandler struct {
+	podUpdater PodUpdater
+}
+
+func NewPodAnnotationsAdmitHandler(podUpdater PodUpdater) *PodAnnotationsAdmitHandler {
+	return &PodAnnotationsAdmitHandler{podUpdater: podUpdater}
+}
+
+func init() {
+	// init GetDualStackIPFromHostInterfaces IP addresses here.
+	// in some cases, a machine may got IPv6 address in running time, but not set the address to docker config or other CNI config,
+	// it may cause container ENV got HOST_IPV6, but not got POD_IPV6, that makes some module(like mesh agent) fallback listen to
+	// node's IPV6 address, not suitable and failed.
+	_ = setDualStackHostIPs()
+}
+
+func setDualStackHostIPs() error {
+	dualStackHostIPv4, dualStackHostIPv6, dualStackIPErr = netutil.GetDualStackIPFromHostInterfaces()
+	if dualStackIPErr != nil {
+		klog.Errorf("GetDualStackIPFromHostInterfaces ip addresses error : %v", dualStackIPErr)
+		return dualStackIPErr
+	}
+
+	// when a host has multi network interfaces which got valid global ipv6 addresses and default route [::/0] on it,
+	// like eth0 and eth1, and eth1 usually be as strategy route table and eth0 as default route table,
+	// so in file /proc/net/ipv6_route, eth1 route rule will be on top of eth0's route which will cause
+	// `getIPv6DefaultRoutes` in k8s.io/apimachinery/pkg/util/net/interface.go get wrong default route for ipv6 family.
+	// We add validate func here to check whether the default ip addresses are equal to address got from netlink.
+	dualStackHostIPv4 = validateDefaultIPAddress(familyIPv4, dualStackHostIPv4)
+	dualStackHostIPv6 = validateDefaultIPAddress(familyIPv6, dualStackHostIPv6)
+	return nil
+}
+
+func (p *PodAnnotationsAdmitHandler) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAdmitResult {
+	if dualStackIPErr != nil {
+		// retry setDualStackHostIP, prevent some init error in GetDualStackIPFromHostInterfaces
+		err := setDualStackHostIPs()
+		if err != nil {
+			return lifecycle.PodAdmitResult{
+				Admit:   false,
+				Reason:  ForbiddenReason,
+				Message: fmt.Sprintf("GetDualStackIPFromHostInterfaces failed: %v", dualStackIPErr),
+			}
+		}
+	}
+
+	klog.Infof("GetDualStackIPFromHostInterfaces %v ipv4: %v, ipv6: %v \n\n", attrs.Pod.Name, dualStackHostIPv4, dualStackHostIPv6)
+
+	var hostIPv4Str, hostIPv6Str string
+	if dualStackHostIPv4 != nil {
+		hostIPv4Str = dualStackHostIPv4.String()
+	}
+	if dualStackHostIPv6 != nil {
+		hostIPv6Str = dualStackHostIPv6.String()
+	}
+	updatedAnnotation := make(map[string]string)
+	for key, value := range attrs.Pod.Annotations {
+		updatedAnnotation[key] = value
+	}
+	updatedAnnotation[podutil.HostIPv4AnnotationKey] = hostIPv4Str
+	updatedAnnotation[podutil.HostIPv6AnnotationKey] = hostIPv6Str
+	attrs.Pod.Annotations = updatedAnnotation
+
+	p.podUpdater.NeedUpdate()
+	return lifecycle.PodAdmitResult{
+		Admit: true,
+	}
 }
 
 func validateDefaultIPAddress(family int, ip net.IP) net.IP {

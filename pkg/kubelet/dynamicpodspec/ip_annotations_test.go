@@ -1,4 +1,4 @@
-package hostdualstackip
+package dynamicpodspec
 
 import (
 	"errors"
