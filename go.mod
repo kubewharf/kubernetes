@@ -1,4 +1,6 @@
 // This is a generated file. Do not edit directly.
+// Ensure you've carefully read
+// https://git.k8s.io/community/contributors/devel/sig-architecture/vendor.md
 // Run hack/pin-dependency.sh to change pinned dependency versions.
 // Run hack/update-vendor.sh to update go.mod files and the vendor directory.
 
@@ -50,11 +52,11 @@ require (
 	github.com/evanphx/json-patch v4.9.0+incompatible
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/go-bindata/go-bindata v3.1.1+incompatible
-	github.com/go-openapi/analysis v0.19.5
-	github.com/go-openapi/loads v0.19.4
-	github.com/go-openapi/spec v0.19.3
-	github.com/go-openapi/strfmt v0.19.3
-	github.com/go-openapi/validate v0.19.5
+	github.com/go-openapi/analysis v0.19.16
+	github.com/go-openapi/loads v0.20.0
+	github.com/go-openapi/spec v0.20.0
+	github.com/go-openapi/strfmt v0.19.11
+	github.com/go-openapi/validate v0.20.1
 	github.com/go-ozzo/ozzo-validation v3.5.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/groupcache v0.0.0-20160516000752-02826c3e7903
@@ -118,7 +120,7 @@ require (
 	google.golang.org/grpc v1.27.0
 	gopkg.in/gcfg.v1 v1.2.0
 	gopkg.in/square/go-jose.v2 v2.2.2
-	gopkg.in/yaml.v2 v2.2.8
+	gopkg.in/yaml.v2 v2.4.0
 	gotest.tools v2.2.0+incompatible
 	gotest.tools/gotestsum v0.3.5
 	honnef.co/go/tools v0.0.1-2019.2.2
@@ -273,7 +275,7 @@ replace (
 	github.com/go-logr/logr => github.com/go-logr/logr v0.1.0
 	github.com/go-ole/go-ole => github.com/go-ole/go-ole v1.2.1
 	github.com/go-openapi/analysis => github.com/go-openapi/analysis v0.19.5
-	github.com/go-openapi/errors => github.com/go-openapi/errors v0.19.2
+	github.com/go-openapi/errors => github.com/go-openapi/errors v0.19.9
 	github.com/go-openapi/jsonpointer => github.com/go-openapi/jsonpointer v0.19.3
 	github.com/go-openapi/jsonreference => github.com/go-openapi/jsonreference v0.19.3
 	github.com/go-openapi/loads => github.com/go-openapi/loads v0.19.4
@@ -281,7 +283,7 @@ replace (
 	github.com/go-openapi/spec => github.com/go-openapi/spec v0.19.3
 	github.com/go-openapi/strfmt => github.com/go-openapi/strfmt v0.19.3
 	github.com/go-openapi/swag => github.com/go-openapi/swag v0.19.5
-	github.com/go-openapi/validate => github.com/go-openapi/validate v0.19.5
+	github.com/go-openapi/validate => github.com/go-openapi/validate v0.20.1
 	github.com/go-ozzo/ozzo-validation => github.com/go-ozzo/ozzo-validation v3.5.0+incompatible
 	github.com/go-stack/stack => github.com/go-stack/stack v1.8.0
 	github.com/go-toolsmith/astcast => github.com/go-toolsmith/astcast v1.0.0
@@ -536,6 +538,7 @@ replace (
 	gopkg.in/tomb.v1 => gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 	gopkg.in/warnings.v0 => gopkg.in/warnings.v0 v0.1.1
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.2.8
+	gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.0-20200605160147-a5ece683394c
 	gotest.tools => gotest.tools v2.2.0+incompatible
 	gotest.tools/gotestsum => gotest.tools/gotestsum v0.3.5
 	grpc.go4.org => grpc.go4.org v0.0.0-20170609214715-11d0a25b4919
