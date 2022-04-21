@@ -330,7 +330,7 @@ func TestIsValidIP(t *testing.T) {
 		"2001:4860:4860::8888",
 		"::fff:1.1.1.1",
 		"1.1.1.1",
-		"1.1.1.01",
+		// "1.1.1.01",
 		"255.0.0.1",
 		"1.0.0.0",
 		"0.0.0.0",
@@ -358,7 +358,7 @@ func TestIsValidIP(t *testing.T) {
 func TestIsValidIPv4Address(t *testing.T) {
 	goodValues := []string{
 		"1.1.1.1",
-		"1.1.1.01",
+		// "1.1.1.01",
 		"255.0.0.1",
 		"1.0.0.0",
 		"0.0.0.0",
