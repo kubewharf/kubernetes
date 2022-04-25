@@ -3,6 +3,7 @@ package hostdualstackip
 import (
 	"net"
 
+	"k8s.io/klog"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 )
 
@@ -14,6 +15,17 @@ const (
 	TceMyPodIP       = "MY_POD_IP"
 	TceMyPodIPv6     = "MY_POD_IPv6"
 )
+
+func init() {
+	validateEnvFunc = map[string]func(kubecontainer.EnvVar) kubecontainer.EnvVar{
+		TceMyHostIP:      validateGlobalIPv4EnvVar,
+		TceMyHostIPv6:    validateGlobalIPv6EnvVar,
+		TceBytedHostIP:   validateGlobalIPv4EnvVar,
+		TceBytedHostIPv6: validateGlobalIPv6EnvVar,
+		TceMyPodIP:       validateIPv4EnvVar,
+		TceMyPodIPv6:     validateGlobalIPv6EnvVar,
+	}
+}
 
 var (
 	validateEnvFunc map[string]func(kubecontainer.EnvVar) kubecontainer.EnvVar
@@ -57,17 +69,6 @@ func validateGlobalIPv6EnvVar(envVar kubecontainer.EnvVar) kubecontainer.EnvVar 
 	return envVar
 }
 
-func init() {
-	validateEnvFunc = map[string]func(kubecontainer.EnvVar) kubecontainer.EnvVar{
-		TceMyHostIP:      validateGlobalIPv4EnvVar,
-		TceMyHostIPv6:    validateGlobalIPv6EnvVar,
-		TceBytedHostIP:   validateGlobalIPv4EnvVar,
-		TceBytedHostIPv6: validateGlobalIPv6EnvVar,
-		TceMyPodIP:       validateIPv4EnvVar,
-		TceMyPodIPv6:     validateGlobalIPv6EnvVar,
-	}
-}
-
 // validate ip-related container's environments which used in TCE
 func ValidateIPRelatedEnvs(envVars []kubecontainer.EnvVar) []kubecontainer.EnvVar {
 	if len(envVars) == 0 {
@@ -84,4 +85,21 @@ func ValidateIPRelatedEnvs(envVars []kubecontainer.EnvVar) []kubecontainer.EnvVa
 		validatedEnvVars = append(validatedEnvVars, validateFn(envVar))
 	}
 	return validatedEnvVars
+}
+
+func ExtractPodDualStackIPsFromPodIPs(podIPs []string) (podIPv4, podIPv6 string) {
+	for _, podIP := range podIPs {
+		parsedIP := net.ParseIP(podIP)
+		if parsedIP == nil {
+			klog.Errorf("determinate pod ip: %s family failed \n", podIP)
+			continue
+		}
+
+		if parsedIP.To4() != nil {
+			podIPv4 = podIP
+		} else if parsedIP.To16() != nil {
+			podIPv6 = podIP
+		}
+	}
+	return
 }

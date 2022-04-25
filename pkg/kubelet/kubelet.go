@@ -77,7 +77,6 @@ import (
 	dynamic "k8s.io/kubernetes/pkg/kubelet/dynamicpodspec"
 	"k8s.io/kubernetes/pkg/kubelet/events"
 	"k8s.io/kubernetes/pkg/kubelet/eviction"
-	"k8s.io/kubernetes/pkg/kubelet/externals/hostdualstackip"
 	"k8s.io/kubernetes/pkg/kubelet/images"
 	"k8s.io/kubernetes/pkg/kubelet/kubeletconfig"
 	"k8s.io/kubernetes/pkg/kubelet/kuberuntime"
@@ -902,10 +901,9 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 	klet.admitHandlers.AddPodAdmitHandler(lifecycle.NewPredicateAdmitHandler(klet.getNodeAnyWay, criticalPodAdmissionHandler, klet.containerManager.UpdatePluginResources))
 	klet.admitHandlers.AddPodAdmitHandler(lifecycle.NewPodLauncherAdmitHandler())
 
-	// add host-dual-stack-ip-pod-annotations handler
-	klet.admitHandlers.AddPodAdmitHandler(hostdualstackip.NewPodAnnotationsAdmitHandler())
-
 	podUpdater := dynamic.NewPodUpdater(klet.kubeClient)
+	// add host-dual-stack-ip-pod-annotations handler
+	klet.admitHandlers.AddPodAdmitHandler(dynamic.NewPodAnnotationsAdmitHandler(podUpdater))
 	assignQosPort := dynamic.NewAssignPortHandler(utilpod.PodAutoPortHighPriorityAnnotation, klet.guaranteedQosHostPortRange, podUpdater)
 	klet.admitHandlers.AddPodAdmitHandler(assignQosPort)
 
@@ -1765,7 +1763,7 @@ func (kl *Kubelet) syncPod(o syncPodOptions) error {
 	// Fetch the pull secrets for the pod
 	pullSecrets := kl.getPullSecretsForPod(pod)
 
-	prePodIPv6Annotations, _ := pod.Annotations[hostdualstackip.PodIPv6AnnotationKey]
+	prePodIPv6Annotations, _ := pod.Annotations[utilpod.PodIPv6AnnotationKey]
 
 	// Call the container runtime's SyncPod callback
 	result := kl.containerRuntime.SyncPod(pod, podStatus, pullSecrets, kl.backOff)
@@ -1784,11 +1782,11 @@ func (kl *Kubelet) syncPod(o syncPodOptions) error {
 	}
 
 	// patch podIPv6 annotations if it has changed
-	if podIPv6, _ := pod.Annotations[hostdualstackip.PodIPv6AnnotationKey]; podIPv6 != prePodIPv6Annotations {
+	if podIPv6, _ := pod.Annotations[utilpod.PodIPv6AnnotationKey]; podIPv6 != prePodIPv6Annotations {
 		newMap := map[string]interface{}{
 			"metadata": map[string]map[string]string{
 				"annotations": {
-					hostdualstackip.PodIPv6AnnotationKey: podIPv6,
+					utilpod.PodIPv6AnnotationKey: podIPv6,
 				},
 			},
 		}
@@ -2489,7 +2487,7 @@ func getStreamingConfig(kubeCfg *kubeletconfiginternal.KubeletConfiguration, kub
 }
 
 func patchDualStackIPAddressInPodAnnotations(kl *Kubelet, pod *v1.Pod) error {
-	ipv4, ipv6 := pod.ObjectMeta.Annotations[hostdualstackip.HostIPv4AnnotationKey], pod.ObjectMeta.Annotations[hostdualstackip.HostIPv6AnnotationKey]
+	ipv4, ipv6 := pod.ObjectMeta.Annotations[utilpod.HostIPv4AnnotationKey], pod.ObjectMeta.Annotations[utilpod.HostIPv6AnnotationKey]
 
 	if ipv4 != "" && ipv6 != "" {
 		return nil
@@ -2517,8 +2515,8 @@ func patchDualStackIPAddressInPodAnnotations(kl *Kubelet, pod *v1.Pod) error {
 	newMap := map[string]interface{}{
 		"metadata": map[string]map[string]string{
 			"annotations": {
-				hostdualstackip.HostIPv4AnnotationKey: ipv4,
-				hostdualstackip.HostIPv6AnnotationKey: ipv6,
+				utilpod.HostIPv4AnnotationKey: ipv4,
+				utilpod.HostIPv6AnnotationKey: ipv6,
 			},
 		},
 	}

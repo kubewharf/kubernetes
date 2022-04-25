@@ -85,6 +85,10 @@ func VisitContainers(podSpec *api.PodSpec, mask ContainerType, visitor Container
 }
 
 const (
+	HostIPv4AnnotationKey = "pod.tce.kubernetes.io/host.ipv4"
+	HostIPv6AnnotationKey = "pod.tce.kubernetes.io/host.ipv6"
+	PodIPv6AnnotationKey  = "pod.tce.kubernetes.io/pod.ipv6"
+
 	PodAutoPortAnnotation               = "pod.tce.kubernetes.io/autoport"
 	PodAutoPortHighPriorityAnnotation   = "pod.tce.kubernetes.io/autoportHighPriority"
 	PodPortAnnotation                   = "pod.tce.kubernetes.io/autoportList"

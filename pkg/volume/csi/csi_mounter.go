@@ -334,12 +334,12 @@ func (c *csiMountMgr) podAttributes() (map[string]string, error) {
 	}
 
 	appName := c.pod.Labels[config.ApplicationNameLabel]
-	if userName != "" {
+	if appName != "" {
 		attrs["csi.storage.k8s.io/application.name"] = appName
 	}
 
 	ssdAffinity := c.pod.Annotations[config.SSDAfinityAnnotation]
-	if userName != "" {
+	if ssdAffinity != "" {
 		attrs["csi.storage.k8s.io/ssd.affinity"] = ssdAffinity
 	}
 
