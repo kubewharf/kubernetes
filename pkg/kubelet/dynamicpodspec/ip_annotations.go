@@ -89,6 +89,13 @@ func (p *PodAnnotationsAdmitHandler) Admit(attrs *lifecycle.PodAdmitAttributes) 
 
 	klog.Infof("GetDualStackIPFromHostInterfaces %v ipv4: %v, ipv6: %v \n\n", attrs.Pod.Name, dualStackHostIPv4, dualStackHostIPv6)
 
+	ipv4, ipv6 := attrs.Pod.ObjectMeta.Annotations[podutil.HostIPv4AnnotationKey], attrs.Pod.ObjectMeta.Annotations[podutil.HostIPv6AnnotationKey]
+	if ipv4 != "" && ipv6 != "" {
+		return lifecycle.PodAdmitResult{
+			Admit: true,
+		}
+	}
+
 	var hostIPv4Str, hostIPv6Str string
 	if dualStackHostIPv4 != nil {
 		hostIPv4Str = dualStackHostIPv4.String()
@@ -96,6 +103,14 @@ func (p *PodAnnotationsAdmitHandler) Admit(attrs *lifecycle.PodAdmitAttributes) 
 	if dualStackHostIPv6 != nil {
 		hostIPv6Str = dualStackHostIPv6.String()
 	}
+
+	if ipv4 == hostIPv4Str && ipv6 == hostIPv6Str {
+		// nothing changed
+		return lifecycle.PodAdmitResult{
+			Admit: true,
+		}
+	}
+
 	updatedAnnotation := make(map[string]string)
 	for key, value := range attrs.Pod.Annotations {
 		updatedAnnotation[key] = value
