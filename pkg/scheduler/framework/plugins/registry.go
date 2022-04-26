@@ -17,6 +17,7 @@ limitations under the License.
 package plugins
 
 import (
+	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/balancesche"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/csistoragepool"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/defaultbinder"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/defaultpodtopologyspread"
@@ -86,5 +87,6 @@ func NewInTreeRegistry() framework.Registry {
 		nodepackage.NodePackageNBWMatch:            nodepackage.NewNodePackageNBWMatcher,
 		queuesort.Name:                             queuesort.New,
 		defaultbinder.Name:                         defaultbinder.New,
+		balancesche.Name:                           balancesche.New,
 	}
 }
