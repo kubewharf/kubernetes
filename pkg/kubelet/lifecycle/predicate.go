@@ -19,16 +19,17 @@ package lifecycle
 import (
 	"fmt"
 
+	"k8s.io/api/core/v1"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/klog"
+	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
+	kubefeatures "k8s.io/kubernetes/pkg/features"
+	"k8s.io/kubernetes/pkg/kubelet/util/format"
 	pluginhelper "k8s.io/kubernetes/pkg/scheduler/framework/plugins/helper"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodeaffinity"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodename"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodeports"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/noderesources"
-
-	"k8s.io/api/core/v1"
-	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
-	"k8s.io/kubernetes/pkg/kubelet/util/format"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 )
 
@@ -227,19 +228,8 @@ func GeneralPredicates(pod *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo) ([]Pre
 
 	var reasons []PredicateFailureReason
 
-	// TODO: fit with node cnr resource for best-effort pod
-	if !noderesources.IsGodelBEPod(pod) {
-		// Godel be pods use cnr resource, should not calculate them into node requestedResource.
-		var podsWithoutBE []*v1.Pod
-		for _, otherPod := range nodeInfo.Pods() {
-			if !noderesources.IsGodelBEPod(otherPod) {
-				podsWithoutBE = append(podsWithoutBE, otherPod)
-			}
-		}
-		newNodeInfo := schedulernodeinfo.NewNodeInfo(podsWithoutBE...)
-		newNodeInfo.SetNode(nodeInfo.Node())
-
-		for _, r := range noderesources.Fits(pod, newNodeInfo, nil) {
+	fitFunc := func(info *schedulernodeinfo.NodeInfo) {
+		for _, r := range noderesources.Fits(pod, info, nil) {
 			reasons = append(reasons, &InsufficientResourceError{
 				ResourceName: r.ResourceName,
 				Requested:    r.Requested,
@@ -247,6 +237,21 @@ func GeneralPredicates(pod *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo) ([]Pre
 				Capacity:     r.Capacity,
 			})
 		}
+	}
+	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.NodeResourceFitSkipGodelBEPod) {
+		// TODO: fit with node cnr resource for best-effort pod, so skip be pod check now.
+		if !noderesources.IsGodelBEPod(pod) {
+			newNodeInfo := nodeInfo.Clone()
+			// Godel be pods use cnr resource, should not calculate them into node requestedResource.
+			for _, otherPod := range nodeInfo.Pods() {
+				if noderesources.IsGodelBEPod(otherPod) {
+					newNodeInfo.RemovePod(otherPod)
+				}
+			}
+			fitFunc(newNodeInfo)
+		}
+	} else {
+		fitFunc(nodeInfo)
 	}
 
 	if !pluginhelper.PodMatchesNodeSelectorAndAffinityTerms(pod, nodeInfo.Node()) {
