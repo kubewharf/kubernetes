@@ -357,15 +357,13 @@ func (m *ManagerImpl) Allocate(pod *v1.Pod, container *v1.Container) error {
 	return nil
 }
 
-func (m *ManagerImpl) isContainerRequestResourcePluginResource(container *v1.Container) bool {
+func (m *ManagerImpl) isContainerRequestResource(container *v1.Container, resourceName string) bool {
 	if container == nil {
 		return false
 	}
 
 	for k := range container.Resources.Requests {
-		resource := string(k)
-
-		if m.isResourcePluginResource(resource) {
+		if string(k) == resourceName {
 			return true
 		}
 	}
@@ -1053,7 +1051,7 @@ func (m *ManagerImpl) reconcileState() {
 
 	activePods := m.activePods()
 
-	resourceAllocationResps := make([]*pluginapi.GetResourcesAllocationResponse, 0, len(m.endpoints))
+	resourceAllocationResps := make(map[string]*pluginapi.GetResourcesAllocationResponse)
 
 	m.mutex.Lock()
 
@@ -1076,7 +1074,7 @@ func (m *ManagerImpl) reconcileState() {
 			continue
 		}
 
-		resourceAllocationResps = append(resourceAllocationResps, resp)
+		resourceAllocationResps[resourceName] = resp
 	}
 	m.mutex.Unlock()
 
@@ -1106,13 +1104,24 @@ func (m *ManagerImpl) reconcileState() {
 				continue
 			}
 
-			needsReAllocate := m.isContainerRequestResourcePluginResource(&pod.Spec.Containers[i])
-			for _, resp := range resourceAllocationResps {
-				if resp != nil && resp.PodResources[podUID] != nil && resp.PodResources[podUID].ContainerResources[containerName] != nil {
-					needsReAllocate = false
-					resourceAllocations := resp.PodResources[podUID].ContainerResources[containerName]
-					for resourceName, resourceAllocationInfo := range resourceAllocations.ResourceAllocation {
-						m.podResources.insert(podUID, containerName, resourceName, resourceAllocationInfo)
+			needsReAllocate := false
+			for resourceName, resp := range resourceAllocationResps {
+				if resp == nil {
+					klog.Warningf("[qosresourcemanager.reconcileState] resource: %s got nil resourceAllocationResp", resourceName)
+					continue
+				}
+
+				if m.isContainerRequestResource(&pod.Spec.Containers[i], resourceName) {
+					if resp.PodResources[podUID] != nil && resp.PodResources[podUID].ContainerResources[containerName] != nil {
+						resourceAllocations := resp.PodResources[podUID].ContainerResources[containerName]
+						for resourceName, resourceAllocationInfo := range resourceAllocations.ResourceAllocation {
+							m.podResources.insert(podUID, containerName, resourceName, resourceAllocationInfo)
+						}
+					} else {
+						// container requests the resource, but the corresponding endpoint hasn't record for the container
+						needsReAllocate = true
+						// delete current resource allocation for the container to avoid influencing re-allocation
+						m.podResources.deleteResourceAllocationInfo(podUID, containerName, resourceName)
 					}
 				}
 			}
@@ -1136,7 +1145,6 @@ func (m *ManagerImpl) reconcileState() {
 				klog.Infof("[qosresourcemanager.reconcileState] pod: %s/%s, container: %s, reconcile state successfully",
 					pod.Namespace, pod.Name, containerName)
 			}
-
 		}
 	}
 
