@@ -1193,7 +1193,7 @@ func getSSDAffinity(pod *v1.Pod) (ssdAffinity string) {
 		return ""
 	}
 
-	ssdAffinity = pod.Annotations[config.SSDAfinityAnnotation]
+	ssdAffinity = pod.Annotations[config.SSDAffinityAnnotation]
 	return
 }
 
