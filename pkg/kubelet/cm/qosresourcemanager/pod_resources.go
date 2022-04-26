@@ -111,9 +111,22 @@ func (pres *podResourcesChk) insert(podUID, contName, resourceName string, alloc
 	pres.resources[podUID][contName][resourceName] = proto.Clone(allocationInfo).(*pluginapi.ResourceAllocationInfo)
 }
 
+func (pres *podResourcesChk) deleteResourceAllocationInfo(podUID, contName, resourceName string) {
+	pres.Lock()
+	defer pres.Unlock()
+
+	if pres.resources[podUID] != nil && pres.resources[podUID][contName] != nil {
+		delete(pres.resources[podUID][contName], resourceName)
+	}
+}
+
 func (pres *podResourcesChk) delete(pods []string) {
 	pres.Lock()
 	defer pres.Unlock()
+
+	if pres.resources == nil {
+		return
+	}
 
 	for _, uid := range pods {
 		delete(pres.resources, uid)
@@ -160,7 +173,7 @@ func (pres *podResourcesChk) containerResource(podUID, contName, resource string
 		return nil
 	}
 	resourceAllocationInfo, resourceExists := pres.resources[podUID][contName][resource]
-	if !resourceExists {
+	if !resourceExists || resourceAllocationInfo == nil {
 		return nil
 	}
 	return proto.Clone(resourceAllocationInfo).(*pluginapi.ResourceAllocationInfo)
