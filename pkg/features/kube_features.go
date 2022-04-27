@@ -679,6 +679,12 @@ const (
 	//
 	// if enabled, localDisks path such as /dataXX will be injected into container as volumeMounts.
 	AutoMountLocalDisks featuregate.Feature = "AutoMountLocalDisks"
+
+	// owner: @zhangyadong.0808
+	// alpha: v1.18
+	// if enabled, remove godel best-effort pod in nodeinfo when fit pod with node resource.
+	// TODO: remove this when use cnr to fit be pod resource.
+	NodeResourceFitSkipGodelBEPod featuregate.Feature = "NodeResourceFitSkipGodelBEPod"
 )
 
 func init() {
@@ -785,6 +791,7 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 	KubeletPodResourcesGetAllocatable:              {Default: false, PreRelease: featuregate.Alpha},
 	QoSResourceManager:                             {Default: false, PreRelease: featuregate.Alpha},
 	AutoMountLocalDisks:                            {Default: false, PreRelease: featuregate.Alpha},
+	NodeResourceFitSkipGodelBEPod:                  {Default: false, PreRelease: featuregate.Alpha},
 	// inherited features from generic apiserver, relisted here to get a conflict if it is changed
 	// unintentionally on either side:
 	genericfeatures.StreamingProxyRedirects: {Default: true, PreRelease: featuregate.Deprecated},
