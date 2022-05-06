@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -183,11 +184,13 @@ func (w *assignPortAdmitHandler) Admit(attrs *lifecycle.PodAdmitAttributes) life
 	portIndex := 0
 	klog.V(1).Infof("admit pod %s, override: %q, available: %#v", pod.Name, overridePortsSet, availablePorts)
 	for i := range pod.Spec.Containers {
+		var portList []string
 		for j := range pod.Spec.Containers[i].Ports {
 			if !overridePortsSet.Has(fmt.Sprint(pod.Spec.Containers[i].Ports[j].HostPort)) {
 				continue
 			}
 			port := availablePorts[portIndex]
+			portList = append(portList, fmt.Sprintf("%d", port))
 			pod.Spec.Containers[i].Ports[j].HostPort = int32(port)
 			if pod.Spec.HostNetwork {
 				pod.Spec.Containers[i].Ports[j].ContainerPort = int32(port)
@@ -204,6 +207,12 @@ func (w *assignPortAdmitHandler) Admit(attrs *lifecycle.PodAdmitAttributes) life
 				})
 			}
 			portIndex++
+		}
+		if len(portList) > 0 {
+			pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, v1.EnvVar{
+				Name:  "PORT_LIST",
+				Value: strings.Join(portList, ","),
+			})
 		}
 	}
 
