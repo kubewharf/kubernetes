@@ -13,7 +13,7 @@ const (
 	TceBytedHostIP   = "BYTED_HOST_IP"
 	TceBytedHostIPv6 = "BYTED_HOST_IPV6"
 	TceMyPodIP       = "MY_POD_IP"
-	TceMyPodIPv6     = "MY_POD_IPv6"
+	TceMyPodIPv6     = "MY_POD_IPV6"
 )
 
 func init() {

@@ -7,12 +7,17 @@ import (
 const (
 	CloudNativeIPEnvKey   = "CLOUDNATIVE_INET_ADDR"
 	CloudNativeIPv6EnvKey = "CLOUDNATIVE_INET_ADDR_IPV6"
+
+	ConsulHTTPHost = "CONSUL_HTTP_HOST"
 )
 
 var (
+	hostIPList   = []string{TceMyHostIP, TceBytedHostIP, ConsulHTTPHost}
+	hostIPv6List = []string{TceMyHostIPv6, TceBytedHostIPv6}
+
 	overridesHostIPKeyMap = map[string][]string{
-		CloudNativeIPEnvKey:   {TceMyHostIP},
-		CloudNativeIPv6EnvKey: {TceMyHostIPv6},
+		CloudNativeIPEnvKey:   hostIPList,
+		CloudNativeIPv6EnvKey: hostIPv6List,
 	}
 
 	overridesPodIPKeyMap = map[string][]string{
