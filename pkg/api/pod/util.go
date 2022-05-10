@@ -100,7 +100,7 @@ const (
 	PodExplicitDeletionAnnotation       = "pod.kubernetes.io/explicit.deletion"
 	PodGCGracefulSecondsAnnotation      = "pod.kubernetes.io/gc-graceful-secs"
 	PodAutoMountLocalDisksAnnotationKey = "pod.tce.kubernetes.io/auto-mount-local-disks"
-	PodCpuLoadSlicedAnnotationKey     = "pod.tce.kubernetes.io/loadSlice"
+	PodCpuLoadSlicedAnnotationKey       = "pod.tce.kubernetes.io/loadSlice"
 
 	PodOperatorAnnotationKey     = "godel.bytedance.com/pod-operator"
 	YodelPodPatchedAnnotationKey = "godel.bytedance.com/yodel-pod-patched"

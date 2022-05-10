@@ -11,6 +11,8 @@ go_library(
     importpath = "k8s.io/kubernetes/pkg/scheduler/nodeinfo",
     visibility = ["//visibility:public"],
     deps = [
+        "//pkg/api/pod:go_default_library",
+        "//pkg/api/v1/resource:go_default_library",
         "//pkg/apis/core/v1/helper:go_default_library",
         "//pkg/features:go_default_library",
         "//pkg/scheduler/util:go_default_library",

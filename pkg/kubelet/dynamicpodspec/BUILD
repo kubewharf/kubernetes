@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "interfaces.go",
+        "ip_annotations.go",
         "ports.go",
         "volumes.go",
     ],
@@ -11,7 +12,6 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api/pod:go_default_library",
-        "//pkg/kubelet/externals/hostdualstackip:go_default_library",
         "//pkg/kubelet/lifecycle:go_default_library",
         "//staging/src/k8s.io/api/core/v1:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
@@ -20,15 +20,21 @@ go_library(
         "//staging/src/k8s.io/apimachinery/pkg/util/sets:go_default_library",
         "//staging/src/k8s.io/client-go/kubernetes:go_default_library",
         "//staging/src/k8s.io/client-go/util/retry:go_default_library",
+        "//vendor/github.com/vishvananda/netlink:go_default_library",
+        "//vendor/github.com/vishvananda/netlink/nl:go_default_library",
         "//vendor/k8s.io/klog:go_default_library",
     ],
 )
 
 go_test(
     name = "go_default_test",
-    srcs = ["ports_test.go"],
+    srcs = [
+        "ip_annotations_test.go",
+        "ports_test.go",
+    ],
     embed = [":go_default_library"],
     deps = [
+        "//pkg/kubelet/lifecycle:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/types:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/util/uuid:go_default_library",
     ],

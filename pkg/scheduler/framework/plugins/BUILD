@@ -11,6 +11,7 @@ go_library(
     deps = [
         "//pkg/features:go_default_library",
         "//pkg/scheduler/apis/config:go_default_library",
+        "//pkg/scheduler/framework/plugins/balancesche:go_default_library",
         "//pkg/scheduler/framework/plugins/csistoragepool:go_default_library",
         "//pkg/scheduler/framework/plugins/defaultbinder:go_default_library",
         "//pkg/scheduler/framework/plugins/defaultpodtopologyspread:go_default_library",
@@ -53,6 +54,7 @@ filegroup(
     name = "all-srcs",
     srcs = [
         ":package-srcs",
+        "//pkg/scheduler/framework/plugins/balancesche:all-srcs",
         "//pkg/scheduler/framework/plugins/csistoragepool:all-srcs",
         "//pkg/scheduler/framework/plugins/defaultbinder:all-srcs",
         "//pkg/scheduler/framework/plugins/defaultpodtopologyspread:all-srcs",
