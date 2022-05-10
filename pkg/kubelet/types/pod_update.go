@@ -58,7 +58,8 @@ const (
 	// PodNetNSAnnotationKey determines netns path to support host network pods use different network interfaces
 	PodNetNSAnnotationKey = "pod.tce.kubernetes.io/host-netns-path"
 	// PodNetIPAnnotationKey determines ip address to support host network pods use different network interfaces
-	PodNetIPAnnotationKey = "pod.tce.kubernetes.io/inet-addr"
+	PodNetIPAnnotationKey  = "pod.tce.kubernetes.io/inet-addr"
+	PodNetIv6AnnotationKey = "pod.tce.kubernetes.io/inet-addr-ipv6"
 
 	KataRootFSVolumeAnnotationKey  = "io.katacontainers.config.hypervisor.rootfs_volume"
 	KataStorageDaemonAnnotationKey = "io.katacontainers.config.hypervisor.enable_storage_daemon"
