@@ -5,8 +5,8 @@ code.byted.org/tce/etcd v0.5.0-alpha.5.0.20210803123658-fa1e66085bad h1:KqbtUi1L
 code.byted.org/tce/etcd v0.5.0-alpha.5.0.20210803123658-fa1e66085bad/go.mod h1:yZKMTq8NLl18zB7hYMHn5mlxS1sHttbfz/b4Cz86ZDw=
 code.byted.org/tce/k8s-utils v0.0.0-20210616064148-7505c2c40546 h1:xuRynNwtnA59jGh3Mqre7Ul3HxOEgm654A7h8buk4Hc=
 code.byted.org/tce/k8s-utils v0.0.0-20210616064148-7505c2c40546/go.mod h1:sZAwmy6armz5eXlNoLmJcl4F1QuKu7sr+mFQ0byX7Ew=
-code.byted.org/tce/kubebrain-client v0.0.0-20220318102255-77371ee8b20c h1:x8NiFLrkrutnQDvqIuctf8Q4zPV1nlltk+Ox67kzWDY=
-code.byted.org/tce/kubebrain-client v0.0.0-20220318102255-77371ee8b20c/go.mod h1:ZqMQEu2Vrdqfqp/T89qjGlAtrLybOD/zFJ+pF6QpcP4=
+code.byted.org/tce/kubebrain-client v0.0.0-20220512063439-02b223140643 h1:wYmoShlqlY/6jUB8K8y70KWOnwALLDyxq4Ru9Hz0VdQ=
+code.byted.org/tce/kubebrain-client v0.0.0-20220512063439-02b223140643/go.mod h1:ZqMQEu2Vrdqfqp/T89qjGlAtrLybOD/zFJ+pF6QpcP4=
 github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 h1:w+iIsaOQNcT7OZ575w+acHgRric5iCyQh+xv+KJ4HB8=
 github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78/go.mod h1:LmzpDX56iTiv29bbRTIsUNlaFfuhWRQBWjQdVyAevI8=
 github.com/Azure/go-autorest/autorest v0.9.0 h1:MRvx8gncNaXJqOoLmhNjUAKh33JJF8LyxPhomEtOsjs=
