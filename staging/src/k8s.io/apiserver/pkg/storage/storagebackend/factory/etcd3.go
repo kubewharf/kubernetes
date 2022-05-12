@@ -38,6 +38,7 @@ import (
 	"k8s.io/apiserver/pkg/storage"
 	"k8s.io/apiserver/pkg/storage/etcd3"
 	"k8s.io/apiserver/pkg/storage/storagebackend"
+	"k8s.io/apiserver/pkg/storage/storagebackend/db/client"
 	"k8s.io/apiserver/pkg/storage/value"
 	"k8s.io/component-base/metrics/legacyregistry"
 )
@@ -69,6 +70,41 @@ func isKubeBrainFeatureEnabled(c storagebackend.Config) bool {
 	return c.Type == storagebackend.StorageTypeKubeBrain
 }
 
+func newHealthCheck(c storagebackend.Config, newClientFunc func(storagebackend.Config) (client.Client, error)) (func() error, error) {
+	// constructing the storage client blocks and times out if storage is not available.
+	// retry in a loop in the background until we successfully create the client, storing the client or error encountered
+	clientValue := &atomic.Value{}
+
+	clientErrMsg := &atomic.Value{}
+	clientErrMsg.Store("etcd client connection not yet established")
+
+	go wait.PollUntil(time.Second, func() (bool, error) {
+		client, err := newClientFunc(c)
+		if err != nil {
+			clientErrMsg.Store(err.Error())
+			return false, nil
+		}
+		clientValue.Store(client)
+		clientErrMsg.Store("")
+		return true, nil
+	}, wait.NeverStop)
+
+	return func() error {
+		if errMsg := clientErrMsg.Load().(string); len(errMsg) > 0 {
+			return fmt.Errorf(errMsg)
+		}
+		client := clientValue.Load().(client.Client)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, _, _, err := client.Get(ctx, path.Join("/", c.Prefix, "health"))
+		if err == nil {
+			return nil
+		}
+		return fmt.Errorf("error getting data from storage: %v", err)
+	}, nil
+}
+
+// TODO refactor newETCD3HealthCheck to newHealthCheck after etcd client implements client.Client interface
 func newETCD3HealthCheck(c storagebackend.Config) (func() error, error) {
 	// constructing the etcd v3 client blocks and times out if etcd is not available.
 	// retry in a loop in the background until we successfully create the client, storing the client or error encountered

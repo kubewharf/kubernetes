@@ -21,6 +21,7 @@ import (
 
 	"k8s.io/apiserver/pkg/storage"
 	"k8s.io/apiserver/pkg/storage/storagebackend"
+	kubebrainClient "k8s.io/apiserver/pkg/storage/storagebackend/db/client/kubebrain"
 )
 
 // DestroyFunc is to destroy any resources used by the storage returned in Create() together.
@@ -33,6 +34,8 @@ func Create(c storagebackend.Config) (storage.Interface, DestroyFunc, error) {
 		return nil, nil, fmt.Errorf("%v is no longer a supported storage backend", c.Type)
 	case storagebackend.StorageTypeUnset, storagebackend.StorageTypeETCD3, storagebackend.StorageTypeKubeBrain:
 		return newETCD3Storage(c)
+	case storagebackend.StorageTypeKubeBrainV2:
+		return newKubeBrainStorage(c)
 	default:
 		return nil, nil, fmt.Errorf("unknown storage type: %s", c.Type)
 	}
@@ -45,6 +48,8 @@ func CreateHealthCheck(c storagebackend.Config) (func() error, error) {
 		return nil, fmt.Errorf("%v is no longer a supported storage backend", c.Type)
 	case storagebackend.StorageTypeUnset, storagebackend.StorageTypeETCD3, storagebackend.StorageTypeKubeBrain:
 		return newETCD3HealthCheck(c)
+	case storagebackend.StorageTypeKubeBrainV2:
+		return newHealthCheck(c, kubebrainClient.NewBrainClient)
 	default:
 		return nil, fmt.Errorf("unknown storage type: %s", c.Type)
 	}

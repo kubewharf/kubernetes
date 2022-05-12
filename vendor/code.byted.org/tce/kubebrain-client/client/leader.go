@@ -1,0 +1,103 @@
+package client
+
+import (
+	"context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"sync"
+	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/resolver"
+	"k8s.io/klog/v2"
+
+	iresolver "code.byted.org/tce/kubebrain-client/client/balancer/resolver"
+	ierrors "code.byted.org/tce/kubebrain-client/errors"
+)
+
+type leaderChecker struct {
+	Config
+}
+
+func newLeaderChecker(config Config) *leaderChecker {
+	return &leaderChecker{
+		Config: config,
+	}
+}
+
+func (l *leaderChecker) checkLeader() (resolver.Address, error) {
+	klog.V(l.LogLevel).InfoS("start leader checking", "endpoints", l.Endpoints)
+	size := len(l.Endpoints)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	addrc := make(chan resolver.Address)
+	errc := make(chan error)
+	var wg sync.WaitGroup
+	wg.Add(size)
+	for i := 0; i < size; i++ {
+		go func(i int) {
+			defer wg.Done()
+			ep := l.Endpoints[i]
+			if isHealth, _ := l.grpcHealthCheck(ctx, ep); isHealth {
+				addr := ep2Addr(ep)
+				select {
+				case addrc <- addr: // only accept the first one
+				case <-ctx.Done():
+				}
+			}
+		}(i)
+	}
+
+	go func() {
+		wg.Wait()
+		select {
+		case <-ctx.Done():
+		case errc <- ierrors.ErrNoLeader:
+		}
+	}()
+
+	select {
+	case addr := <-addrc:
+		klog.V(l.LogLevel).InfoS("cur leader", "leader", addr.Addr)
+		return addr, nil
+	case err := <-errc:
+		klog.ErrorS(err, "no leader")
+		return resolver.Address{}, err
+	case <-ctx.Done(): // cause only by timeout
+		klog.V(l.LogLevel).InfoS("time out")
+		return resolver.Address{}, ierrors.ErrNoLeader
+	}
+
+}
+
+func (l *leaderChecker) grpcHealthCheck(ctx context.Context, ep string) (isHealth bool, err error) {
+	_, host, _ := iresolver.ParseEndpoint(ep)
+	ep = "passthrough:///" + host
+
+	klog.V(l.LogLevel).InfoS("start check endpoints", "endpoint", ep)
+	conn, err := grpc.DialContext(ctx, ep, grpc.WithInsecure())
+	if err != nil {
+		if status.Code(err) != codes.Canceled {
+			klog.ErrorS(err, "dial failed", "endpoints", ep)
+		}
+		return false, err
+	}
+	defer conn.Close()
+	cli := grpc_health_v1.NewHealthClient(conn)
+	resp, err := cli.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
+	if err != nil {
+		if status.Code(err) != codes.Canceled {
+			klog.ErrorS(err, "check failed", "endpoints", ep)
+		}
+		return false, err
+	}
+
+	klog.V(l.LogLevel).InfoS("health check", "endpoints", ep, "status", resp.Status.String())
+	return resp.Status == grpc_health_v1.HealthCheckResponse_SERVING, nil
+}
+
+func ep2Addr(ep string) resolver.Address {
+	return resolver.Address{Addr: ep}
+}
