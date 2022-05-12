@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net"
+
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -35,6 +37,8 @@ import (
 
 	kubetracing "code.byted.org/tce/kube-tracing"
 	"github.com/opentracing/opentracing-go"
+	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -604,13 +608,19 @@ func (kl *Kubelet) GenerateRunContainerOptions(pod *v1.Pod, container *v1.Contai
 	}
 	opts.Envs = append(opts.Envs, envs...)
 
-	//Override IP related env, if specify host-netns annotation, to support the pod use different physical net interface.
-	for _, anno := range opts.Annotations {
-		if anno.Name == kubetypes.PodNetNSAnnotationKey && anno.Value != "" {
-			opts.Envs = hostdualstackip.OverrideHostIPRelatedEnvs(opts.Envs)
-			if pod.Spec.HostNetwork {
-				opts.Envs = hostdualstackip.OverridePodIPRelatedEnvs(opts.Envs)
-			}
+	//Override IP related env, if specify host-netns annotation in opts or pod, to support the pod use different physical net interface.
+	if hasHostNSPathAnnotation(opts) {
+		// if opts have ns-path annotation which is injected by numa device-plugin in socket container scenario,
+		// override ip-related envs from the envs passed from the device-plugin.
+		opts.Envs = hostdualstackip.OverrideHostIPRelatedEnvs(opts.Envs)
+		if pod.Spec.HostNetwork {
+			opts.Envs = hostdualstackip.OverridePodIPRelatedEnvs(opts.Envs)
+		}
+	} else if value, ok := pod.Annotations[kubetypes.PodNetNSAnnotationKey]; ok && value != "" {
+		// use podIPs, which get from the host netns specified in pod annotations directly, to override ip-related envs.
+		// TODO: support override host ip for bridge network pod.
+		if pod.Spec.HostNetwork {
+			opts.Envs = hostdualstackip.OverrideHostIPRelatedEnvsFromPodIPs(opts.Envs, podIPs)
 		}
 	}
 
@@ -1618,10 +1628,28 @@ func (kl *Kubelet) generateAPIPodStatus(pod *v1.Pod, podStatus *kubecontainer.Po
 			klog.V(4).Infof("Cannot get host IP: %v", err)
 		} else {
 			s.HostIP = hostIP.String()
+
 			if kubecontainer.IsHostNetworkPod(pod) && s.PodIP == "" {
-				s.PodIP = hostIP.String()
-				s.PodIPs = []v1.PodIP{{IP: s.PodIP}}
+				if nsPath := pod.Annotations[kubetypes.PodNetNSAnnotationKey]; nsPath != "" {
+					if ipList, err := getPreferredAddrFromNetNS(nsPath); err != nil || len(ipList) == 0 {
+						klog.Errorf("Cannot get ip from netns: %s for pod: %s, err: %v", nsPath, pod.Name, err)
+					} else {
+						klog.Infof("Get ip list: %v from ns path: %s for pod: %s", ipList, nsPath, pod.Name)
+						if kubecontainer.IsHostNetworkPod(pod) && s.PodIP == "" {
+							s.PodIP = ipList[0]
+							for _, ip := range ipList {
+								s.PodIPs = append(s.PodIPs, v1.PodIP{IP: ip})
+							}
+						}
+					}
+				}
+
+				if s.PodIP == "" {
+					s.PodIP = s.HostIP
+					s.PodIPs = []v1.PodIP{{IP: s.PodIP}}
+				}
 			}
+
 		}
 	}
 
@@ -2040,4 +2068,97 @@ func (kl *Kubelet) hasHostMountPVC(pod *v1.Pod) bool {
 // the container runtime to set parameters for launching a container.
 func (kl *Kubelet) GenerateResourceRunContainerOptions(pod *v1.Pod, container *v1.Container) (*kubecontainer.ResourceRunContainerOptions, error) {
 	return kl.containerManager.GetResourceRunContainerOptions(pod, container)
+}
+
+func hasHostNSPathAnnotation(opts *kubecontainer.RunContainerOptions) bool {
+	if opts != nil {
+		for _, anno := range opts.Annotations {
+			if anno.Name == kubetypes.PodNetNSAnnotationKey && anno.Value != "" {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// getPreferredAddrFromNetNS return valid ip list in given network ns path, must return at least one ip if return nil err.
+func getPreferredAddrFromNetNS(networkNSPath string) ([]string, error) {
+	netnsHandle, err := netns.GetFromPath(networkNSPath)
+	if err != nil {
+		return nil, err
+	}
+	defer netnsHandle.Close()
+
+	netlinkHandle, err := netlink.NewHandleAt(netnsHandle)
+	if err != nil {
+		return nil, err
+	}
+	defer netlinkHandle.Delete()
+
+	linkList, err := netlinkHandle.LinkList()
+	if err != nil {
+		return nil, err
+	}
+
+	var minInterfaceName string
+	var minInterfaceIPList []net.IP
+
+	for _, link := range linkList {
+		addrs, err := netlinkHandle.AddrList(link, netlink.FAMILY_ALL)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(addrs) == 0 {
+			continue
+		}
+
+		// Skip any loopback interfaces
+		if link.Attrs().Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		var ipList []net.IP
+		for _, addr := range addrs {
+			if addr.IP.IsGlobalUnicast() {
+				ipList = append(ipList, addr.IP)
+			}
+		}
+		if len(ipList) == 0 {
+			continue
+		}
+
+		// if there are multi interfaces in netns(eth1, eth2), use min named(eth1)
+		if minInterfaceName == "" {
+			minInterfaceName = link.Attrs().Name
+			minInterfaceIPList = ipList
+		} else if link.Attrs().Name < minInterfaceName {
+			minInterfaceName = link.Attrs().Name
+			minInterfaceIPList = ipList
+		}
+	}
+
+	// move ipv4 addr to first
+	sort.Slice(minInterfaceIPList, func(i, j int) bool {
+		if minInterfaceIPList[i].To4() != nil && minInterfaceIPList[j].To4() != nil {
+			return true
+		}
+		if minInterfaceIPList[i].To4() != nil {
+			return true
+		}
+
+		return false
+	})
+
+	var result []string
+	for _, ip := range minInterfaceIPList {
+		result = append(result, ip.String())
+	}
+
+	if len(result) == 0 {
+		return nil, fmt.Errorf("no valid ip in netns")
+	}
+
+	return result, nil
 }

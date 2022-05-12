@@ -30,17 +30,17 @@ import (
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/klog"
 
-	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
+	utilpod "k8s.io/kubernetes/pkg/api/pod"
 	v1resource "k8s.io/kubernetes/pkg/api/v1/resource"
+	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	"k8s.io/kubernetes/pkg/features"
 	schedutil "k8s.io/kubernetes/pkg/scheduler/util"
-	utilpod "k8s.io/kubernetes/pkg/api/pod"
 )
 
 var (
 	emptyResource = Resource{}
 	generation    int64
-	sliceNum = 24
+	sliceNum      = 24
 )
 
 // ImageStateSummary provides summarized information about the state of an image.
@@ -57,9 +57,9 @@ type loadSliceMap map[string]float64
 
 type LoadSliceSummary struct {
 	//total slice num
-	SliceNum      int
+	SliceNum int
 	//load slice sum for node
-	LoadSlices    loadSliceMap
+	LoadSlices loadSliceMap
 }
 
 // NodeInfo is node level aggregated information.
@@ -763,26 +763,26 @@ func calculateResource(pod *v1.Pod) (res Resource, non0CPU int64, non0Mem int64)
 
 // UpdateLoadSlice updates the LoadSlice of NodeInfo when adding/remocing pod.
 func (n *NodeInfo) UpdateLoadSlice(pod *v1.Pod, add bool) (err error) {
-    if add{
-    	return n.addLoadSlice(pod)
-	}else{
+	if add {
+		return n.addLoadSlice(pod)
+	} else {
 		return n.removeLoadSlice(pod)
 	}
 	return nil
 }
 
-func (n *NodeInfo) addLoadSlice(pod *v1.Pod) (err error){
-	if n.LoadSliceInfo == nil || n.LoadSliceInfo.LoadSlices == nil{
+func (n *NodeInfo) addLoadSlice(pod *v1.Pod) (err error) {
+	if n.LoadSliceInfo == nil || n.LoadSliceInfo.LoadSlices == nil {
 		n.BuildLoadSlice()
 	}
 	outputPodSlice, _, err := GetLoadSliceFromPod(pod)
-	if err != nil{
+	if err != nil {
 		return err
 	}
-	for k, v := range n.LoadSliceInfo.LoadSlices{
+	for k, v := range n.LoadSliceInfo.LoadSlices {
 		podValue, exist := outputPodSlice[k]
-		if !exist{
-			klog.Errorf("Cannot add container load slice to node with podUID: %v, sliceKey: %v",pod.UID, k)
+		if !exist {
+			klog.Errorf("Cannot add container load slice to node with podUID: %v, sliceKey: %v", pod.UID, k)
 			continue
 		}
 		n.LoadSliceInfo.LoadSlices[k] = v + podValue
@@ -790,17 +790,17 @@ func (n *NodeInfo) addLoadSlice(pod *v1.Pod) (err error){
 	return nil
 }
 
-func (n *NodeInfo) removeLoadSlice(pod *v1.Pod) (err error){
-	if n.LoadSliceInfo == nil || n.LoadSliceInfo.LoadSlices == nil{
+func (n *NodeInfo) removeLoadSlice(pod *v1.Pod) (err error) {
+	if n.LoadSliceInfo == nil || n.LoadSliceInfo.LoadSlices == nil {
 		n.BuildLoadSlice()
 		// for remove pod, this pod has already been removed when rebuilding
 		return nil
 	}
 	outputPodSlice, _, err := GetLoadSliceFromPod(pod)
-	for k, v := range n.LoadSliceInfo.LoadSlices{
+	for k, v := range n.LoadSliceInfo.LoadSlices {
 		podValue, exist := outputPodSlice[k]
-		if !exist{
-			klog.Errorf("Cannot remove container load slice to node with podUID: %v, sliceKey: %v",pod.UID, k)
+		if !exist {
+			klog.Errorf("Cannot remove container load slice to node with podUID: %v, sliceKey: %v", pod.UID, k)
 			continue
 		}
 		n.LoadSliceInfo.LoadSlices[k] = v - podValue
@@ -808,27 +808,26 @@ func (n *NodeInfo) removeLoadSlice(pod *v1.Pod) (err error){
 	return nil
 }
 
-
 // BuildLoadSlice build the LoadSlice of NodeInfo when it is nil or loss happened.
-func (n *NodeInfo) BuildLoadSlice(){
+func (n *NodeInfo) BuildLoadSlice() {
 	loadSliceSummary := &LoadSliceSummary{
-		SliceNum:         sliceNum,
-		LoadSlices:       make(loadSliceMap),
+		SliceNum:   sliceNum,
+		LoadSlices: make(loadSliceMap),
 	}
-	for i := 0; i<sliceNum; i++{
+	for i := 0; i < sliceNum; i++ {
 		loadSliceSummary.LoadSlices[string(i)] = 0
 	}
 	n.LoadSliceInfo = loadSliceSummary
-	for _, pod := range n.Pods(){
+	for _, pod := range n.Pods() {
 		outputPodSlice, _, err := GetLoadSliceFromPod(pod)
-		if err != nil{
+		if err != nil {
 			klog.Errorf("Cannot get load slice from pod when building node loadslice: %v", err)
 			continue
 		}
-		for k, v := range n.LoadSliceInfo.LoadSlices{
+		for k, v := range n.LoadSliceInfo.LoadSlices {
 			podValue, exist := outputPodSlice[k]
-			if !exist{
-				klog.Errorf("Cannot add slice from pod when building node loadslice with podUID: %v, sliceKey: %v",pod.UID, k)
+			if !exist {
+				klog.Errorf("Cannot add slice from pod when building node loadslice with podUID: %v, sliceKey: %v", pod.UID, k)
 				continue
 			}
 			n.LoadSliceInfo.LoadSlices[k] = v + podValue
@@ -843,34 +842,34 @@ func GetLoadSliceFromPod(pod *v1.Pod) (outputSlice map[string]float64, isDefault
 	err = nil
 	var defaultResourceReq float64 = 0
 	resourceReq := v1resource.GetResourceRequest(pod, v1.ResourceCPU)
-	defaultResourceReq = float64(resourceReq)/1000.0
-	for i := 0; i < sliceNum; i++{
+	defaultResourceReq = float64(resourceReq) / 1000.0
+	for i := 0; i < sliceNum; i++ {
 		outputSlice[string(i)] = defaultResourceReq
 		sliceSet[string(i)] = false
 	}
 	loadSliceAnnotation, exist := pod.GetAnnotations()[utilpod.PodCpuLoadSlicedAnnotationKey]
-	if !exist{
+	if !exist {
 		return
 	}
 	loadSliceList := strings.Split(loadSliceAnnotation, ",")
 	// only allow to fill up 1 missing slice
-	if !SliceValidationCheck(loadSliceList){
+	if !SliceValidationCheck(loadSliceList) {
 		klog.Infof("cannot build pod loadslice with annotation info, use default req value: %v, defaultResourceReq")
 		return
 	}
-	for _, i := range loadSliceList{
+	for _, i := range loadSliceList {
 		loadSliceInfo := strings.Split(i, ":")
 		key, parseKeyErr := strconv.Atoi(loadSliceInfo[0])
-		if parseKeyErr != nil{
+		if parseKeyErr != nil {
 			err = parseKeyErr
 			return
 		}
 		value, parseValueErr := strconv.ParseFloat(loadSliceInfo[1], 64)
-		if parseValueErr != nil{
+		if parseValueErr != nil {
 			err = parseValueErr
 			return
 		}
-		if key >= sliceNum{
+		if key >= sliceNum {
 			err = errors.New("Cannot get parse cpu loadSlice")
 		}
 		outputSlice[string(key)] = value
@@ -879,7 +878,7 @@ func GetLoadSliceFromPod(pod *v1.Pod) (outputSlice map[string]float64, isDefault
 
 	// bfill
 	for i := 0; i < sliceNum; i++ {
-		if sliceSet[string(i)] == false && sliceSet[string((i+1)%sliceNum)] == true{
+		if sliceSet[string(i)] == false && sliceSet[string((i+1)%sliceNum)] == true {
 			outputSlice[string(i)] = outputSlice[string((i+1)%sliceNum)]
 			sliceSet[string(i)] = true
 		}
@@ -887,19 +886,19 @@ func GetLoadSliceFromPod(pod *v1.Pod) (outputSlice map[string]float64, isDefault
 	return
 }
 
-func SliceValidationCheck (loadSliceList []string) bool{
-	if len(loadSliceList) < sliceNum-1{
+func SliceValidationCheck(loadSliceList []string) bool {
+	if len(loadSliceList) < sliceNum-1 {
 		return false
 	}
 	return true
 }
 
-func GetSliceNum() int64{
+func GetSliceNum() int64 {
 	return int64(sliceNum)
 }
 
-func (n *NodeInfo) GetLoadSliceInfo() *LoadSliceSummary{
-	if n.LoadSliceInfo == nil || n.LoadSliceInfo.LoadSlices == nil{
+func (n *NodeInfo) GetLoadSliceInfo() *LoadSliceSummary {
+	if n.LoadSliceInfo == nil || n.LoadSliceInfo.LoadSlices == nil {
 		n.BuildLoadSlice()
 	}
 	return n.LoadSliceInfo

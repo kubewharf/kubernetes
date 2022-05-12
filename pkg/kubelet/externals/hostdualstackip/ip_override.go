@@ -60,6 +60,28 @@ func OverridePodIPRelatedEnvs(envVars []kubecontainer.EnvVar) []kubecontainer.En
 	return replaceEnvValues(envVars, overrideList)
 }
 
+// OverrideHostIPRelatedEnvsFromPodIPs overrides host ip related env from pod ips in need.
+func OverrideHostIPRelatedEnvsFromPodIPs(envVars []kubecontainer.EnvVar, podIPs []string) []kubecontainer.EnvVar {
+	ip, ipv6 := ExtractPodDualStackIPsFromPodIPs(podIPs)
+	var overrideList []kubecontainer.EnvVar
+
+	for _, key := range hostIPList {
+		overrideList = append(overrideList, kubecontainer.EnvVar{
+			Name:  key,
+			Value: ip,
+		})
+	}
+
+	for _, key := range hostIPv6List {
+		overrideList = append(overrideList, kubecontainer.EnvVar{
+			Name:  key,
+			Value: ipv6,
+		})
+	}
+
+	return replaceEnvValues(envVars, overrideList)
+}
+
 func replaceEnvValues(defaults []kubecontainer.EnvVar, overrides []kubecontainer.EnvVar) []kubecontainer.EnvVar {
 	cache := make(map[string]int, len(defaults))
 	results := make([]kubecontainer.EnvVar, 0, len(defaults))

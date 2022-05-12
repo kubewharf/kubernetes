@@ -8,9 +8,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog"
+	pluginhelper "k8s.io/kubernetes/pkg/scheduler/framework/plugins/helper"
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
-	pluginhelper "k8s.io/kubernetes/pkg/scheduler/framework/plugins/helper"
 )
 
 const (
@@ -61,27 +61,27 @@ func (pl *BalanceSche) NormalizeScore(ctx context.Context, state *framework.Cycl
 }
 
 func calculatePriority(nodeInfo *schedulernodeinfo.NodeInfo, pod *v1.Pod) int64 {
-	nodeLoadCapacity := float64(nodeInfo.AllocatableResource().MilliCPU)/1000.0 * OVERLOADRATIO
+	nodeLoadCapacity := float64(nodeInfo.AllocatableResource().MilliCPU) / 1000.0 * OVERLOADRATIO
 	nodeSliceInfo := nodeInfo.GetLoadSliceInfo()
 	sliceNum := schedulernodeinfo.GetSliceNum()
 	var score float64 = 0
 	podSliceInfo, _, err := schedulernodeinfo.GetLoadSliceFromPod(pod)
-	if err != nil{
+	if err != nil {
 		return 0
 	}
-	if len(nodeSliceInfo.LoadSlices) != int(sliceNum){
-		klog.Errorf("Cannot calculate prioriy with slicenum: %v",len(nodeSliceInfo.LoadSlices))
+	if len(nodeSliceInfo.LoadSlices) != int(sliceNum) {
+		klog.Errorf("Cannot calculate prioriy with slicenum: %v", len(nodeSliceInfo.LoadSlices))
 		return 0
 	}
 	for k, v := range nodeSliceInfo.LoadSlices {
 		podValue, exist := podSliceInfo[k]
-		if !exist{
+		if !exist {
 			continue
 		}
-		resourceGap := nodeLoadCapacity - (v+podValue)
-		if resourceGap > 0{
+		resourceGap := nodeLoadCapacity - (v + podValue)
+		if resourceGap > 0 {
 			score += sigmoid(resourceGap)
-		}else{
+		} else {
 			score -= float64(sliceNum)
 		}
 	}
