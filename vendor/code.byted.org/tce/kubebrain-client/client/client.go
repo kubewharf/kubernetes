@@ -18,6 +18,17 @@ type Config struct {
 
 	// LogLevel is the level of info log
 	LogLevel klog.Level `json:"log-level"`
+
+	// MaxCallSendMsgSize is the client-side request send limit in bytes.
+	// If 0, it defaults to 2.0 MiB (2 * 1024 * 1024).
+	// Make sure that "MaxCallSendMsgSize" < server-side default send/recv limit.
+	MaxCallSendMsgSize int `json:"max-call-send-msg-size"`
+
+	// MaxCallRecvMsgSize is the client-side response receive limit.
+	// If 0, it defaults to "math.MaxInt32", because range response can
+	// easily exceed request send limits.
+	// Make sure that "MaxCallRecvMsgSize" >= server-side default send/recv limit.
+	MaxCallRecvMsgSize int `json:"max-call-recv-msg-size"`
 }
 
 type clientImpl struct {
@@ -60,7 +71,7 @@ func newClient(config Config) (*clientImpl, error) {
 	c.ctx, c.cancel = context.WithCancel(context.Background())
 	c.rg = iresolver.NewResolverGroup(uuid.New().String())
 	c.rg.SetAddrs(config.Endpoints)
-	c.cc, err = c.dialWithBalancer()
+	c.cc, err = c.dialWithBalancer(config)
 	if err != nil {
 		return nil, err
 	}
@@ -79,9 +90,23 @@ func (c *clientImpl) Close() error {
 	return nil
 }
 
-func (c *clientImpl) dialWithBalancer() (*grpc.ClientConn, error) {
+func (c *clientImpl) dialWithBalancer(config Config) (*grpc.ClientConn, error) {
 	target := c.rg.Target()
-	return c.dial(target, grpc.WithInsecure(), grpc.WithBalancerName(Brain))
+
+	// grpc msg size dial option
+	grpcMsgSizeOpts := []grpc.CallOption{
+		defaultMaxCallSendMsgSize,
+		defaultMaxCallRecvMsgSize,
+	}
+	if config.MaxCallSendMsgSize > 0 {
+		grpcMsgSizeOpts[0] = grpc.MaxCallSendMsgSize(config.MaxCallSendMsgSize)
+	}
+	if config.MaxCallRecvMsgSize > 0 {
+		grpcMsgSizeOpts[1] = grpc.MaxCallRecvMsgSize(config.MaxCallRecvMsgSize)
+	}
+	grpcMsgSizeDialOption := grpc.WithDefaultCallOptions(grpcMsgSizeOpts...)
+
+	return c.dial(target, grpc.WithInsecure(), grpc.WithBalancerName(Brain), grpcMsgSizeDialOption)
 }
 
 func (c *clientImpl) dial(target string, dops ...grpc.DialOption) (*grpc.ClientConn, error) {

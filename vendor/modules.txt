@@ -20,7 +20,7 @@ code.byted.org/kubernetes/clientsets/k8s/listers/csi/v1alpha1
 code.byted.org/kubernetes/clientsets/k8s/listers/non.native.resource/v1alpha1
 # code.byted.org/tce/kube-tracing v0.2.3 => code.byted.org/tce/kube-tracing v0.2.3
 code.byted.org/tce/kube-tracing
-# code.byted.org/tce/kubebrain-client v0.0.0-20220318102255-77371ee8b20c => code.byted.org/tce/kubebrain-client v0.0.0-20220318102255-77371ee8b20c
+# code.byted.org/tce/kubebrain-client v0.0.0-20220512063439-02b223140643 => code.byted.org/tce/kubebrain-client v0.0.0-20220512063439-02b223140643
 code.byted.org/tce/kubebrain-client/api/v2rpc
 code.byted.org/tce/kubebrain-client/client
 code.byted.org/tce/kubebrain-client/client/balancer/picker
@@ -1424,14 +1424,14 @@ k8s.io/apiserver/pkg/storage/etcd3/metrics
 k8s.io/apiserver/pkg/storage/etcd3/preflight
 k8s.io/apiserver/pkg/storage/etcd3/testing
 k8s.io/apiserver/pkg/storage/etcd3/testing/testingcert
-k8s.io/apiserver/pkg/storage/kubebrain
-k8s.io/apiserver/pkg/storage/kubebrain/api
-k8s.io/apiserver/pkg/storage/kubebrain/client
-k8s.io/apiserver/pkg/storage/kubebrain/client/common
-k8s.io/apiserver/pkg/storage/kubebrain/client/kubebrain
-k8s.io/apiserver/pkg/storage/kubebrain/metrics
 k8s.io/apiserver/pkg/storage/names
 k8s.io/apiserver/pkg/storage/storagebackend
+k8s.io/apiserver/pkg/storage/storagebackend/db
+k8s.io/apiserver/pkg/storage/storagebackend/db/api
+k8s.io/apiserver/pkg/storage/storagebackend/db/client
+k8s.io/apiserver/pkg/storage/storagebackend/db/client/common
+k8s.io/apiserver/pkg/storage/storagebackend/db/client/kubebrain
+k8s.io/apiserver/pkg/storage/storagebackend/db/common
 k8s.io/apiserver/pkg/storage/storagebackend/factory
 k8s.io/apiserver/pkg/storage/testing
 k8s.io/apiserver/pkg/storage/value

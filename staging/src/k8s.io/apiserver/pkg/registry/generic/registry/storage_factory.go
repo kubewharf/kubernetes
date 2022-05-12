@@ -70,7 +70,7 @@ func StorageWithCacher(capacity int, enableEtcdProtection bool) generic.StorageD
 			Indexers:             indexers,
 			Codec:                storageConfig.Codec,
 			EnableEtcdProtection: enableEtcdProtection,
-			EnableCountInCache:   storageConfig.Type == storagebackend.StorageTypeKubeBrain,
+			EnableCountInCache:   storageConfig.Type == storagebackend.StorageTypeKubeBrain || storageConfig.Type == storagebackend.StorageTypeKubeBrainV2,
 		}
 		cacher, err := cacherstorage.NewCacherFromConfig(cacherConfig)
 		if err != nil {
