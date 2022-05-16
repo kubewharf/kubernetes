@@ -50,6 +50,7 @@ import (
 	"k8s.io/kubernetes/pkg/features"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/events"
+	"k8s.io/kubernetes/pkg/kubelet/externals/hostdualstackip"
 	"k8s.io/kubernetes/pkg/kubelet/types"
 	"k8s.io/kubernetes/pkg/kubelet/util/format"
 	"k8s.io/kubernetes/pkg/util/selinux"
@@ -179,6 +180,14 @@ func (m *kubeGenericRuntimeManager) startContainer(podSandboxID string, podSandb
 		s, _ := grpcstatus.FromError(err)
 		m.recordContainerEvent(pod, container, "", v1.EventTypeWarning, events.FailedToCreateContainer, "Error: %v", s.Message())
 		return s.Message(), ErrCreateContainerConfig
+	}
+
+	//Override IP related env, if specify host-netns annotation, to support the pod use different physical net interface.
+	if hostNSPath, ok := podSandboxConfig.Annotations[types.PodNetNSAnnotationKey]; ok && hostNSPath != "" {
+		containerConfig.Envs = hostdualstackip.OverridePodIPRelatedEnvs(containerConfig.Envs, podIPs)
+		if pod.Spec.HostNetwork {
+			containerConfig.Envs = hostdualstackip.OverrideHostIPRelatedEnvsFromPodIPs(containerConfig.Envs, podIPs)
+		}
 	}
 
 	span = kubetracing.Trace(span, kubetracing.TraceLog, nil, "", "info", fmt.Sprintf("#3 Call runtimeService to create container %s", containerConfig.Metadata.Name))

@@ -1,80 +1,51 @@
 package hostdualstackip
 
 import (
-	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
+	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 const (
-	CloudNativeIPEnvKey   = "CLOUDNATIVE_INET_ADDR"
-	CloudNativeIPv6EnvKey = "CLOUDNATIVE_INET_ADDR_IPV6"
-
 	ConsulHTTPHost = "CONSUL_HTTP_HOST"
 )
 
 var (
 	hostIPList   = []string{TceMyHostIP, TceBytedHostIP, ConsulHTTPHost}
 	hostIPv6List = []string{TceMyHostIPv6, TceBytedHostIPv6}
-
-	overridesHostIPKeyMap = map[string][]string{
-		CloudNativeIPEnvKey:   hostIPList,
-		CloudNativeIPv6EnvKey: hostIPv6List,
-	}
-
-	overridesPodIPKeyMap = map[string][]string{
-		CloudNativeIPEnvKey:   {TceMyPodIP},
-		CloudNativeIPv6EnvKey: {TceMyPodIPv6},
-	}
 )
 
-// OverrideHostIPRelatedEnvs overrides ip related env in need.
-func OverrideHostIPRelatedEnvs(envVars []kubecontainer.EnvVar) []kubecontainer.EnvVar {
-	var overrideList []kubecontainer.EnvVar
-	for _, env := range envVars {
-		if keyList, ok := overridesHostIPKeyMap[env.Name]; ok {
-			for _, key := range keyList {
-				overrideList = append(overrideList, kubecontainer.EnvVar{
-					Name:  key,
-					Value: env.Value,
-				})
-			}
-		}
-	}
-
-	return replaceEnvValues(envVars, overrideList)
-}
-
 // OverridePodIPRelatedEnvs overrides pod ip related env in need.
-func OverridePodIPRelatedEnvs(envVars []kubecontainer.EnvVar) []kubecontainer.EnvVar {
-	var overrideList []kubecontainer.EnvVar
-	for _, env := range envVars {
-		if keyList, ok := overridesPodIPKeyMap[env.Name]; ok {
-			for _, key := range keyList {
-				overrideList = append(overrideList, kubecontainer.EnvVar{
-					Name:  key,
-					Value: env.Value,
-				})
-			}
-		}
-	}
+func OverridePodIPRelatedEnvs(envVars []*runtimeapi.KeyValue, podIPs []string) []*runtimeapi.KeyValue {
+	ip, ipv6 := ExtractPodDualStackIPsFromPodIPs(podIPs)
+	var overrideList []*runtimeapi.KeyValue
+
+	overrideList = append(overrideList, &runtimeapi.KeyValue{
+		Key:   TceMyPodIP,
+		Value: ip,
+	})
+
+	overrideList = append(overrideList, &runtimeapi.KeyValue{
+		Key:   TceMyPodIPv6,
+		Value: ipv6,
+	})
 
 	return replaceEnvValues(envVars, overrideList)
 }
 
 // OverrideHostIPRelatedEnvsFromPodIPs overrides host ip related env from pod ips in need.
-func OverrideHostIPRelatedEnvsFromPodIPs(envVars []kubecontainer.EnvVar, podIPs []string) []kubecontainer.EnvVar {
+func OverrideHostIPRelatedEnvsFromPodIPs(envVars []*runtimeapi.KeyValue, podIPs []string) []*runtimeapi.KeyValue {
 	ip, ipv6 := ExtractPodDualStackIPsFromPodIPs(podIPs)
-	var overrideList []kubecontainer.EnvVar
+	var overrideList []*runtimeapi.KeyValue
 
 	for _, key := range hostIPList {
-		overrideList = append(overrideList, kubecontainer.EnvVar{
-			Name:  key,
+		overrideList = append(overrideList, &runtimeapi.KeyValue{
+			Key:   key,
 			Value: ip,
 		})
 	}
 
 	for _, key := range hostIPv6List {
-		overrideList = append(overrideList, kubecontainer.EnvVar{
-			Name:  key,
+		overrideList = append(overrideList, &runtimeapi.KeyValue{
+			Key:   key,
 			Value: ipv6,
 		})
 	}
@@ -82,17 +53,17 @@ func OverrideHostIPRelatedEnvsFromPodIPs(envVars []kubecontainer.EnvVar, podIPs 
 	return replaceEnvValues(envVars, overrideList)
 }
 
-func replaceEnvValues(defaults []kubecontainer.EnvVar, overrides []kubecontainer.EnvVar) []kubecontainer.EnvVar {
+func replaceEnvValues(defaults []*runtimeapi.KeyValue, overrides []*runtimeapi.KeyValue) []*runtimeapi.KeyValue {
 	cache := make(map[string]int, len(defaults))
-	results := make([]kubecontainer.EnvVar, 0, len(defaults))
+	results := make([]*runtimeapi.KeyValue, 0, len(defaults))
 	for i, e := range defaults {
 		results = append(results, e)
-		cache[e.Name] = i
+		cache[e.Key] = i
 	}
 
 	for _, value := range overrides {
 		// Just do a normal set/update
-		if i, exists := cache[value.Name]; exists {
+		if i, exists := cache[value.Key]; exists {
 			results[i] = value
 		}
 	}
