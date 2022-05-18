@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"mime"
 	"net/http"
 	"net/url"
@@ -860,6 +861,8 @@ func (r *Request) request(ctx context.Context, fn func(*http.Request, *http.Resp
 			r.backoff.UpdateBackoff(r.URL(), err, resp.StatusCode)
 		}
 		if err != nil {
+			// check whether err is "use of closed network connection"
+			checkTCPConnectionErr(err)
 			// "Connection reset by peer" or "apiserver is shutting down" are usually a transient errors.
 			// Thus in case of "GET" operations, we simply retry it.
 			// We are not automatically retrying "write" operations, as
@@ -1324,4 +1327,20 @@ func ValidatePathSegmentName(name string, prefix bool) []string {
 		return IsValidPathSegmentPrefix(name)
 	}
 	return IsValidPathSegmentName(name)
+}
+
+// checkTCPConnectionErr will fast-fail panic if err is caused by tcp connection err,
+// to avoid kubelet trapping into NotReady condition
+func checkTCPConnectionErr(err error) {
+	if err == nil {
+		return
+	}
+	randInt := 30
+	msg := err.Error()
+	if strings.Contains(strings.ToLower(msg), "use of closed network connection") {
+		klog.Error("http error:", msg)
+		if rand.Intn(randInt) < 1 {
+			klog.Fatal("initiative panic due to use of closed network connection")
+		}
+	}
 }
