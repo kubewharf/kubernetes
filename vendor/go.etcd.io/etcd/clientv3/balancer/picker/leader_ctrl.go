@@ -10,20 +10,32 @@ import (
 	"google.golang.org/grpc/resolver"
 )
 
-var globalLeaderCtrl = leaderCtrl{
+var globalLeaderCtrl = &leaderCtrl{
 	leaderIndex: make(map[string]*leaderRecord),
+	mu:          sync.RWMutex{},
+	group:       Group{},
 }
 
 type leaderCtrl struct {
 	// leaderIndex restore the leaders of clusters
 	leaderIndex map[string]*leaderRecord
-	sync.RWMutex
-	Group
+	mu          sync.RWMutex
+	group       Group
+}
+
+func (l *leaderCtrl) getLeaderRecord(key string) *leaderRecord {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	record := l.leaderIndex[key]
+	if record == nil {
+		record = &leaderRecord{}
+	}
+	return record
 }
 
 func (l *leaderCtrl) needUpdateLeader(key string, leader string) bool {
-	l.RLock()
-	defer l.RUnlock()
+	l.mu.RLock()
+	defer l.mu.RUnlock()
 	record, ok := l.leaderIndex[key]
 	if !ok {
 		return false
@@ -36,8 +48,8 @@ func (l *leaderCtrl) updateClusterLeader(clusterKey string, leader string) {
 	if !l.needUpdateLeader(clusterKey, leader) {
 		return
 	}
-	l.Lock()
-	defer l.Unlock()
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	record, ok := l.leaderIndex[clusterKey]
 	if !ok {
 		return
@@ -52,8 +64,8 @@ func (l *leaderCtrl) updateClusterAmount(eps []string, amount int, cb func() (re
 
 	clusterKey := marshalEndpoints(eps)
 
-	l.Lock()
-	defer l.Unlock()
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
 	record, ok := l.leaderIndex[clusterKey]
 	if !ok && amount > 0 {
@@ -83,13 +95,13 @@ func (l *leaderCtrl) updateClusterAmount(eps []string, amount int, cb func() (re
 			delete(l.leaderIndex, ep)
 		}
 		record.cancel()
-		l.Forget(clusterKey)
+		l.group.Forget(clusterKey)
 	}
 }
 
 func (l *leaderCtrl) getLeaderAddr(key string) string {
-	l.RLock()
-	defer l.RUnlock()
+	l.mu.RLock()
+	defer l.mu.RUnlock()
 
 	record, ok := l.leaderIndex[key]
 	if !ok {
@@ -172,8 +184,7 @@ func updateClusterLeader(clusterKey string, cb func() (resolver.Address, error))
 		return
 	}
 	// use single flight to avoid duplicate
-	ctrl := globalLeaderCtrl
-	_, _, _ = ctrl.Do(clusterKey, func() (interface{}, error) {
+	_, _, _ = globalLeaderCtrl.group.Do(clusterKey, func() (interface{}, error) {
 		leader, err := cb()
 		if err == nil {
 			globalLeaderCtrl.updateClusterLeader(clusterKey, leader.Addr)

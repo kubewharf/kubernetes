@@ -28,6 +28,7 @@ func newRWSeparatedRoundRobinBalanced(cfg Config) Picker {
 		key:       key,
 		addrToIdx: addrToIdx,
 		readerScs: make([]balancer.SubConn, 0, len(cfg.SubConnToResolverAddress)),
+		record:    globalLeaderCtrl.getLeaderRecord(key),
 	}
 }
 
@@ -36,6 +37,7 @@ type rwSeparatedRoundBalanced struct {
 
 	lg *zap.Logger
 
+	record          *leaderRecord
 	key             string
 	mu              sync.RWMutex
 	scs             []balancer.SubConn
@@ -112,11 +114,7 @@ type pickerFunc func() (int, balancer.SubConn, string, error)
 
 func (rw *rwSeparatedRoundBalanced) pickReader() (cur int, sc balancer.SubConn, picked string, err error) {
 
-	globalLeaderCtrl.RLock()
-	defer globalLeaderCtrl.RUnlock()
-
 	_ = rw.updateLeader()
-
 	rw.mu.RLock()
 	defer rw.mu.RUnlock()
 	l := len(rw.readerScs)
@@ -132,9 +130,6 @@ func (rw *rwSeparatedRoundBalanced) pickReader() (cur int, sc balancer.SubConn, 
 
 func (rw *rwSeparatedRoundBalanced) pickWriter() (int, balancer.SubConn, string, error) {
 	// pick the leader
-	globalLeaderCtrl.RLock()
-	defer globalLeaderCtrl.RUnlock()
-
 	picked := rw.updateLeader()
 	// if there is no leader, just return no availble and wait for updating
 	cur, exist := rw.addrToIdx[picked]
@@ -175,7 +170,7 @@ func (rw *rwSeparatedRoundBalanced) updateLeader() string {
 	defer rw.mu.Unlock()
 
 	// double check
-	curLeader := globalLeaderCtrl.getLeaderAddr(rw.key)
+	curLeader := rw.record.getLeader()
 	if curLeader == rw.leader {
 		return curLeader
 	}
@@ -194,7 +189,7 @@ func (rw *rwSeparatedRoundBalanced) updateLeader() string {
 func (rw *rwSeparatedRoundBalanced) compareLeader() (bool, string) {
 	rw.mu.RLock()
 	defer rw.mu.RUnlock()
-	cur := globalLeaderCtrl.getLeaderAddr(rw.key)
+	cur := rw.record.getLeader()
 	return cur == rw.leader, cur
 }
 

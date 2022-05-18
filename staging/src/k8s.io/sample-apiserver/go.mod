@@ -30,7 +30,7 @@ replace (
 	github.com/prometheus/procfs => github.com/prometheus/procfs v0.0.2
 	github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify => github.com/stretchr/testify v1.4.0
-	go.etcd.io/etcd => code.byted.org/tce/etcd v0.5.0-alpha.5.0.20210803123658-fa1e66085bad //  fa1e66085bad is the SHA of commit after git tag v3.4.3
+	go.etcd.io/etcd => code.byted.org/tce/etcd v0.5.0-alpha.5.0.20220511070715-6ab1e92a1634 //  6ab1e92a1634 is the SHA of commit after git tag v3.4.3
 	golang.org/x/crypto => golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
 	golang.org/x/sys => golang.org/x/sys v0.0.0-20201112073958-5cba982894dd // pinned to release-branch.go1.13
 	golang.org/x/text => golang.org/x/text v0.3.2

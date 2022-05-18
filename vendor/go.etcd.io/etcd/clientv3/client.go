@@ -150,12 +150,13 @@ func (c *Client) Close() error {
 	if c.resolverGroup != nil {
 		c.resolverGroup.Close()
 	}
-	if c.conn != nil {
-		return toErr(c.ctx, c.conn.Close())
-	}
 
 	if c.cfg.KubeBrainFeatureEnabled {
 		picker.UnregisterCluster(c.cfg.Endpoints)
+	}
+
+	if c.conn != nil {
+		return toErr(c.ctx, c.conn.Close())
 	}
 
 	return c.ctx.Err()
