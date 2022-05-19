@@ -58,9 +58,7 @@ func NewNvidiaManager(includedMetrics container.MetricSet) stats.Manager {
 	manager := &nvidiaManager{}
 	err := manager.setup()
 	if err != nil {
-		klog.Warningf("NVIDIA GPU metrics will not be available: %s", err)
-		manager.Destroy()
-		return &stats.NoopManager{}
+		klog.V(2).Infof("NVIDIA setup failed: %s", err)
 	}
 	return manager
 }
@@ -138,6 +136,7 @@ func (nm *nvidiaManager) Destroy() {
 		if err != nil {
 			klog.Warningf("nvml library shutdown failed: %s", err)
 		}
+		klog.Infof("nvml library shutdown")
 	}
 }
 
@@ -156,21 +155,35 @@ func (nm *nvidiaManager) GetCollector(devicesCgroupPath string) (stats.Collector
 		err := initializeNVML(nm)
 		if err != nil {
 			nm.Unlock()
+			klog.Warningf("retry to init nvml failed: %s", err)
 			return &stats.NoopCollector{}, err
 		}
+		klog.Infof("retry to init nvml succ")
 	}
 	nm.Unlock()
 	if len(nm.nvidiaDevices) == 0 {
 		return &stats.NoopCollector{}, nil
 	}
-	nvidiaMinorNumbers, err := parseDevicesCgroup(devicesCgroupPath)
+	var err error
+	nc.deviceCGroupPath = devicesCgroupPath
+	nc.deviceCGroupModTime, err = getDevicesCgroupModifyTs(devicesCgroupPath)
 	if err != nil {
+		klog.Warningf("stats devices cgroup failed: %s", err)
 		return &stats.NoopCollector{}, err
 	}
+	nc.refreshTime = time.Now()
+	nc.nvidiaDevices = nm.nvidiaDevices
 
+	nvidiaMinorNumbers, err := parseDevicesCgroup(devicesCgroupPath)
+	if err != nil {
+		klog.Warningf("parse devices cgroup failed: %s", err)
+		return &stats.NoopCollector{}, err
+	}
+	klog.Infof("nvidia minor numbers in %s: %v", devicesCgroupPath, nvidiaMinorNumbers)
 	for _, minor := range nvidiaMinorNumbers {
 		device, ok := nm.nvidiaDevices[minor]
 		if !ok {
+			klog.Warningf("failed go get NVIDIA device minor number: %v", device)
 			return &stats.NoopCollector{}, fmt.Errorf("NVIDIA device minor number %d not found in cached devices", minor)
 		}
 		nc.devices = append(nc.devices, device)
@@ -237,14 +250,76 @@ type nvidiaCollector struct {
 	devices []gonvml.Device
 
 	stats.NoopDestroy
+
+	nvidiaCollectorDeviceCGroupStatus
+}
+
+type nvidiaCollectorDeviceCGroupStatus struct {
+	mu                  sync.Mutex
+	deviceCGroupPath    string
+	deviceCGroupModTime time.Time
+	refreshTime         time.Time
+	nvidiaDevices       map[int]gonvml.Device
 }
 
 func NewNvidiaCollector(devices []gonvml.Device) stats.Collector {
 	return &nvidiaCollector{devices: devices}
 }
 
+func (nc *nvidiaCollector) refresh() {
+
+	// todo: ensure concurrent-safety more elegantly
+	nc.mu.Lock()
+	defer nc.mu.Unlock()
+
+	now := time.Now()
+	if now.Sub(nc.refreshTime) > time.Minute {
+		// refresh every 1 min
+		nc.refreshTime = now
+
+		// if device cgroup file was modified after last sync, then we should refresh it
+		deviceCGroupModTime, err := getDevicesCgroupModifyTs(nc.deviceCGroupPath)
+		if err == nil && deviceCGroupModTime.After(nc.deviceCGroupModTime) {
+			klog.Infof("try to refresh device cgroup in %s, lastModTime=%s, curModTime=%s",
+				nc.deviceCGroupPath, nc.deviceCGroupModTime.String(), deviceCGroupModTime.String())
+			nvidiaMinorNumbers, err := parseDevicesCgroup(nc.deviceCGroupPath)
+			if err != nil {
+				klog.Warningf("parse devices cgroup failed: %s", err)
+				return
+			}
+
+			// reset if read now nvidia minor number
+			nc.devices = make([]gonvml.Device, 0, len(nvidiaMinorNumbers))
+			klog.Infof("nvidia minor numbers in %s: %v", nc.deviceCGroupPath, nvidiaMinorNumbers)
+
+			// re-pick from devices list
+			for _, minor := range nvidiaMinorNumbers {
+				// todo: what about global devices missing?
+				device, ok := nc.nvidiaDevices[minor]
+				if !ok {
+					klog.Warningf("failed go get NVIDIA device minor number: %v", device)
+					return
+				}
+				nc.devices = append(nc.devices, device)
+			}
+		}
+	}
+}
+
+func getDevicesCgroupModifyTs(devicesCgroupPath string) (time.Time, error) {
+	devicesList := filepath.Join(devicesCgroupPath, "devices.list")
+	fstat, err := os.Stat(devicesList)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return fstat.ModTime(), nil
+}
+
 // UpdateStats updates the stats for NVIDIA GPUs (if any) attached to the container.
 func (nc *nvidiaCollector) UpdateStats(stats *info.ContainerStats) error {
+	// refresh to ensure device info is not corrupt
+	nc.refresh()
+
 	for _, device := range nc.devices {
 		model, err := device.Name()
 		if err != nil {

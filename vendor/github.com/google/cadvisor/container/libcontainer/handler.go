@@ -834,7 +834,12 @@ func setMemoryStats(s *cgroups.Stats, ret *info.ContainerStats) {
 	ret.Memory.MaxUsage = s.MemoryStats.Usage.MaxUsage
 	ret.Memory.Failcnt = s.MemoryStats.Usage.Failcnt
 
-	if s.MemoryStats.UseHierarchy {
+	if cgroups.IsCgroup2UnifiedMode() {
+		ret.Memory.Cache = s.MemoryStats.Stats["file"]
+		ret.Memory.RSS = s.MemoryStats.Stats["anon"]
+		ret.Memory.Swap = s.MemoryStats.SwapUsage.Usage
+		ret.Memory.MappedFile = s.MemoryStats.Stats["file_mapped"]
+	} else if s.MemoryStats.UseHierarchy {
 		ret.Memory.Cache = s.MemoryStats.Stats["total_cache"]
 		ret.Memory.RSS = s.MemoryStats.Stats["total_rss"]
 		ret.Memory.Swap = s.MemoryStats.Stats["total_swap"]
@@ -844,13 +849,6 @@ func setMemoryStats(s *cgroups.Stats, ret *info.ContainerStats) {
 		ret.Memory.RSS = s.MemoryStats.Stats["rss"]
 		ret.Memory.Swap = s.MemoryStats.Stats["swap"]
 		ret.Memory.MappedFile = s.MemoryStats.Stats["mapped_file"]
-	}
-	// cgroupv2 has different interface file
-	if cgroups.IsCgroup2UnifiedMode() {
-		ret.Memory.Cache = s.MemoryStats.Stats["cache"]
-		ret.Memory.RSS = s.MemoryStats.Stats["anon"]
-		ret.Memory.Swap = s.MemoryStats.SwapUsage.Usage
-		ret.Memory.MappedFile = s.MemoryStats.Stats["file_mapped"]
 	}
 	if v, ok := s.MemoryStats.Stats["pgfault"]; ok {
 		ret.Memory.ContainerData.Pgfault = v

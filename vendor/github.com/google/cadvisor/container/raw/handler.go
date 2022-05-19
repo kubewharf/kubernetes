@@ -49,6 +49,16 @@ func isRootCgroup(name string) bool {
 	return name == "/"
 }
 
+func buildMountPointForRootCgroup(cgroupSubsystems *libcontainer.CgroupSubsystems) map[string]string {
+	mountPoints := make(map[string]string)
+	for k, v := range cgroupSubsystems.MountPoints {
+		if k != "memory" {
+			mountPoints[k] = v
+		}
+	}
+	return mountPoints
+}
+
 func newRawContainerHandler(name string, cgroupSubsystems *libcontainer.CgroupSubsystems, machineInfoFactory info.MachineInfoFactory, fsInfo fs.FsInfo, watcher *common.InotifyWatcher, rootFs string, includedMetrics container.MetricSet) (container.ContainerHandler, error) {
 	cHints, err := common.GetContainerHintsFromFile(*common.ArgContainerHints)
 	if err != nil {
@@ -59,7 +69,7 @@ func newRawContainerHandler(name string, cgroupSubsystems *libcontainer.CgroupSu
 	if isRootCgroup(name) {
 		mountPoints := cgroupSubsystems.MountPoints
 		if _, exists := mountPoints["memory"]; exists {
-			delete(mountPoints, "memory")
+			mountPoints = buildMountPointForRootCgroup(cgroupSubsystems)
 		}
 		cgroupPaths = common.MakeCgroupPaths(mountPoints, name)
 	} else {
@@ -235,6 +245,16 @@ func (h *rawContainerHandler) getFsStats(stats *info.ContainerStats) error {
 	return nil
 }
 
+func (h *rawContainerHandler) checkStats(stats *info.ContainerStats) {
+	if stats.Cpu.Usage.Total == 0 {
+		klog.Infof("invalid cpu stats of %v", h.name)
+	}
+
+	if stats.Memory.WorkingSet == 0 {
+		klog.Infof("invalid mem stats of %v", h.name)
+	}
+}
+
 func (h *rawContainerHandler) GetStats() (*info.ContainerStats, error) {
 	if *disableRootCgroupStats && isRootCgroup(h.name) {
 		return nil, nil
@@ -243,6 +263,8 @@ func (h *rawContainerHandler) GetStats() (*info.ContainerStats, error) {
 	if err != nil {
 		return stats, err
 	}
+
+	h.checkStats(stats)
 	if !cgroups.IsCgroup2UnifiedMode() {
 		_ = h.getRootMemory(stats)
 	}

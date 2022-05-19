@@ -23,6 +23,7 @@ import (
 	"os/exec"
 	"path"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -91,6 +92,12 @@ type containerData struct {
 
 	// nvidiaCollector updates stats for Nvidia GPUs attached to the container.
 	nvidiaCollector stats.Collector
+
+	// nvidiaCollectorErr is the error while set up nvidiaCollector
+	nvidiaCollectorErr error
+
+	// nvidiaManager is manager for nvidia to rebuild nvidiaCollector
+	nvidiaManager stats.Manager
 
 	// perfCollector updates stats for perf_event cgroup controller.
 	perfCollector stats.Collector
@@ -594,6 +601,64 @@ func (cd *containerData) updateLoad(newLoad uint64) {
 	}
 }
 
+// recover from panic copy from apimachinery
+func recoverFromPanic(err *error) {
+	if r := recover(); r != nil {
+		// Same as stdlib http server code. Manually allocate stack trace buffer size
+		// to prevent excessively large logs
+		const size = 64 << 10
+		stacktrace := make([]byte, size)
+		stacktrace = stacktrace[:runtime.Stack(stacktrace, false)]
+
+		*err = fmt.Errorf(
+			"recovered from panic %q. (err=%v) Call stack:\n%s",
+			r,
+			*err,
+			stacktrace)
+	}
+}
+
+// checkNvidiaCollector check if there is any error while build nvidia collector
+func (cd *containerData) checkNvidiaCollector() error {
+	defer func() {
+		var err error
+		recoverFromPanic(&err)
+		if err != nil {
+			klog.Warning(err)
+		}
+	}()
+
+	if cd.nvidiaCollectorErr != nil {
+		// destroy prev one if it's not nil
+		if cd.nvidiaCollector != nil {
+			cd.nvidiaCollector.Destroy()
+		}
+
+		// try to rebuild nvidiaCollector
+		devicesCgroupPath, err := cd.handler.GetCgroupPath("devices")
+		klog.Infof("retry to build nvidia collector for container %s with device cgroup path %s ", cd.info.Name, devicesCgroupPath)
+		if err != nil {
+			klog.Warningf("Error getting devices cgroup path: %v", err)
+			return err
+		} else if cd.nvidiaManager != nil {
+			cd.nvidiaCollector, cd.nvidiaCollectorErr = cd.nvidiaManager.GetCollector(devicesCgroupPath)
+			if cd.nvidiaCollectorErr != nil {
+				// still error now
+				err = fmt.Errorf("GPU metrics may be unavailable/incomplete for container %s: %s", cd.info.Name, cd.nvidiaCollectorErr)
+				klog.Warning(err.Error())
+				return err
+			}
+			// nvidiaCollectorErr is reset, would not try to get nvidia collector again
+			return nil
+		} else {
+			err = fmt.Errorf("invalid nvidia manager")
+			klog.Warning(err.Error())
+			return err
+		}
+	}
+	return nil
+}
+
 func (cd *containerData) updateStats() error {
 	stats, statsErr := cd.handler.GetStats()
 	if statsErr != nil {
@@ -644,6 +709,7 @@ func (cd *containerData) updateStats() error {
 	}
 
 	var nvidiaStatsErr error
+	_ = cd.checkNvidiaCollector()
 	if cd.nvidiaCollector != nil {
 		// This updates the Accelerators field of the stats struct
 		nvidiaStatsErr = cd.nvidiaCollector.UpdateStats(stats)

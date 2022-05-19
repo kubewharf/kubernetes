@@ -910,11 +910,12 @@ func (m *manager) createContainerLocked(containerName string, watchSource watche
 
 	handler, accept, err := container.NewContainerHandler(containerName, watchSource, m.inHostNamespace)
 	if err != nil {
+		klog.Infof("create container handler for %s failed: %s", containerName, err.Error())
 		return err
 	}
 	if !accept {
 		// ignoring this container.
-		klog.V(5).Infof("ignoring container %q", containerName)
+		klog.Infof("ignoring container %q", containerName)
 		return nil
 	}
 	collectorManager, err := collector.NewCollectorManager()
@@ -939,9 +940,10 @@ func (m *manager) createContainerLocked(containerName string, watchSource watche
 		if err != nil {
 			klog.Warningf("Error getting devices cgroup path: %v", err)
 		} else {
-			cont.nvidiaCollector, err = m.nvidiaManager.GetCollector(devicesCgroupPath)
-			if err != nil {
-				klog.V(4).Infof("GPU metrics may be unavailable/incomplete for container %s: %s", cont.info.Name, err)
+			cont.nvidiaCollector, cont.nvidiaCollectorErr = m.nvidiaManager.GetCollector(devicesCgroupPath)
+			if cont.nvidiaCollectorErr != nil {
+				klog.Infof("GPU metrics may be unavailable/incomplete for container %s: %s", cont.info.Name, cont.nvidiaCollectorErr)
+				cont.nvidiaManager = m.nvidiaManager
 			}
 		}
 		perfCgroupPath, err := handler.GetCgroupPath("perf_event")
