@@ -10,5 +10,9 @@
   "timeoutSeconds": 5,
   "limit": 7,
   "continue": "continueValue",
-  "sendInitialEvents": true
+  "sendInitialEvents": true,
+  "shardingIndex": 101,
+  "shardingCount": 102,
+  "shardingLabelKey": "shardingLabelKeyValue",
+  "hashFunc": "hashFuncValue"
 }

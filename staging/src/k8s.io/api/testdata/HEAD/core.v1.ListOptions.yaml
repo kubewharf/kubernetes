@@ -2,11 +2,15 @@ allowWatchBookmarks: true
 apiVersion: v1
 continue: continueValue
 fieldSelector: fieldSelectorValue
+hashFunc: hashFuncValue
 kind: ListOptions
 labelSelector: labelSelectorValue
 limit: 7
 resourceVersion: resourceVersionValue
 resourceVersionMatch: resourceVersionMatchValue
 sendInitialEvents: true
+shardingCount: 102
+shardingIndex: 101
+shardingLabelKey: shardingLabelKeyValue
 timeoutSeconds: 5
 watch: true
