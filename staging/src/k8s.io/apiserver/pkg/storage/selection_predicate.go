@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/cache/sharding"
 )
 
 // AttrFunc returns label and field sets and the uninitialized flag for List or Watch to match.
@@ -85,7 +86,10 @@ type SelectionPredicate struct {
 	ShardingKey         string
 }
 
-func (s *SelectionPredicate) MatchesSharding(l labels.Set) bool {
+func (s *SelectionPredicate) MatchesSharding(l labels.Set, f fields.Set) bool {
+	if s.ShardingKey == sharding.DefaultInformerShardingLabelKey {
+		return s.Sharding(f.Get("metadata.name"))
+	}
 	return s.Sharding(l.Get(s.ShardingKey))
 }
 
