@@ -35,8 +35,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/crypto/ssh/terminal"
-
+	"golang.org/x/term"
 	srcimporter "k8s.io/kubernetes/third_party/go-srcimporter"
 )
 
@@ -51,7 +50,7 @@ var (
 	tags       = flag.String("tags", "", "comma-separated list of build tags to apply in addition to go's defaults")
 	ignoreDirs = flag.String("ignore-dirs", "", "comma-separated list of directories to ignore in addition to the default hardcoded list including staging, vendor, and hidden dirs")
 
-	isTerminal = terminal.IsTerminal(int(os.Stdout.Fd()))
+	isTerminal = term.IsTerminal(int(os.Stdout.Fd()))
 	logPrefix  = ""
 
 	// When processed in order, windows and darwin are early to make
