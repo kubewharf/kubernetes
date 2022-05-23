@@ -5,7 +5,7 @@ module k8s.io/legacy-cloud-providers
 go 1.13
 
 require (
-	cloud.google.com/go v0.38.0
+	cloud.google.com/go v0.65.0
 	github.com/Azure/azure-sdk-for-go v35.0.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.9.0
 	github.com/Azure/go-autorest/autorest/adal v0.5.0
@@ -23,8 +23,8 @@ require (
 	github.com/satori/go.uuid v1.2.0 // indirect
 	github.com/stretchr/testify v1.6.1
 	github.com/vmware/govmomi v0.20.3
-	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
-	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
+	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
+	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
 	google.golang.org/api v0.6.1-0.20190607001116-5213b8090861
 	gopkg.in/gcfg.v1 v1.2.0
 	gopkg.in/warnings.v0 v0.1.1 // indirect
@@ -41,7 +41,11 @@ require (
 )
 
 replace (
+	cloud.google.com/go => cloud.google.com/go v0.38.0
 	github.com/BurntSushi/toml => github.com/BurntSushi/toml v0.3.1
+	github.com/go-openapi/jsonpointer => github.com/go-openapi/jsonpointer v0.19.3
+	github.com/go-openapi/spec => github.com/go-openapi/spec v0.19.3
+	github.com/go-openapi/swag => github.com/go-openapi/swag v0.19.5
 	github.com/golang/protobuf => github.com/golang/protobuf v1.3.2
 	github.com/google/go-cmp => github.com/google/go-cmp v0.3.0
 	github.com/json-iterator/go => github.com/json-iterator/go v1.1.8
@@ -54,14 +58,14 @@ replace (
 	github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify => github.com/stretchr/testify v1.4.0
 	go.etcd.io/etcd => code.byted.org/tce/etcd v0.5.0-alpha.5.0.20220511070715-6ab1e92a1634 //  6ab1e92a1634 is the SHA of commit after git tag v3.4.3
-	golang.org/x/crypto => golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
-	golang.org/x/sys => golang.org/x/sys v0.0.0-20201112073958-5cba982894dd // pinned to release-branch.go1.13
+	golang.org/x/sync => golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	golang.org/x/text => golang.org/x/text v0.3.2
 	golang.org/x/time => golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
-	golang.org/x/tools => golang.org/x/tools v0.0.0-20190821162956-65e3620a7ae7 // pinned to release-branch.go1.13
+	google.golang.org/appengine => google.golang.org/appengine v1.5.0
 	google.golang.org/genproto => google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55
 	google.golang.org/grpc => google.golang.org/grpc v1.26.0
 	gopkg.in/check.v1 => gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127
+	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.2.8
 	k8s.io/api => ../api
 	k8s.io/apimachinery => ../apimachinery
 	k8s.io/apiserver => ../apiserver
