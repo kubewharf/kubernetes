@@ -3,16 +3,13 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 go_library(
     name = "go_default_library",
     srcs = [
-        "ip_override.go",
-        "ip_validate.go",
+        "api_object_versioner.go",
+        "util.go",
     ],
-    importpath = "k8s.io/kubernetes/pkg/kubelet/externals/hostdualstackip",
+    importmap = "k8s.io/kubernetes/vendor/k8s.io/apiserver/pkg/storage/storagebackend/db/common",
+    importpath = "k8s.io/apiserver/pkg/storage/storagebackend/db/common",
     visibility = ["//visibility:public"],
-    deps = [
-        "//pkg/kubelet/container:go_default_library",
-        "//staging/src/k8s.io/cri-api/pkg/apis/runtime/v1alpha2:go_default_library",
-        "//vendor/k8s.io/klog:go_default_library",
-    ],
+    deps = ["//staging/src/k8s.io/apiserver/pkg/storage/etcd3:go_default_library"],
 )
 
 filegroup(

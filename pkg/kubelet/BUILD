@@ -157,8 +157,6 @@ go_library(
         "//vendor/github.com/google/cadvisor/info/v1:go_default_library",
         "//vendor/github.com/google/cadvisor/info/v2:go_default_library",
         "//vendor/github.com/opentracing/opentracing-go:go_default_library",
-        "//vendor/github.com/vishvananda/netlink:go_default_library",
-        "//vendor/github.com/vishvananda/netns:go_default_library",
         "//vendor/k8s.io/klog:go_default_library",
         "//vendor/k8s.io/utils/exec:go_default_library",
         "//vendor/k8s.io/utils/integer:go_default_library",
