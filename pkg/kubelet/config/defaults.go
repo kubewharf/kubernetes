@@ -34,7 +34,8 @@ const (
 
 	PodRoleLabel = "bytedance.com/pod-role"
 
-	UserNameAnnotation    = "godel.bytedance.com/user-name"
-	SSDAffinityAnnotation = "godel.bytedance.com/ssd-affinity"
-	ApplicationNameLabel  = "godel.bytedance.com/application-name"
+	UserNameAnnotation        = "godel.bytedance.com/user-name"
+	SSDAffinityAnnotation     = "godel.bytedance.com/ssd-affinity"
+	NICAffinityAnnotationName = "godel.bytedance.com/nic-affinity"
+	ApplicationNameLabel      = "godel.bytedance.com/application-name"
 )

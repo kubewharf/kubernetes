@@ -1096,6 +1096,7 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 		userName := getUserName(pod)
 		applicationName := getApplicationName(pod)
 		ssdAffinity := getSSDAffinity(pod)
+		nicAffinity := getNICAffinity(pod)
 		// TODO: refactor this part of code to just append a ContainerAllocationRequest
 		// in a passed in AllocateRequest pointer, and issues a single Allocate call per pod.
 		klog.V(3).Infof("Making allocation request for devices %v for device plugin %s; pod: %s/%s; container: %s; cpuRequirement: %d; memoryRequirement: %d",
@@ -1112,6 +1113,7 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 			"ssd_affinity", ssdAffinity)
 		if utilfeature.DefaultFeatureGate.Enabled(features.AutoNICNumaAffinity) {
 			md.Append("affinity_devices", "nic")
+			md.Append("nic_affinity", nicAffinity)
 		}
 
 		ctx := metadata.NewOutgoingContext(context.Background(), md)
@@ -1195,6 +1197,14 @@ func getSSDAffinity(pod *v1.Pod) (ssdAffinity string) {
 
 	ssdAffinity = pod.Annotations[config.SSDAffinityAnnotation]
 	return
+}
+
+func getNICAffinity(pod *v1.Pod) string {
+	if pod == nil {
+		return ""
+	}
+
+	return pod.Annotations[config.NICAffinityAnnotationName]
 }
 
 // GetDeviceRunContainerOptions checks whether we have cached containerDevices

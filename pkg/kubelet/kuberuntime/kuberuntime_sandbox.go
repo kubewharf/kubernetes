@@ -147,7 +147,7 @@ func (m *kubeGenericRuntimeManager) generatePodSandboxConfig(pod *v1.Pod, attemp
 
 	// get sriov device annotation from containers in pod creation
 	if len(pod.Spec.Containers) > 0 {
-		passthroughAnnoSets := sets.NewString(types.SriovNICDeviceAnnotationKey, types.PodNetNSAnnotationKey, types.PodNetIPAnnotationKey)
+		passthroughAnnoSets := sets.NewString(types.SriovNICDeviceAnnotationKey, types.PodNetNSAnnotationKey, types.PodNetIPAnnotationKey, types.PodNetIv6AnnotationKey)
 		for _, container := range pod.Spec.Containers {
 			opts, err := m.runtimeHelper.GenerateCreatePodResourceOptions(pod, &container)
 			if err != nil {
