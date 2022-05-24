@@ -453,12 +453,21 @@ func (p *criStatsProvider) addPodCPUMemoryStats(
 	podCgroupInfo := getCadvisorPodInfoFromPodUID(podUID, allInfos)
 	if podCgroupInfo != nil {
 		cpu, memory := cadvisorInfoToCPUandMemoryStats(podCgroupInfo)
+
 		if isValidCPUStat(cpu) {
 			ps.CPU = cpu
+		} else {
+			cpuBs, _ := json.Marshal(cpu)
+			klog.Infof("invalid cpu stats of pod %s provided by cadvisor: %v", ps.PodRef.Name, string(cpuBs))
 		}
+
 		if isValidMemStat(memory) {
 			ps.Memory = memory
+		} else {
+			memBs, _ := json.Marshal(memory)
+			klog.Infof("invalid mem stats of pod %s provided by cadvisor: %v", ps.PodRef.Name, string(memBs))
 		}
+
 		return
 	}
 
@@ -812,12 +821,14 @@ func cadvisorInfoToCPUandMemoryStatsWithChecking(cs *statsapi.ContainerStats, ca
 	cpu *statsapi.CPUStats, memory *statsapi.MemoryStats) {
 	cpu, memory = cadvisorInfoToCPUandMemoryStats(caPodStats)
 	if !isValidCPUStat(cpu) {
-		klog.Infof("invalid cpu stats of %s provided by cadvisor", cs.Name)
+		cpuBs, _ := json.Marshal(cpu)
+		klog.Infof("invalid cpu stats of container %s provided by cadvisor: %v", cs.Name, string(cpuBs))
 		cpu = nil
 	}
 
 	if !isValidMemStat(memory) {
-		klog.Infof("invalid mem stats of %s provided by cadvisor", cs.Name)
+		memBs, _ := json.Marshal(memory)
+		klog.Infof("invalid mem stats of container %s provided by cadvisor: %v", cs.Name, string(memBs))
 		memory = nil
 	}
 
@@ -852,7 +863,8 @@ func isValidMemStat(m *statsapi.MemoryStats) bool {
 		return false
 	}
 	return getUint64Value(m.UsageBytes) != 0 ||
-		getUint64Value(m.RSSBytes) != 0
+		getUint64Value(m.RSSBytes) != 0 ||
+		getUint64Value(m.WorkingSetBytes) != 0
 }
 
 func getCRICadvisorStats(infos map[string]cadvisorapiv2.ContainerInfo) map[string]cadvisorapiv2.ContainerInfo {
