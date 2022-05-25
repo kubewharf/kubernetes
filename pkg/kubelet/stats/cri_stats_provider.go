@@ -17,6 +17,7 @@ limitations under the License.
 package stats
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
@@ -452,8 +453,21 @@ func (p *criStatsProvider) addPodCPUMemoryStats(
 	podCgroupInfo := getCadvisorPodInfoFromPodUID(podUID, allInfos)
 	if podCgroupInfo != nil {
 		cpu, memory := cadvisorInfoToCPUandMemoryStats(podCgroupInfo)
-		ps.CPU = cpu
-		ps.Memory = memory
+
+		if isValidCPUStat(cpu) {
+			ps.CPU = cpu
+		} else {
+			cpuBs, _ := json.Marshal(cpu)
+			klog.Infof("invalid cpu stats of pod %s provided by cadvisor: %v", ps.PodRef.Name, string(cpuBs))
+		}
+
+		if isValidMemStat(memory) {
+			ps.Memory = memory
+		} else {
+			memBs, _ := json.Marshal(memory)
+			klog.Infof("invalid mem stats of pod %s provided by cadvisor: %v", ps.PodRef.Name, string(memBs))
+		}
+
 		return
 	}
 
@@ -463,7 +477,7 @@ func (p *criStatsProvider) addPodCPUMemoryStats(
 			ps.CPU = &statsapi.CPUStats{}
 		}
 
-		ps.CPU.Time = cs.StartTime
+		ps.CPU.Time = cs.CPU.Time
 		usageCoreNanoSeconds := getUint64Value(cs.CPU.UsageCoreNanoSeconds) + getUint64Value(ps.CPU.UsageCoreNanoSeconds)
 		usageNanoCores := getUint64Value(cs.CPU.UsageNanoCores) + getUint64Value(ps.CPU.UsageNanoCores)
 		ps.CPU.UsageCoreNanoSeconds = &usageCoreNanoSeconds
@@ -769,7 +783,7 @@ func (p *criStatsProvider) addCadvisorContainerStats(
 		cs.UserDefinedMetrics = cadvisorInfoToUserDefinedMetrics(caPodStats)
 	}
 
-	cpu, memory := cadvisorInfoToCPUandMemoryStats(caPodStats)
+	cpu, memory := cadvisorInfoToCPUandMemoryStatsWithChecking(cs, caPodStats)
 	if cpu != nil {
 		cs.CPU = cpu
 	}
@@ -777,8 +791,18 @@ func (p *criStatsProvider) addCadvisorContainerStats(
 		cs.Memory = memory
 	}
 
-	cstat, found := latestContainerStats(caPodStats)
-	if found && cstat.Accelerators != nil {
+	max := len(caPodStats.Stats) - 1
+	for i := max; i >= 0; i-- {
+		// reverse iter to find the latest valid accelerator stats
+		cstat := caPodStats.Stats[i]
+		if len(cstat.Accelerators) == 0 {
+			continue
+		}
+		if i != max {
+			klog.Infof("get accelerators from No.%d stats created at %s but not the latest No.%d created at %s",
+				max-i, caPodStats.Stats[i].Timestamp.String(), max, caPodStats.Stats[max].Timestamp.String())
+		}
+
 		for _, acc := range cstat.Accelerators {
 			cs.Accelerators = append(cs.Accelerators, statsapi.AcceleratorStats{
 				Make:        acc.Make,
@@ -789,7 +813,58 @@ func (p *criStatsProvider) addCadvisorContainerStats(
 				DutyCycle:   acc.DutyCycle,
 			})
 		}
+		break
 	}
+}
+
+func cadvisorInfoToCPUandMemoryStatsWithChecking(cs *statsapi.ContainerStats, caPodStats *cadvisorapiv2.ContainerInfo) (
+	cpu *statsapi.CPUStats, memory *statsapi.MemoryStats) {
+	cpu, memory = cadvisorInfoToCPUandMemoryStats(caPodStats)
+	if !isValidCPUStat(cpu) {
+		cpuBs, _ := json.Marshal(cpu)
+		klog.Infof("invalid cpu stats of container %s provided by cadvisor: %v", cs.Name, string(cpuBs))
+		cpu = nil
+	}
+
+	if !isValidMemStat(memory) {
+		memBs, _ := json.Marshal(memory)
+		klog.Infof("invalid mem stats of container %s provided by cadvisor: %v", cs.Name, string(memBs))
+		memory = nil
+	}
+
+	if cpu == nil || memory == nil {
+		klog.Infof("invalid data from cadvisor, container=%s, hasCPUandMemory=%t, len=%d",
+			cs.Name, hasMemoryAndCPUInstUsage(caPodStats), len(caPodStats.Stats))
+		max, min := len(caPodStats.Stats)-1, len(caPodStats.Stats)-10
+		for i := max; i >= 0 && i >= min; i-- {
+			// print the latest 10 stats
+			cpuBs, _ := json.Marshal(caPodStats.Stats[i].Cpu)
+			cpuInstBs, _ := json.Marshal(caPodStats.Stats[i].CpuInst)
+			memBs, _ := json.Marshal(caPodStats.Stats[i].Memory)
+			t := caPodStats.Stats[i].Timestamp
+			klog.Infof("cadvisor data container=%s, idx=%d, time%s, cpu=%s, cpuInst=%s, mem=%s", cs.Name, max-i,
+				t.String(), string(cpuBs), string(cpuInstBs), string(memBs))
+		}
+	}
+
+	return cpu, memory
+}
+
+func isValidCPUStat(c *statsapi.CPUStats) bool {
+	if c == nil {
+		return false
+	}
+	return getUint64Value(c.UsageCoreNanoSeconds) != 0 ||
+		getUint64Value(c.UsageNanoCores) != 0
+}
+
+func isValidMemStat(m *statsapi.MemoryStats) bool {
+	if m == nil {
+		return false
+	}
+	return getUint64Value(m.UsageBytes) != 0 ||
+		getUint64Value(m.RSSBytes) != 0 ||
+		getUint64Value(m.WorkingSetBytes) != 0
 }
 
 func getCRICadvisorStats(infos map[string]cadvisorapiv2.ContainerInfo) map[string]cadvisorapiv2.ContainerInfo {
