@@ -23,7 +23,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"k8s.io/kubernetes/pkg/kubelet/pod"
 	"os"
 	"path"
 	"path/filepath"
@@ -43,6 +42,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/kubelet/config"
+	"k8s.io/kubernetes/pkg/kubelet/pod"
 	"k8s.io/kubernetes/pkg/kubelet/volumemanager/cache"
 	"k8s.io/kubernetes/pkg/util/goroutinemap/exponentialbackoff"
 	volumepkg "k8s.io/kubernetes/pkg/volume"
@@ -55,7 +55,7 @@ import (
 )
 
 var (
-	driversCouldClear = sets.NewString("localstoragedrive.csi.bytedance.com", "sharememorydrive.csi.bytedance.com")
+	driversCouldClear = sets.NewString("localstoragedrive.csi.bytedance.com", "sharememorydrive.csi.bytedance.com", "bytedrive.csi.bytedance.com")
 )
 
 const (
