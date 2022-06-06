@@ -454,21 +454,20 @@ func (p *criStatsProvider) addPodCPUMemoryStats(
 	if podCgroupInfo != nil {
 		cpu, memory := cadvisorInfoToCPUandMemoryStats(podCgroupInfo)
 
-		if isValidCPUStat(cpu) {
-			ps.CPU = cpu
-		} else {
+		// if cpu or memory is invalid, just discard data from cadvisor
+		// and try to add up data from container stats.
+		if !isValidCPUStat(cpu) {
 			cpuBs, _ := json.Marshal(cpu)
 			klog.Infof("invalid cpu stats of pod %s provided by cadvisor: %v", ps.PodRef.Name, string(cpuBs))
-		}
-
-		if isValidMemStat(memory) {
-			ps.Memory = memory
-		} else {
+		} else if !isValidMemStat(memory) {
 			memBs, _ := json.Marshal(memory)
 			klog.Infof("invalid mem stats of pod %s provided by cadvisor: %v", ps.PodRef.Name, string(memBs))
+		} else {
+			// both of cpu and mem are valid
+			ps.CPU = cpu
+			ps.Memory = memory
+			return
 		}
-
-		return
 	}
 
 	// Sum Pod cpu and memory stats from containers stats.
