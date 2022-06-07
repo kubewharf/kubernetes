@@ -118,6 +118,7 @@ func autoConvert_internalversion_ListOptions_To_v1_ListOptions(in *ListOptions, 
 	out.ShardingCount = in.ShardingCount
 	out.ShardingLabelKey = in.ShardingLabelKey
 	out.HashFunc = in.HashFunc
+	out.ListFromWatch = in.ListFromWatch
 	return nil
 }
 
@@ -143,6 +144,7 @@ func autoConvert_v1_ListOptions_To_internalversion_ListOptions(in *v1.ListOption
 	out.ShardingCount = in.ShardingCount
 	out.ShardingLabelKey = in.ShardingLabelKey
 	out.HashFunc = in.HashFunc
+	out.ListFromWatch = in.ListFromWatch
 	return nil
 }
 

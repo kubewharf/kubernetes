@@ -84,6 +84,7 @@ type SelectionPredicate struct {
 	AllowWatchBookmarks bool
 	Sharding            ShardingFunc
 	ShardingKey         string
+	ListFromWatch       bool
 }
 
 func (s *SelectionPredicate) MatchesSharding(l labels.Set, f fields.Set) bool {

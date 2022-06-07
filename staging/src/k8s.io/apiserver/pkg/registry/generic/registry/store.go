@@ -1128,6 +1128,7 @@ func (e *Store) Watch(ctx context.Context, options *metainternalversion.ListOpti
 	if options != nil {
 		resourceVersion = options.ResourceVersion
 		predicate.AllowWatchBookmarks = options.AllowWatchBookmarks
+		predicate.ListFromWatch = options.ListFromWatch
 		if enableSharding(options) {
 			predicate.Sharding = func(value string) bool {
 				var hashFunc func(s string) int64

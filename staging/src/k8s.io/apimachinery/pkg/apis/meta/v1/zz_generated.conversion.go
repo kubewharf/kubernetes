@@ -465,6 +465,13 @@ func autoConvert_url_Values_To_v1_ListOptions(in *url.Values, out *ListOptions, 
 	} else {
 		out.HashFunc = ""
 	}
+	if values, ok := map[string][]string(*in)["listFromWatch"]; ok && len(values) > 0 {
+		if err := runtime.Convert_Slice_string_To_bool(&values, &out.ListFromWatch, s); err != nil {
+			return err
+		}
+	} else {
+		out.ListFromWatch = false
+	}
 	return nil
 }
 

@@ -409,6 +409,8 @@ type ListOptions struct {
 	// HashFunc indicates the algorithm we map a string to a int64, for now we only support FNV32, it will be
 	// extended in the future.
 	HashFunc string `json:"hashFunc,omitempty" protobuf:"bytes,104,opt,name=hashFunc"`
+	// If true, use watch request to get list responses
+	ListFromWatch bool `json:"listFromWatch,omitempty" protobuf:"bytes,105,opt,name=listFromWatch"`
 }
 
 // +k8s:conversion-gen:explicit-from=net/url.Values
