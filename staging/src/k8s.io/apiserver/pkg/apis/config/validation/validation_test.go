@@ -292,14 +292,13 @@ func TestKMSEndpoint(t *testing.T) {
 				field.Invalid(endpointField, "https://www.foo.com", fmt.Sprintf(unsupportedSchemeErrFmt, "https")),
 			},
 		},
-		// Fix Me by TCEers.
-		//{
-		//	desc: "invalid url",
-		//	in:   &config.KMSConfiguration{Endpoint: "unix:///foo\n.socket"},
-		//	want: field.ErrorList{
-		//		field.Invalid(endpointField, "unix:///foo\n.socket", "invalid endpoint for kms provider, error: parse unix:///foo\n.socket: net/url: invalid control character in URL"),
-		//	},
-		//},
+		{
+			desc: "invalid url",
+			in:   &config.KMSConfiguration{Endpoint: "unix:///foo\n.socket"},
+			want: field.ErrorList{
+				field.Invalid(endpointField, "unix:///foo\n.socket", fmt.Sprintf(invalidURLErrFmt, `"unix:///foo\n.socket"`)),
+			},
+		},
 	}
 
 	for _, tt := range testCases {

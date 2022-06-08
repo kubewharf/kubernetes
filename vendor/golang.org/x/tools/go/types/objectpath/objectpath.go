@@ -58,7 +58,7 @@ type Path string
 // - The only OT operator is Object.Type,
 //   which we encode as '.' because dot cannot appear in an identifier.
 // - The TT operators are encoded as [EKPRU].
-// - The OT operators are encoded as [AFMO];
+// - The TO operators are encoded as [AFMO];
 //   three of these (At,Field,Method) require an integer operand,
 //   which is encoded as a string of decimal digits.
 //   These indices are stable across different representations
@@ -226,7 +226,8 @@ func For(obj types.Object) (Path, error) {
 	// the best paths because non-types may
 	// refer to types, but not the reverse.
 	empty := make([]byte, 0, 48) // initial space
-	for _, name := range scope.Names() {
+	names := scope.Names()
+	for _, name := range names {
 		o := scope.Lookup(name)
 		tname, ok := o.(*types.TypeName)
 		if !ok {
@@ -253,7 +254,7 @@ func For(obj types.Object) (Path, error) {
 
 	// Then inspect everything else:
 	// non-types, and declared methods of defined types.
-	for _, name := range scope.Names() {
+	for _, name := range names {
 		o := scope.Lookup(name)
 		path := append(empty, name...)
 		if _, ok := o.(*types.TypeName); !ok {
@@ -376,7 +377,7 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 		return nil, fmt.Errorf("package %s does not contain %q", pkg.Path(), pkgobj)
 	}
 
-	// abtraction of *types.{Pointer,Slice,Array,Chan,Map}
+	// abstraction of *types.{Pointer,Slice,Array,Chan,Map}
 	type hasElem interface {
 		Elem() types.Type
 	}
