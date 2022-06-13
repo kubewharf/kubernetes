@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog"
@@ -70,8 +71,32 @@ func (c *HostUniqueChecker) Filter(ctx context.Context, cycleState *framework.Cy
 }
 
 func (c *HostUniqueChecker) satisfiesPodsHostUnique(pod *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo, affinity *v1.Affinity) error {
+	anno := pod.GetAnnotations()
+	if anno == nil {
+		return nil
+	}
+	str, ok := anno[apipod.PodHostUniqueToleranceAnnotation]
+	if !ok {
+		return nil
+	}
+	arrTolerance := strings.Split(str, ",")
+
+	var hostuniqueTerms []v1.PodAffinityTerm
 	for _, term := range schedutil.GetPodAntiAffinityTerms(affinity.PodAntiAffinity) {
-		termMatches, err := c.anyPodMatchesPodAffinityTerm(pod, nodeInfo, &term)
+		if term.TopologyKey == v1.LabelHostname {
+			hostuniqueTerms = append(hostuniqueTerms, term)
+		}
+	}
+	if len(arrTolerance) != len(hostuniqueTerms) {
+		return fmt.Errorf("tolerance array and hostunique anti-affinity terms have different size")
+	}
+
+	for i, term := range hostuniqueTerms {
+		tolerance, err := strconv.Atoi(arrTolerance[i])
+		if err != nil || tolerance < 0 {
+			return fmt.Errorf("wrong tolerance: %v", arrTolerance[i])
+		}
+		termMatches, err := c.anyPodMatchesPodAffinityTerm(pod, nodeInfo, &term, tolerance)
 		if err != nil || termMatches {
 			klog.V(10).Infof("Cannot schedule pod %+v onto node %v, because of PodAntiAffinityTerm %v, err: %v",
 				podName(pod), nodeInfo.Node().Name, term, err)
@@ -81,23 +106,16 @@ func (c *HostUniqueChecker) satisfiesPodsHostUnique(pod *v1.Pod, nodeInfo *sched
 	return nil
 }
 
-func (c *HostUniqueChecker) anyPodMatchesPodAffinityTerm(pod *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo, term *v1.PodAffinityTerm) (bool, error) {
+func (c *HostUniqueChecker) anyPodMatchesPodAffinityTerm(pod *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo, term *v1.PodAffinityTerm, toleranceCount int) (bool, error) {
+	// TODO: remove these two checks
 	if len(term.TopologyKey) == 0 {
 		return false, fmt.Errorf("empty topologyKey is not allowed except for PreferredDuringScheduling pod anti-affinity")
 	}
 	if term.TopologyKey != v1.LabelHostname {
-		return true, nil
+		return false, nil
 	}
+
 	toleranced := 1
-	toleranceCount := 1
-	anno := pod.GetAnnotations()
-	if anno != nil {
-		if v, ok := anno[apipod.PodHostUniqueToleranceAnnotation]; ok {
-			if c, err := strconv.Atoi(v); err == nil {
-				toleranceCount = c
-			}
-		}
-	}
 	namespaces := schedutil.GetNamespacesFromPodAffinityTerm(pod, term)
 	selector, err := metav1.LabelSelectorAsSelector(term.LabelSelector)
 	if err != nil {
