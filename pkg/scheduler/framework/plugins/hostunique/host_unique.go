@@ -71,20 +71,23 @@ func (c *HostUniqueChecker) Filter(ctx context.Context, cycleState *framework.Cy
 }
 
 func (c *HostUniqueChecker) satisfiesPodsHostUnique(pod *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo, affinity *v1.Affinity) error {
+	var hasTolerance = true
+	var arrTolerance []string
 	anno := pod.GetAnnotations()
-	if anno == nil {
-		return nil
+	if _, ok := anno[apipod.PodHostUniqueToleranceAnnotation]; !ok {
+		hasTolerance = false
 	}
-	str, ok := anno[apipod.PodHostUniqueToleranceAnnotation]
-	if !ok {
-		return nil
-	}
-	arrTolerance := strings.Split(str, ",")
 
+	if hasTolerance {
+		arrTolerance = strings.Split(anno[apipod.PodHostUniqueToleranceAnnotation], ",")
+	}
 	var hostuniqueTerms []v1.PodAffinityTerm
 	for _, term := range schedutil.GetPodAntiAffinityTerms(affinity.PodAntiAffinity) {
 		if term.TopologyKey == v1.LabelHostname {
 			hostuniqueTerms = append(hostuniqueTerms, term)
+			if !hasTolerance {
+				arrTolerance = append(arrTolerance, "1")
+			}
 		}
 	}
 	if len(arrTolerance) != len(hostuniqueTerms) {
