@@ -323,14 +323,15 @@ func getUsedPorts(pods ...*v1.Pod) (map[int]types.UID, int) {
 }
 
 func getPodUsedPorts(pod *v1.Pod) []int {
-	ports := []int{}
+	var ports []int
 	overridePorts := utilpod.GetOverridePorts(pod)
 	for _, container := range pod.Spec.Containers {
 		for _, podPort := range container.Ports {
+			podPortHostPort := int(podPort.HostPort)
 			// "0" is explicitly ignored in PodFitsHostPorts,
 			// which is the only function that uses this value.
-			if !overridePorts.Has(string(podPort.HostPort)) {
-				ports = append(ports, int(podPort.HostPort))
+			if !overridePorts.Has(strconv.Itoa(podPortHostPort)) {
+				ports = append(ports, podPortHostPort)
 			}
 		}
 	}
