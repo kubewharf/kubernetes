@@ -6,8 +6,8 @@ code.byted.org/kubernetes/apis v0.1.3 h1:1AhPZMwrLkZBuVBTf8O5FjocTTolDQXzZYNcaaO
 code.byted.org/kubernetes/apis v0.1.3/go.mod h1:EegxlZ1MxCDPD/SXuONXvRXVm1sZr7AINmv/shms+oY=
 code.byted.org/kubernetes/clientsets v0.1.3 h1:byTjyaBDmRMDsr51L8S4rDILiPepQINf8qLoya8OYBo=
 code.byted.org/kubernetes/clientsets v0.1.3/go.mod h1:qjrQKoavpNyOSffNJIvckHTO8klkudI6xv8FkkYvZgk=
-code.byted.org/tce/cadvisor v0.37.3 h1:7aafccGQiqTXVQbpi1Uc3j27ew604ERuXoowaBcrl8g=
-code.byted.org/tce/cadvisor v0.37.3/go.mod h1:OhDE+goNVel0eGY8mR7Ifq1QUI1in5vJBIgIpcajK/I=
+code.byted.org/tce/cadvisor v0.37.4 h1:5ivU9ygDNTKhMTr7DuK9eshTP6bdoeOukPASf71lKZc=
+code.byted.org/tce/cadvisor v0.37.4/go.mod h1:OhDE+goNVel0eGY8mR7Ifq1QUI1in5vJBIgIpcajK/I=
 code.byted.org/tce/etcd v0.5.0-alpha.5.0.20220511070715-6ab1e92a1634 h1:iK69b5NLA/EnBIn0uLUfPpWkVUbtjYyADyjThzH2gRg=
 code.byted.org/tce/etcd v0.5.0-alpha.5.0.20220511070715-6ab1e92a1634/go.mod h1:yZKMTq8NLl18zB7hYMHn5mlxS1sHttbfz/b4Cz86ZDw=
 code.byted.org/tce/jaeger-client-go v2.16.2+incompatible h1:TxgdBcO1bo/xAbuHGTrp6sCxlGgM/a1tq/fGQJMMPnk=
@@ -16,8 +16,8 @@ code.byted.org/tce/k8s-utils v0.0.0-20210616064148-7505c2c40546 h1:xuRynNwtnA59j
 code.byted.org/tce/k8s-utils v0.0.0-20210616064148-7505c2c40546/go.mod h1:sZAwmy6armz5eXlNoLmJcl4F1QuKu7sr+mFQ0byX7Ew=
 code.byted.org/tce/kube-tracing v0.2.3 h1:Jj1WmqvNRumJc6vNLjt9GBBJ+PSZqZZuNeGEXIefhsc=
 code.byted.org/tce/kube-tracing v0.2.3/go.mod h1:VP4EkIu+YKl56Z2HAhV3xGl21kS+kY1avfvO1erwMS8=
-code.byted.org/tce/kubebrain-client v0.0.0-20220512063439-02b223140643 h1:wYmoShlqlY/6jUB8K8y70KWOnwALLDyxq4Ru9Hz0VdQ=
-code.byted.org/tce/kubebrain-client v0.0.0-20220512063439-02b223140643/go.mod h1:ZqMQEu2Vrdqfqp/T89qjGlAtrLybOD/zFJ+pF6QpcP4=
+code.byted.org/tce/kubebrain-client v0.1.0 h1:k/guytBUfMWxL57BHZv8Sc9N5H3DrXwahOMyHGfYrJc=
+code.byted.org/tce/kubebrain-client v0.1.0/go.mod h1:ZqMQEu2Vrdqfqp/T89qjGlAtrLybOD/zFJ+pF6QpcP4=
 code.byted.org/tce/opentracing-go v1.1.0-tce-kube-tracing h1:FeI/IJb0BqTjvDyeszpWIvuuyNlcpz814lcFQWQZmVw=
 code.byted.org/tce/opentracing-go v1.1.0-tce-kube-tracing/go.mod h1:taHceXEnY8EopBiGbaRBaLCO0YHJ83X/iQDEZdFrvhg=
 github.com/Azure/azure-sdk-for-go v35.0.0+incompatible h1:PkmdmQUmeSdQQ5258f4SyCf2Zcz0w67qztEg37cOR7U=

@@ -62,7 +62,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20160516000752-02826c3e7903
 	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.4.2
-	github.com/google/cadvisor v0.37.3
+	github.com/google/cadvisor v0.37.4
 	github.com/google/go-cmp v0.5.2
 	github.com/google/gofuzz v1.1.0
 	github.com/google/uuid v1.1.1
@@ -164,7 +164,7 @@ replace (
 	code.byted.org/kubernetes/apis => code.byted.org/kubernetes/apis v0.1.3
 	code.byted.org/kubernetes/clientsets => code.byted.org/kubernetes/clientsets v0.1.3
 	code.byted.org/tce/kube-tracing => code.byted.org/tce/kube-tracing v0.2.3
-	code.byted.org/tce/kubebrain-client => code.byted.org/tce/kubebrain-client v0.0.0-20220512063439-02b223140643
+	code.byted.org/tce/kubebrain-client => code.byted.org/tce/kubebrain-client v0.1.0
 	github.com/Azure/azure-sdk-for-go => github.com/Azure/azure-sdk-for-go v35.0.0+incompatible
 	github.com/Azure/go-ansiterm => github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78
 	github.com/Azure/go-autorest/autorest => github.com/Azure/go-autorest/autorest v0.9.0
@@ -327,7 +327,7 @@ replace (
 	github.com/golangplus/fmt => github.com/golangplus/fmt v0.0.0-20150411045040-2a5d6d7d2995
 	github.com/golangplus/testing => github.com/golangplus/testing v0.0.0-20180327235837-af21d9c3145e
 	github.com/google/btree => github.com/google/btree v1.0.0
-	github.com/google/cadvisor => code.byted.org/tce/cadvisor v0.37.3
+	github.com/google/cadvisor => code.byted.org/tce/cadvisor v0.37.4
 	github.com/google/go-cmp => github.com/google/go-cmp v0.3.0
 	github.com/google/go-github => github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-querystring => github.com/google/go-querystring v1.0.0

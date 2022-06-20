@@ -20,7 +20,7 @@ code.byted.org/kubernetes/clientsets/k8s/listers/csi/v1alpha1
 code.byted.org/kubernetes/clientsets/k8s/listers/non.native.resource/v1alpha1
 # code.byted.org/tce/kube-tracing v0.2.3 => code.byted.org/tce/kube-tracing v0.2.3
 code.byted.org/tce/kube-tracing
-# code.byted.org/tce/kubebrain-client v0.0.0-20220512063439-02b223140643 => code.byted.org/tce/kubebrain-client v0.0.0-20220512063439-02b223140643
+# code.byted.org/tce/kubebrain-client v0.1.0 => code.byted.org/tce/kubebrain-client v0.1.0
 code.byted.org/tce/kubebrain-client/api/v2rpc
 code.byted.org/tce/kubebrain-client/client
 code.byted.org/tce/kubebrain-client/client/balancer/picker
@@ -382,7 +382,7 @@ github.com/golang/protobuf/ptypes/timestamp
 github.com/golang/protobuf/ptypes/wrappers
 # github.com/google/btree v1.0.0 => github.com/google/btree v1.0.0
 github.com/google/btree
-# github.com/google/cadvisor v0.37.3 => code.byted.org/tce/cadvisor v0.37.3
+# github.com/google/cadvisor v0.37.4 => code.byted.org/tce/cadvisor v0.37.4
 github.com/google/cadvisor/accelerators
 github.com/google/cadvisor/cache/memory
 github.com/google/cadvisor/client/v2
