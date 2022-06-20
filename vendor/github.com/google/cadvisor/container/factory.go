@@ -213,7 +213,7 @@ func NewContainerHandler(name string, watchType watcher.ContainerWatchSource, in
 			handle, err := factory.NewContainerHandler(name, inHostNamespace)
 			return handle, canAccept, err
 		}
-		klog.Infof("Factory %q was unable to handle container %q", factory, name)
+		klog.V(5).Infof("Factory %q was unable to handle container %q", factory, name)
 	}
 
 	return nil, false, fmt.Errorf("no known factory can handle creation of container")
