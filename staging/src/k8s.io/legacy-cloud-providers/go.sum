@@ -3,7 +3,7 @@ cloud.google.com/go v0.38.0/go.mod h1:990N+gfupTy94rShfmMCWGDn0LpTmnzTp2qbd1dvSR
 code.byted.org/tce/etcd v0.5.0-alpha.5.0.20220511070715-6ab1e92a1634/go.mod h1:yZKMTq8NLl18zB7hYMHn5mlxS1sHttbfz/b4Cz86ZDw=
 code.byted.org/tce/k8s-utils v0.0.0-20210616064148-7505c2c40546 h1:xuRynNwtnA59jGh3Mqre7Ul3HxOEgm654A7h8buk4Hc=
 code.byted.org/tce/k8s-utils v0.0.0-20210616064148-7505c2c40546/go.mod h1:sZAwmy6armz5eXlNoLmJcl4F1QuKu7sr+mFQ0byX7Ew=
-code.byted.org/tce/kubebrain-client v0.1.0/go.mod h1:ZqMQEu2Vrdqfqp/T89qjGlAtrLybOD/zFJ+pF6QpcP4=
+code.byted.org/tce/kubebrain-client v0.2.0/go.mod h1:ZqMQEu2Vrdqfqp/T89qjGlAtrLybOD/zFJ+pF6QpcP4=
 github.com/Azure/azure-sdk-for-go v35.0.0+incompatible h1:PkmdmQUmeSdQQ5258f4SyCf2Zcz0w67qztEg37cOR7U=
 github.com/Azure/azure-sdk-for-go v35.0.0+incompatible/go.mod h1:9XXNKU+eRnpl9moKnB4QOLf1HestfXbmab5FXxiDBjc=
 github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78/go.mod h1:LmzpDX56iTiv29bbRTIsUNlaFfuhWRQBWjQdVyAevI8=

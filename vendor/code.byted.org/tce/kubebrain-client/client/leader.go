@@ -2,14 +2,14 @@ package client
 
 import (
 	"context"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"sync"
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/resolver"
+	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
 
 	iresolver "code.byted.org/tce/kubebrain-client/client/balancer/resolver"
@@ -18,11 +18,13 @@ import (
 
 type leaderChecker struct {
 	Config
+	grpcDialOpts []grpc.DialOption
 }
 
-func newLeaderChecker(config Config) *leaderChecker {
+func newLeaderChecker(config Config, opts []grpc.DialOption) *leaderChecker {
 	return &leaderChecker{
-		Config: config,
+		Config:       config,
+		grpcDialOpts: opts,
 	}
 }
 
@@ -77,7 +79,7 @@ func (l *leaderChecker) grpcHealthCheck(ctx context.Context, ep string) (isHealt
 	ep = "passthrough:///" + host
 
 	klog.V(l.LogLevel).InfoS("start check endpoints", "endpoint", ep)
-	conn, err := grpc.DialContext(ctx, ep, grpc.WithInsecure())
+	conn, err := grpc.DialContext(ctx, ep, l.grpcDialOpts...)
 	if err != nil {
 		if status.Code(err) != codes.Canceled {
 			klog.ErrorS(err, "dial failed", "endpoints", ep)

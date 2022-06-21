@@ -22,39 +22,37 @@ type leaderCtrl struct {
 	singleflight.Group
 }
 
+func (l *leaderCtrl) getLeaderRecord(key string) *leaderRecord {
+	l.RLock()
+	defer l.RUnlock()
+	ret := l.leaderIndex[key]
+	if ret == nil {
+		ret = &leaderRecord{}
+	}
+	return ret
+}
+
 func (l *leaderCtrl) needUpdateLeader(key string, leader string) bool {
 	ret := false
-	l.slock(func() {
-		record, ok := l.leaderIndex[key]
-		if !ok {
-			return
-		}
-		ret = record.getLeader() == leader
-	})
+	l.RLock()
+	defer l.RUnlock()
+	record, ok := l.leaderIndex[key]
+	if !ok {
+		return false
+	}
+	ret = record.getLeader() == leader
 	return ret
 }
 
 // updateClusterLeader is safe for calling concurrently to update cluster info
 func (l *leaderCtrl) updateClusterLeader(clusterKey string, leader string) {
-	l.slock(func() {
-		record, ok := l.leaderIndex[clusterKey]
-		if !ok {
-			return
-		}
-		record.setLeader(leader)
-	})
-}
-
-func (l *leaderCtrl) xlock(f func()) {
-	l.Lock()
-	defer l.Unlock()
-	f()
-}
-
-func (l *leaderCtrl) slock(f func()) {
 	l.RLock()
 	defer l.RUnlock()
-	f()
+	record, ok := l.leaderIndex[clusterKey]
+	if !ok {
+		return
+	}
+	record.setLeader(leader)
 }
 
 func (l *leaderCtrl) updateClusterAmount(eps []string, amount int, cb func() (resolver.Address, error)) {
@@ -64,49 +62,50 @@ func (l *leaderCtrl) updateClusterAmount(eps []string, amount int, cb func() (re
 
 	clusterKey := marshalEndpoints(eps)
 
-	l.xlock(func() {
-		record, ok := l.leaderIndex[clusterKey]
-		if !ok && amount > 0 {
-			record = newLeaderRecord(cb)
-			l.leaderIndex[clusterKey] = record
-			if len(eps) == 1 {
-				return
-			}
+	l.Lock()
+	defer l.Unlock()
 
-			for _, ep := range eps {
-				if _, ok := l.leaderIndex[ep]; ok {
-					record.close()
-					panic("do not support one endpoint in different cluster")
-				}
-				l.leaderIndex[ep] = record
-			}
-
-			return
-		} else if !ok && amount <= 0 {
+	record, ok := l.leaderIndex[clusterKey]
+	if !ok && amount > 0 {
+		record = newLeaderRecord(cb)
+		l.leaderIndex[clusterKey] = record
+		if len(eps) == 1 {
 			return
 		}
 
-		record.amount += amount
-		if record.amount <= 0 {
-			delete(l.leaderIndex, clusterKey)
-			for _, ep := range eps {
-				delete(l.leaderIndex, ep)
+		for _, ep := range eps {
+			if _, ok := l.leaderIndex[ep]; ok {
+				record.close()
+				panic("do not support one endpoint in different cluster")
 			}
-			record.cancel()
-			l.Forget(clusterKey)
+			l.leaderIndex[ep] = record
 		}
-	})
+
+		return
+	} else if !ok && amount <= 0 {
+		return
+	}
+
+	record.amount += amount
+	if record.amount <= 0 {
+		delete(l.leaderIndex, clusterKey)
+		for _, ep := range eps {
+			delete(l.leaderIndex, ep)
+		}
+		record.cancel()
+		l.Forget(clusterKey)
+	}
 }
 
 func (l *leaderCtrl) getLeaderAddr(key string) string {
 	addr := ""
-	l.slock(func() {
-		record, ok := l.leaderIndex[key]
-		if !ok {
-			return
-		}
-		addr = record.getLeader()
-	})
+	l.RLock()
+	defer l.RUnlock()
+	record, ok := l.leaderIndex[key]
+	if !ok {
+		return ""
+	}
+	addr = record.getLeader()
 	return addr
 }
 

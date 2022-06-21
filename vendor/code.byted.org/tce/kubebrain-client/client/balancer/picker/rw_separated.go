@@ -36,24 +36,13 @@ func newRWSeparatedRoundRobinBalanced(conf config) balancer.Picker {
 		addrs = append(addrs, addr.Addr)
 	}
 
-	var record *leaderRecord
-	globalLeaderCtrl.slock(func() {
-		g := globalLeaderCtrl
-		record = g.leaderIndex[key]
-		if record == nil {
-			// maybe all clients are closed and record can not be indexed by given key,
-			// just construct an empty record to avoid callings except read API
-			record = &leaderRecord{}
-		}
-	})
-
-	klog.InfoS("new rw separated rr balancer", "addresses", addrs)
+	klog.V(conf.logLevel).InfoS("new rw separated rr balancer", "addresses", addrs)
 	return &rwSeparatedRoundBalanced{
 		addrToSC:    conf.readySCs,
 		rawAddrToSC: rawAddrToSC,
 		logLevel:    conf.logLevel,
 		key:         key,
-		record:      record,
+		record:      globalLeaderCtrl.getLeaderRecord(key),
 		readerAddrs: make([]resolver.Address, 0, len(conf.readySCs)),
 	}
 }
