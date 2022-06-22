@@ -19,6 +19,7 @@ package pvcprotection
 import (
 	"errors"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -122,9 +123,25 @@ func withProtectionFinalizer(pvc *v1.PersistentVolumeClaim) *v1.PersistentVolume
 	return pvc
 }
 
+func deletedNow(pvc *v1.PersistentVolumeClaim) *v1.PersistentVolumeClaim {
+	now := metav1.Unix(metav1.Now().Unix(), 0)
+	pvc.DeletionTimestamp = &now
+	return pvc
+}
+
 func deleted(pvc *v1.PersistentVolumeClaim) *v1.PersistentVolumeClaim {
 	pvc.DeletionTimestamp = &metav1.Time{}
 	return pvc
+}
+
+func withPvcResourceVersion(pvc *v1.PersistentVolumeClaim, resourceVersion int64) *v1.PersistentVolumeClaim {
+	pvc.ResourceVersion = strconv.FormatInt(resourceVersion, 10)
+	return pvc
+}
+
+func withPodResourceVersion(pod *v1.Pod, resourceVersion int64) *v1.Pod {
+	pod.ResourceVersion = strconv.FormatInt(resourceVersion, 10)
+	return pod
 }
 
 func generateUpdateErrorFunc(t *testing.T, failures int) clienttesting.ReactionFunc {
@@ -398,6 +415,35 @@ func TestPVCProtectionController(t *testing.T) {
 			deletedPod:                          unscheduled(withPVC(defaultPVCName, pod())),
 			updatedPod:                          withPVC(defaultPVCName, pod()),
 			expectedActions:                     []clienttesting.Action{},
+			storageObjectInUseProtectionEnabled: true,
+		},
+		//
+		// Pvc events and pod events
+		//
+		{
+			name:       "StorageObjectInUseProtection Enabled, pod resourceVersion is bigger than pvc, deleted PVC with finalizer -> finalizer is removed",
+			updatedPVC: deletedNow(withPvcResourceVersion(withProtectionFinalizer(pvc()), 1)),
+			updatedPod: withPodResourceVersion(pod(), 2),
+			expectedActions: []clienttesting.Action{
+				clienttesting.NewUpdateAction(pvcGVR, defaultNS, deletedNow(withPvcResourceVersion(pvc(), 1))),
+			},
+			storageObjectInUseProtectionEnabled: true,
+		},
+		{
+			name:                                "StorageObjectInUseProtection Enabled, pod resourceVersion is smaller than pvc, deleted PVC with finalizer -> finalizer is removed",
+			updatedPVC:                          deletedNow(withPvcResourceVersion(withProtectionFinalizer(pvc()), 3)),
+			updatedPod:                          withPodResourceVersion(pod(), 2),
+			storageObjectInUseProtectionEnabled: true,
+		},
+		{
+			name:       "StorageObjectInUseProtection Enabled, pvc checked timeout, ask apiServer, deleted PVC with finalizer -> finalizer is removed",
+			updatedPVC: deleted(withPvcResourceVersion(withProtectionFinalizer(pvc()), 11)),
+			updatedPod: withPodResourceVersion(pod(), 2),
+			expectedActions: []clienttesting.Action{
+				// ask apiServer for pod list
+				clienttesting.NewListAction(podGVR, podGVK, defaultNS, metav1.ListOptions{}),
+				clienttesting.NewUpdateAction(pvcGVR, defaultNS, deleted(withPvcResourceVersion(pvc(), 11))),
+			},
 			storageObjectInUseProtectionEnabled: true,
 		},
 	}

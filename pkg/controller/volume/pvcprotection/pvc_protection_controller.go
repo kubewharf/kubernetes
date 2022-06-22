@@ -19,6 +19,7 @@ package pvcprotection
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -39,6 +40,10 @@ import (
 	volumeutil "k8s.io/kubernetes/pkg/volume/util"
 )
 
+const (
+	DefaultMaxCheckDurationSeconds = 30
+)
+
 // Controller is controller that removes PVCProtectionFinalizer
 // from PVCs that are used by no pods.
 type Controller struct {
@@ -54,6 +59,9 @@ type Controller struct {
 
 	// allows overriding of StorageObjectInUseProtection feature Enabled/Disabled for testing
 	storageObjectInUseProtectionEnabled bool
+
+	// record the latest resourceVersion come to the workqueue
+	podLatestResourceVersion podLatestResourceVersion
 }
 
 // NewPVCProtectionController returns a new instance of PVCProtectionController.
@@ -66,6 +74,8 @@ func NewPVCProtectionController(pvcInformer coreinformers.PersistentVolumeClaimI
 	if cl != nil && cl.CoreV1().RESTClient().GetRateLimiter() != nil {
 		ratelimiter.RegisterMetricAndTrackRateLimiterUsage("persistentvolumeclaim_protection_controller", cl.CoreV1().RESTClient().GetRateLimiter())
 	}
+
+	e.podLatestResourceVersion = NewPodLatestResourceVersion()
 
 	e.pvcLister = pvcInformer.Lister()
 	e.pvcListerSynced = pvcInformer.Informer().HasSynced
@@ -211,6 +221,11 @@ func (c *Controller) removeFinalizer(pvc *v1.PersistentVolumeClaim) error {
 }
 
 func (c *Controller) isBeingUsed(pvc *v1.PersistentVolumeClaim) (bool, error) {
+	needAskApiServer, err := c.needAskApiServer(pvc)
+	if err != nil {
+		return true, err
+	}
+
 	// Look for a Pod using pvc in the Informer's cache. If one is found the
 	// correct decision to keep pvc is taken without doing an expensive live
 	// list.
@@ -221,11 +236,14 @@ func (c *Controller) isBeingUsed(pvc *v1.PersistentVolumeClaim) (bool, error) {
 		return true, nil
 	}
 
-	// Even if no Pod using pvc was found in the Informer's cache it doesn't
-	// mean such a Pod doesn't exist: it might just not be in the cache yet. To
-	// be 100% confident that it is safe to delete pvc make sure no Pod is using
-	// it among those returned by a live list.
-	return c.askAPIServer(pvc)
+	if needAskApiServer {
+		// Even if no Pod using pvc was found in the Informer's cache it doesn't
+		// mean such a Pod doesn't exist: it might just not be in the cache yet. To
+		// be 100% confident that it is safe to delete pvc make sure no Pod is using
+		// it among those returned by a live list.
+		return c.askAPIServer(pvc)
+	}
+	return false, nil
 }
 
 func (c *Controller) askInformer(pvc *v1.PersistentVolumeClaim) (bool, error) {
@@ -261,6 +279,35 @@ func (c *Controller) askAPIServer(pvc *v1.PersistentVolumeClaim) (bool, error) {
 	}
 
 	klog.V(2).Infof("PVC %s/%s is unused", pvc.Namespace, pvc.Name)
+	return false, nil
+}
+
+func (c *Controller) needAskApiServer(pvc *v1.PersistentVolumeClaim) (bool, error) {
+	podResourceVersionStr := c.podLatestResourceVersion.Get()
+	pvcResourceVersion, err1 := strconv.ParseUint(pvc.ResourceVersion, 10, 64)
+	if err1 != nil {
+		klog.V(4).Infof("Pvc %s/%s needs to ask api server, as parse pvc resourceVersion:%s failed, err: %s",
+			pvc.Namespace, pvc.Name, pvc.ResourceVersion, err1.Error())
+		return true, nil
+	}
+	podResourceVersion, err2 := strconv.ParseUint(podResourceVersionStr, 10, 64)
+	if err2 != nil {
+		klog.V(4).Infof("Pvc %s/%s needs to ask api server, as parse pod resourceVersion:%s failed, err: %s",
+			pvc.Namespace, pvc.Name, podResourceVersionStr, err2.Error())
+		return true, nil
+	}
+
+	if pvcResourceVersion >= podResourceVersion {
+		// if pvc is kept more than DefaultMaxCheckDurationSeconds, ask api server to finish it.
+		if pvc.GetDeletionTimestamp().Add(DefaultMaxCheckDurationSeconds * time.Second).Before(time.Now()) {
+			klog.V(4).Infof("Pvc %s/%s needs to ask api server", pvc.Namespace, pvc.Name)
+			return true, nil
+		} else {
+			return true, fmt.Errorf("pvc %s/%s can't be removed, pvcResourceVersion: %s, podResourceVersion: %s",
+				pvc.Namespace, pvc.Name, pvc.ResourceVersion, podResourceVersionStr)
+		}
+	}
+	klog.V(4).Infof("Pvc %s/%s does not need to ask api server", pvc.Namespace, pvc.Name)
 	return false, nil
 }
 
@@ -301,6 +348,7 @@ func (c *Controller) pvcAddedUpdated(obj interface{}) {
 // podAddedDeletedUpdated reacts to Pod events
 func (c *Controller) podAddedDeletedUpdated(old, new interface{}, deleted bool) {
 	if pod := c.parsePod(new); pod != nil {
+		c.podLatestResourceVersion.Update(pod.ResourceVersion)
 		c.enqueuePVCs(pod, deleted)
 
 		// An update notification might mask the deletion of a pod X and the
