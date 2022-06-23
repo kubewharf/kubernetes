@@ -2,8 +2,12 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
+	"net"
+	"net/url"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
 
@@ -12,9 +16,13 @@ import (
 	iresolver "code.byted.org/tce/kubebrain-client/client/balancer/resolver"
 )
 
+// Config is the configuration of client
 type Config struct {
 	// Endpoints is a list of URLs
 	Endpoints []string `json:"endpoints"`
+
+	// TLS is the tls config for handshake with server
+	TLS *tls.Config
 
 	// LogLevel is the level of info log
 	LogLevel klog.Level `json:"log-level"`
@@ -42,6 +50,8 @@ type clientImpl struct {
 
 	rpcClient *rpcClient
 
+	scheme string
+	creds  *transportCredentials
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -61,26 +71,48 @@ func newRpcClient(conn *grpc.ClientConn) *rpcClient {
 }
 
 func NewClient(config Config) (Client, error) {
-	//config.Endpoints = parseEndpoints(config.Endpoints)
+
+	// check if config is valid
+	if len(config.Endpoints) == 0 {
+		return nil, errors.New("no available endpoint")
+	}
 	return newClient(config)
 }
 
 func newClient(config Config) (*clientImpl, error) {
 	var err error
 	c := &clientImpl{config: config}
+
+	if config.TLS != nil {
+		c.creds = newTransportCredentials(config)
+	}
+
+	// init scheme before all dial
+	c.initScheme()
+
 	c.ctx, c.cancel = context.WithCancel(context.Background())
 	c.rg = iresolver.NewResolverGroup(uuid.New().String())
 	c.rg.SetAddrs(config.Endpoints)
-	c.cc, err = c.dialWithBalancer(config)
+	c.cc, err = c.dialWithBalancer()
 	if err != nil {
 		return nil, err
 	}
 
 	c.rpcClient = newRpcClient(c.cc)
 
-	lc := newLeaderChecker(config)
+	// register cluster to run background heath check periodically
+	lc := newLeaderChecker(config, c.getDailOpts())
 	picker.RegisterCluster(config.Endpoints, lc.checkLeader)
 	return c, nil
+}
+
+func (c *clientImpl) initScheme() {
+	u, err := url.Parse(c.config.Endpoints[0])
+	if err != nil {
+		klog.ErrorS(err, "invalid url")
+		return
+	}
+	c.scheme = u.Scheme
 }
 
 func (c *clientImpl) Close() error {
@@ -90,7 +122,7 @@ func (c *clientImpl) Close() error {
 	return nil
 }
 
-func (c *clientImpl) dialWithBalancer(config Config) (*grpc.ClientConn, error) {
+func (c *clientImpl) dialWithBalancer() (*grpc.ClientConn, error) {
 	target := c.rg.Target()
 
 	// grpc msg size dial option
@@ -98,23 +130,46 @@ func (c *clientImpl) dialWithBalancer(config Config) (*grpc.ClientConn, error) {
 		defaultMaxCallSendMsgSize,
 		defaultMaxCallRecvMsgSize,
 	}
-	if config.MaxCallSendMsgSize > 0 {
-		grpcMsgSizeOpts[0] = grpc.MaxCallSendMsgSize(config.MaxCallSendMsgSize)
+	if c.config.MaxCallSendMsgSize > 0 {
+		grpcMsgSizeOpts[0] = grpc.MaxCallSendMsgSize(c.config.MaxCallSendMsgSize)
 	}
-	if config.MaxCallRecvMsgSize > 0 {
-		grpcMsgSizeOpts[1] = grpc.MaxCallRecvMsgSize(config.MaxCallRecvMsgSize)
+	if c.config.MaxCallRecvMsgSize > 0 {
+		grpcMsgSizeOpts[1] = grpc.MaxCallRecvMsgSize(c.config.MaxCallRecvMsgSize)
 	}
 	grpcMsgSizeDialOption := grpc.WithDefaultCallOptions(grpcMsgSizeOpts...)
 
-	return c.dial(target, grpc.WithInsecure(), grpc.WithBalancerName(Brain), grpcMsgSizeDialOption)
+	return c.dial(target, grpc.WithBalancerName(Brain), grpcMsgSizeDialOption)
 }
 
 func (c *clientImpl) dial(target string, dops ...grpc.DialOption) (*grpc.ClientConn, error) {
-	dialer := iresolver.Dialer
-	dops = append(dops, grpc.WithContextDialer(dialer))
+	dops = append(dops, c.getDailOpts()...)
 	conn, err := grpc.DialContext(c.ctx, target, dops...)
 	if err != nil {
 		return nil, err
 	}
 	return conn, nil
+}
+
+func (c *clientImpl) getDailOpts() []grpc.DialOption {
+	switch c.scheme {
+	case "https", "unixs":
+		return []grpc.DialOption{
+			grpc.WithTransportCredentials(c.creds),
+			grpc.WithContextDialer(c.dialer),
+		}
+	}
+
+	return []grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithContextDialer(c.dialer),
+	}
+}
+
+func (c *clientImpl) dialer(ctx context.Context, dialEp string) (net.Conn, error) {
+	klog.V(c.config.LogLevel).InfoS("dial", "endpoint", dialEp)
+	conn, err := iresolver.Dialer(ctx, dialEp)
+	if c.creds != nil {
+		c.creds.updateAddrToEndpoint(dialEp, conn)
+	}
+	return conn, err
 }

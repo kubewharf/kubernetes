@@ -2,10 +2,14 @@ package kubebrain
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"time"
 
 	kubebrainClient "code.byted.org/tce/kubebrain-client/client"
+	"github.com/pkg/errors"
 	"k8s.io/klog"
 
 	"k8s.io/apiserver/pkg/storage/storagebackend"
@@ -20,8 +24,13 @@ type brainClient struct {
 }
 
 func NewBrainClient(config storagebackend.Config) (client.Client, error) {
+	tlsConfig, err := getTLSConfig(config.Transport.CertFile, config.Transport.KeyFile, config.Transport.TrustedCAFile)
+	if err != nil {
+		return nil, err
+	}
 	client, err := kubebrainClient.NewClient(kubebrainClient.Config{
 		Endpoints: config.Transport.ServerList,
+		TLS:       tlsConfig,
 		LogLevel:  8,
 	})
 
@@ -29,6 +38,46 @@ func NewBrainClient(config storagebackend.Config) (client.Client, error) {
 		return nil, err
 	}
 	return &brainClient{client: client}, nil
+}
+
+func getTLSConfig(certFile, keyFile, ca string) (tlsConfig *tls.Config, err error) {
+	if len(certFile) == 0 && len(keyFile) == 0 && len(ca) == 0 {
+		klog.Info("conn to kubebrainv2 without tls config")
+		return nil, nil
+	}
+
+	tlsConfig = &tls.Config{}
+
+	if len(certFile) == 0 &&
+		len(keyFile) == 0 {
+		klog.Infof("conn to kubebrainv2 without client cert")
+	} else {
+		// load key pair
+		// there will be an error if either keyFile or certFile is invalid (not given, not exist, empty, etc.)
+		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			klog.Error("can not load key pair cert=%s, key=%key, err=%s", certFile, keyFile, err.Error())
+			return nil, errors.Wrapf(err, "can not load key pair")
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
+	if len(ca) == 0 {
+		klog.Infof("conn to kubebrainv2 with the host's root CA set")
+	} else {
+		// load ca file
+		certPool := x509.NewCertPool()
+		caFileBytes, err := ioutil.ReadFile(ca)
+		if err != nil {
+			klog.Error("can not load ca cert ca=%s, err=%s", ca, err.Error())
+			return nil, errors.Wrapf(err, "can not load ca cert")
+		}
+		certPool.AppendCertsFromPEM(caFileBytes)
+		tlsConfig.RootCAs = certPool
+	}
+
+	klog.Info("init tls config success")
+	return tlsConfig, nil
 }
 
 func (b *brainClient) Close() error {

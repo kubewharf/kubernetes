@@ -127,7 +127,6 @@ func (crg *customResolverGroup) addResolver(cr *customResolver) {
 	crg.resolvers = append(crg.resolvers, cr)
 	crg.mu.Unlock()
 
-	cr.cc.NewAddress(addrs)
 	cr.cc.UpdateState(resolver.State{
 		Addresses: addrs,
 	})

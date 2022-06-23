@@ -5,7 +5,7 @@ module k8s.io/apiserver
 go 1.13
 
 require (
-	code.byted.org/tce/kubebrain-client v0.1.0
+	code.byted.org/tce/kubebrain-client v0.2.0
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/BurntSushi/toml v0.4.1 // indirect
 	github.com/coreos/go-oidc v2.1.0+incompatible

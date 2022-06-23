@@ -20,7 +20,7 @@ code.byted.org/kubernetes/clientsets/k8s/listers/csi/v1alpha1
 code.byted.org/kubernetes/clientsets/k8s/listers/non.native.resource/v1alpha1
 # code.byted.org/tce/kube-tracing v0.2.3 => code.byted.org/tce/kube-tracing v0.2.3
 code.byted.org/tce/kube-tracing
-# code.byted.org/tce/kubebrain-client v0.1.0 => code.byted.org/tce/kubebrain-client v0.1.0
+# code.byted.org/tce/kubebrain-client v0.2.0 => code.byted.org/tce/kubebrain-client v0.2.0
 code.byted.org/tce/kubebrain-client/api/v2rpc
 code.byted.org/tce/kubebrain-client/client
 code.byted.org/tce/kubebrain-client/client/balancer/picker
