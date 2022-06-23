@@ -685,6 +685,12 @@ const (
 	// if enabled, remove godel best-effort pod in nodeinfo when fit pod with node resource.
 	// TODO: remove this when use cnr to fit be pod resource.
 	NodeResourceFitSkipGodelBEPod featuregate.Feature = "NodeResourceFitSkipGodelBEPod"
+
+	// owner: @xueyingcai
+	// alpha: v1.18
+	//
+	// if enable, try to get pdb for tce pod faster
+	FastGetPDBForTCEPod featuregate.Feature = "FastGetPDBForTCEPod"
 )
 
 func init() {
@@ -792,6 +798,7 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 	QoSResourceManager:                             {Default: false, PreRelease: featuregate.Alpha},
 	AutoMountLocalDisks:                            {Default: false, PreRelease: featuregate.Alpha},
 	NodeResourceFitSkipGodelBEPod:                  {Default: false, PreRelease: featuregate.Alpha},
+	FastGetPDBForTCEPod:                            {Default: false, PreRelease: featuregate.Alpha},
 	// inherited features from generic apiserver, relisted here to get a conflict if it is changed
 	// unintentionally on either side:
 	genericfeatures.StreamingProxyRedirects: {Default: true, PreRelease: featuregate.Deprecated},
