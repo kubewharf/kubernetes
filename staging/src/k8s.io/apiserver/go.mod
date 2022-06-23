@@ -54,7 +54,7 @@ require (
 	k8s.io/client-go v0.0.0
 	k8s.io/component-base v0.0.0
 	k8s.io/klog v1.0.0
-	k8s.io/kube-openapi v0.0.0-20200410145947-61e04a5be9a6 // release-1.18
+	k8s.io/kube-openapi v0.0.0-20200410145947-61e04a5be9a6
 	k8s.io/utils v0.0.0-20210616064148-7505c2c40546
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.7
 	sigs.k8s.io/structured-merge-diff/v3 v3.0.0
