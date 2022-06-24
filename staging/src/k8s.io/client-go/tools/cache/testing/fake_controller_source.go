@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/tools/cache/sharding"
 )
 
 func NewFakeControllerSource() *FakeControllerSource {
@@ -178,8 +179,24 @@ func (f *FakeControllerSource) List(options metav1.ListOptions) (runtime.Object,
 	if err != nil {
 		return nil, err
 	}
+
+	var newlist []runtime.Object
+	if options.ShardingCount > 0 && options.ShardingLabelKey == sharding.DefaultInformerShardingLabelKey {
+		for _, item := range list {
+			itemAccessor, err := meta.Accessor(item)
+			if err != nil {
+				return nil, err
+			}
+			if sharding.HashFNV32(itemAccessor.GetName())%int64(options.ShardingCount) == options.ShardingIndex {
+				newlist = append(newlist, item)
+			}
+		}
+	} else {
+		newlist = list
+	}
+
 	listObj := &v1.List{}
-	if err := meta.SetList(listObj, list); err != nil {
+	if err := meta.SetList(listObj, newlist); err != nil {
 		return nil, err
 	}
 	listAccessor, err := meta.ListAccessor(listObj)
