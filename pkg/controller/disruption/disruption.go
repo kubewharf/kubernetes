@@ -19,6 +19,8 @@ package disruption
 import (
 	"context"
 	"fmt"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	"k8s.io/kubernetes/pkg/features"
 	"time"
 
 	apps "k8s.io/api/apps/v1beta1"
@@ -29,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -47,10 +50,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog"
+	utilpod "k8s.io/kubernetes/pkg/api/pod"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/pkg/controller"
-
-	"k8s.io/klog"
 )
 
 // DeletionTimeout sets maximum time from the moment a pod is added to DisruptedPods in PDB.Status
@@ -466,9 +469,54 @@ func (dc *DisruptionController) enqueuePdbForRecheck(pdb *policy.PodDisruptionBu
 	dc.recheckQueue.AddAfter(key, delay)
 }
 
+func isOfflinePod(pod *v1.Pod) bool {
+	return utilpod.IsYodelPod(pod.GetAnnotations()) || utilpod.IsArceePod(pod.GetAnnotations())
+}
+
+func (dc *DisruptionController) getPdbForTCEPod(pod *v1.Pod) *policy.PodDisruptionBudget {
+
+	name := pod.Labels["name"]
+	if len(name) == 0 {
+		return nil
+	}
+
+	pdb, err := dc.pdbLister.PodDisruptionBudgets(pod.Namespace).Get(name)
+	if err != nil {
+		klog.V(4).Infof("No PodDisruptionBudgets found for tce pod %v", pod.Name)
+		return nil
+	}
+
+	ls, err := metav1.LabelSelectorAsSelector(pdb.Spec.Selector)
+	if err != nil {
+		klog.Warningf("invalid selector of pdb %s in ns %s: %s", pdb.Name, pdb.Namespace, err.Error())
+		return nil
+	}
+
+	if !ls.Matches(labels.Set(pod.Labels)) {
+		klog.V(4).Infof("unmatched pdb for tce pod %s in ns %s", pod.Name, pod.Namespace)
+		return nil
+	}
+
+	klog.V(4).Infof("get pdb for tce pod %s in ns %s successfully", pod.Name, pod.Namespace)
+	return pdb
+}
+
 func (dc *DisruptionController) getPdbForPod(pod *v1.Pod) *policy.PodDisruptionBudget {
 	if pod.Annotations != nil && pod.Annotations[SkipSyncPDBAnnotation] == "true" {
 		return nil
+	}
+
+	// skip offline pod
+	if isOfflinePod(pod) {
+		return nil
+	}
+
+	if utilfeature.DefaultFeatureGate.Enabled(features.FastGetPDBForTCEPod) {
+		pdb := dc.getPdbForTCEPod(pod)
+		if pdb != nil {
+			return pdb
+		}
+		// fallback if failed to get pdb for tce pod
 	}
 
 	// GetPodPodDisruptionBudgets returns an error only if no
