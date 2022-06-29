@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
+	"k8s.io/kubernetes/pkg/kubelet/config"
 	"k8s.io/kubernetes/pkg/kubelet/util/format"
 	hashutil "k8s.io/kubernetes/pkg/util/hash"
 	"k8s.io/kubernetes/third_party/forked/golang/expansion"
@@ -227,6 +228,11 @@ func (irecorder *innerEventRecorder) AnnotatedEventf(object runtime.Object, anno
 // Pod must not be nil.
 func IsHostNetworkPod(pod *v1.Pod) bool {
 	return pod.Spec.HostNetwork
+}
+
+func IsNICAffinityPod(pod *v1.Pod) bool {
+	_, exist := pod.Annotations[config.NICAffinityAnnotationName]
+	return exist
 }
 
 // TODO(random-liu): Convert PodStatus to running Pod, should be deprecated soon

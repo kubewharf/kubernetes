@@ -1608,7 +1608,8 @@ func (kl *Kubelet) generateAPIPodStatus(pod *v1.Pod, podStatus *kubecontainer.Po
 			klog.V(4).Infof("Cannot get host IP: %v", err)
 		} else {
 			s.HostIP = hostIP.String()
-			if kubecontainer.IsHostNetworkPod(pod) && s.PodIP == "" {
+			// if a pod need nic affinity, don't assign hostIP to podIP
+			if kubecontainer.IsHostNetworkPod(pod) && s.PodIP == "" && !kubecontainer.IsNICAffinityPod(pod) {
 				s.PodIP = s.HostIP
 				s.PodIPs = []v1.PodIP{{IP: s.PodIP}}
 			}
