@@ -16,6 +16,8 @@ limitations under the License.
 
 package config
 
+import kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
+
 // Defines sane defaults for the kubelet config.
 const (
 	DefaultKubeletPodsDirName                = "pods"
@@ -36,6 +38,7 @@ const (
 
 	UserNameAnnotation        = "godel.bytedance.com/user-name"
 	SSDAffinityAnnotation     = "godel.bytedance.com/ssd-affinity"
-	NICAffinityAnnotationName = "godel.bytedance.com/nic-affinity"
+	// NICAffinityAnnotationName is the same as the constant of kubecontainer for not leading to cycle import
+	NICAffinityAnnotationName = kubecontainer.NICAffinityAnnotationName
 	ApplicationNameLabel      = "godel.bytedance.com/application-name"
 )
