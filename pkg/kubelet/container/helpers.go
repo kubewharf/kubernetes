@@ -31,11 +31,14 @@ import (
 	"k8s.io/client-go/tools/record"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
-	"k8s.io/kubernetes/pkg/kubelet/config"
 	"k8s.io/kubernetes/pkg/kubelet/util/format"
 	hashutil "k8s.io/kubernetes/pkg/util/hash"
 	"k8s.io/kubernetes/third_party/forked/golang/expansion"
 	utilsnet "k8s.io/utils/net"
+)
+
+const (
+	NICAffinityAnnotationName = "godel.bytedance.com/nic-affinity"
 )
 
 // HandlerRunner runs a lifecycle handler for a container.
@@ -231,7 +234,7 @@ func IsHostNetworkPod(pod *v1.Pod) bool {
 }
 
 func IsNICAffinityPod(pod *v1.Pod) bool {
-	_, exist := pod.Annotations[config.NICAffinityAnnotationName]
+	_, exist := pod.Annotations[NICAffinityAnnotationName]
 	return exist
 }
 
