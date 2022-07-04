@@ -43,7 +43,7 @@ func NewShardingSharedInformer(lw ListerWatcher, exampleObject runtime.Object, d
 
 // NewShardingSharedIndexInformer creates a new instance for the listwatcher.
 func NewShardingSharedIndexInformer(lw ListerWatcher, objType runtime.Object, defaultEventHandlerResyncPeriod time.Duration, indexers Indexers) SharedIndexInformer {
-	return NewShardingSharedIndexInformerWithShardingCount(lw, objType, defaultEventHandlerResyncPeriod, Indexers{}, defaultShardingCount)
+	return NewShardingSharedIndexInformerWithShardingCount(lw, objType, defaultEventHandlerResyncPeriod, indexers, defaultShardingCount)
 }
 
 // NewShardingSharedIndexInformerWithShardingCount creates a new instance for the listwatcher.
