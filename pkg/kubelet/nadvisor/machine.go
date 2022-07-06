@@ -3,18 +3,19 @@ package nadvisor
 import (
 	"encoding/json"
 	"fmt"
-	cadvisorapi "github.com/google/cadvisor/info/v1"
-	"github.com/google/cadvisor/utils/sysfs"
-	"github.com/google/cadvisor/utils/sysinfo"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/klog"
 	"os"
 	"path"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+
+	cadvisorapi "github.com/google/cadvisor/info/v1"
+	"github.com/google/cadvisor/utils/sysfs"
+	"github.com/google/cadvisor/utils/sysinfo"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog"
 )
 
 var (
@@ -247,10 +248,10 @@ func getTopologyFromPseudoNUMAData(numaData PseudoNUMAData) (bool, []cadvisorapi
 		}
 		threadsOfCore[coreID].Insert(cpuID)
 	}
-	var socketTopology []cadvisorapi.Node
+	var cadvisorTopology []cadvisorapi.Node
 	var numaTopology []Numa
 	for socketID, numaSet := range numasOfSocket {
-		var coresInSocket []cadvisorapi.Core
+		var cadvisorCoresInNuma []cadvisorapi.Core
 		for _, numa := range numaSet.List() {
 			var coresInNuma []Core
 			for _, core := range coresOfNuma[numa].List() {
@@ -258,26 +259,27 @@ func getTopologyFromPseudoNUMAData(numaData PseudoNUMAData) (bool, []cadvisorapi
 					Id:      core,
 					Threads: threadsOfCore[core].List(),
 				})
-				coresInSocket = append(coresInSocket, cadvisorapi.Core{
-					Id:      core,
-					Threads: threadsOfCore[core].List(),
+				cadvisorCoresInNuma = append(cadvisorCoresInNuma, cadvisorapi.Core{
+					Id:       core,
+					Threads:  threadsOfCore[core].List(),
+					SocketID: socketID,
 				})
 			}
 			numaTopology = append(numaTopology, Numa{
 				Id:    numa,
 				Cores: coresInNuma,
 			})
+			cadvisorTopology = append(cadvisorTopology, cadvisorapi.Node{
+				Id:    numa,
+				Cores: cadvisorCoresInNuma,
+			})
 		}
-		socketTopology = append(socketTopology, cadvisorapi.Node{
-			Id:    socketID,
-			Cores: coresInSocket,
-		})
 	}
 	sort.Slice(numaTopology, func(i, j int) bool {
 		return numaTopology[i].Id < numaTopology[j].Id
 	})
-	sort.Slice(socketTopology, func(i, j int) bool {
-		return socketTopology[i].Id < socketTopology[j].Id
+	sort.Slice(cadvisorTopology, func(i, j int) bool {
+		return cadvisorTopology[i].Id < cadvisorTopology[j].Id
 	})
-	return true, socketTopology, numaTopology, nil
+	return true, cadvisorTopology, numaTopology, nil
 }

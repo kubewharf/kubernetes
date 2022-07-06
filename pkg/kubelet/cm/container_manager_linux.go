@@ -305,6 +305,10 @@ func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.I
 		qosContainerManager: qosContainerManager,
 	}
 
+	if numaNodeInfo == nil {
+		numaNodeInfo = make(cputopology.NUMANodeInfo)
+	}
+
 	cpuTopology, err := cputopology.Discover(machineInfo, numaNodeInfo)
 	if err != nil {
 		klog.Errorf("discrover cpu topology failed %s", err.Error())
@@ -314,6 +318,8 @@ func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.I
 		klog.Errorf("cpu topoloy check failed, err is  %s", err.Error())
 		return nil, err
 	}
+
+	klog.Infof("discover result: cpuTopology: %+v\nnumaNodeInfo: %+v", cpuTopology, numaNodeInfo)
 
 	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.TopologyManager) {
 		cm.topologyManager, err = topologymanager.NewManager(
