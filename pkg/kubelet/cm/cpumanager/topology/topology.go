@@ -251,8 +251,10 @@ func (d CPUDetails) CPUsInCores(ids ...int) cpuset.CPUSet {
 	return b.Result()
 }
 
-func transformNAdvisorNumaTopologyToNUMANodeInfo(numaTopology []nadvisor.Numa) NUMANodeInfo {
-	info := make(NUMANodeInfo)
+func transformNAdvisorNumaTopologyIntoNUMANodeInfo(numaTopology []nadvisor.Numa, numaNodeInfo NUMANodeInfo) {
+	for numa := range numaNodeInfo {
+		delete(numaNodeInfo, numa)
+	}
 
 	for _, numa := range numaTopology {
 		threads := []int{}
@@ -262,14 +264,16 @@ func transformNAdvisorNumaTopologyToNUMANodeInfo(numaTopology []nadvisor.Numa) N
 			}
 		}
 
-		info[numa.Id] = info[numa.Id].Union(cpuset.NewCPUSet(threads...))
+		numaNodeInfo[numa.Id] = numaNodeInfo[numa.Id].Union(cpuset.NewCPUSet(threads...))
 	}
-
-	return info
 }
 
 // Discover returns CPUTopology based on cadvisor node info
 func Discover(machineInfo *cadvisorapi.MachineInfo, numaNodeInfo NUMANodeInfo) (*CPUTopology, error) {
+	if numaNodeInfo == nil {
+		return nil, fmt.Errorf("got nil numaNodeInfo in Discover")
+	}
+
 	// check if is aliyun, may be deprecated in the future
 	if topoRefined, socketTopology, numaTopology, err := nadvisor.GetRefinedTopology(); err != nil {
 		return nil, fmt.Errorf("get refined topology failed with error: %v", err)
@@ -281,9 +285,10 @@ func Discover(machineInfo *cadvisorapi.MachineInfo, numaNodeInfo NUMANodeInfo) (
 		}
 
 		machineInfo.Topology = socketTopology
-		numaNodeInfo = transformNAdvisorNumaTopologyToNUMANodeInfo(numaTopology)
 
-		klog.Infof("get refined topology: %+v", numaNodeInfo)
+		klog.Infof("numaNodeInfo before refined: %+v", numaNodeInfo)
+		transformNAdvisorNumaTopologyIntoNUMANodeInfo(numaTopology, numaNodeInfo)
+		klog.Infof("numaNodeInfo after refined: %+v", numaNodeInfo)
 	} else {
 		klog.Infof("topology refined: %v; topology: %v", topoRefined, numaNodeInfo)
 	}
