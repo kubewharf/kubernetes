@@ -601,7 +601,7 @@ func (c *Cacher) GetToList(ctx context.Context, key string, resourceVersion stri
 	pagingEnabled := utilfeature.DefaultFeatureGate.Enabled(features.APIListChunking)
 	hasContinuation := pagingEnabled && len(pred.Continue) > 0
 	hasLimit := pagingEnabled && pred.Limit > 0 && resourceVersion != "0"
-	if resourceVersion == "" || hasContinuation || hasLimit {
+	if (resourceVersion == "" || hasContinuation || hasLimit) && pred.Sharding == nil {
 		// If resourceVersion is not specified, serve it from underlying
 		// storage (for backward compatibility). If a continuation is
 		// requested, serve it from the underlying storage as well.
@@ -685,7 +685,7 @@ func (c *Cacher) List(ctx context.Context, key string, resourceVersion string, p
 		resourceVersion = "0"
 	}
 
-	if resourceVersion == "" || hasContinuation || hasLimit {
+	if (resourceVersion == "" || hasContinuation || hasLimit) && pred.Sharding == nil {
 		// If resourceVersion is not specified, serve it from underlying
 		// storage (for backward compatibility). If a continuation is
 		// requested, serve it from the underlying storage as well.
