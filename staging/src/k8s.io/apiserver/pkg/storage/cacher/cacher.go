@@ -784,7 +784,7 @@ func shouldDelegateList(opts storage.ListOptions) bool {
 	isLegacyExactMatch := opts.Predicate.Limit > 0 && match == "" && len(resourceVersion) > 0 && resourceVersion != "0"
 	unsupportedMatch := match != "" && match != metav1.ResourceVersionMatchNotOlderThan || isLegacyExactMatch
 
-	return consistentReadFromStorage || hasContinuation || unsupportedMatch
+	return (consistentReadFromStorage || hasContinuation || unsupportedMatch) && opts.Predicate.Sharding == nil
 }
 
 // computeListLimit determines whether the cacher should

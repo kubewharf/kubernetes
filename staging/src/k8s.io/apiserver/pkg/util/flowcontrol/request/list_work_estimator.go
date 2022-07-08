@@ -178,5 +178,5 @@ func shouldListFromStorage(query url.Values, opts *metav1.ListOptions) bool {
 	isLegacyExactMatch := opts.Limit > 0 && match == "" && len(resourceVersion) > 0 && resourceVersion != "0"
 	unsupportedMatch := match != "" && match != metav1.ResourceVersionMatchNotOlderThan || isLegacyExactMatch
 
-	return consistentReadFromStorage || hasContinuation || unsupportedMatch
+	return (consistentReadFromStorage || hasContinuation || unsupportedMatch) && opts.ShardingCount <= 1
 }

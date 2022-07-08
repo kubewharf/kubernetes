@@ -171,14 +171,14 @@ func (s *shardingSharedIndexInformer) AddEventHandlerWithResyncPeriod(handler Re
 	s.handlersResyncPeriod = append(s.handlersResyncPeriod, resyncPeriod)
 	defer s.Unlock()
 
-	var handles intersectResourceEventHandlerRegistration
-	for _, informer := range s.sharedIndexInformers {
+	handles := intersectResourceEventHandlerRegistration{}
+	for shardingIndex, informer := range s.sharedIndexInformers {
 		handle, err := informer.AddEventHandlerWithResyncPeriod(handler, resyncPeriod)
 		if err != nil {
 			return nil, err
 		}
 
-		handles = append(handles, handle)
+		handles[shardingIndex] = handle
 	}
 	return handles, nil
 }
@@ -192,7 +192,7 @@ func (s *shardingSharedIndexInformer) RemoveEventHandler(handle ResourceEventHan
 	return nil
 }
 
-type intersectResourceEventHandlerRegistration []ResourceEventHandlerRegistration
+type intersectResourceEventHandlerRegistration map[int]ResourceEventHandlerRegistration
 
 func (slice intersectResourceEventHandlerRegistration) HasSynced() bool {
 	for _, item := range slice {
@@ -326,7 +326,7 @@ func (s *shardingSharedIndexInformer) List() []interface{} {
 	var result []interface{}
 	for i, informer := range s.sharedIndexInformers {
 		list := informer.GetStore().List()
-		klog.V(6).Infof("list %v objects from sharding informer %v", len(list), i)
+		klog.V(7).Infof("list %v objects from sharding informer %v", len(list), i)
 		result = append(result, list...)
 	}
 	return result
@@ -338,7 +338,7 @@ func (s *shardingSharedIndexInformer) ListKeys() []string {
 	var result []string
 	for i, informer := range s.sharedIndexInformers {
 		list := informer.GetStore().ListKeys()
-		klog.V(4).Infof("sharding informer %v list %v keys", i, len(list))
+		klog.V(7).Infof("sharding informer %v list %v keys", i, len(list))
 		result = append(result, list...)
 	}
 	return result
