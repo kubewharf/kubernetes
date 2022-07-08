@@ -59,7 +59,7 @@ func ShouldDelegateList(opts storage.ListOptions, cache Helper) (Result, error) 
 		}
 		return Result{ShouldDelegate: false}, nil
 	default:
-		return Result{ShouldDelegate: true}, nil
+		return Result{ShouldDelegate: opts.Predicate.Sharding == nil}, nil
 	}
 }
 
