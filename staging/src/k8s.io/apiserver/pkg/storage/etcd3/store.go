@@ -689,6 +689,11 @@ func (s *store) GetList(ctx context.Context, key string, opts storage.ListOption
 		attribute.Int("limit", int(opts.Predicate.Limit)),
 		attribute.String("continue", opts.Predicate.Continue))
 	defer span.End(500 * time.Millisecond)
+
+	if opts.Predicate.Sharding != nil {
+		return fmt.Errorf("list from storage with sharding option is not supported")
+	}
+
 	listPtr, err := meta.GetItemsPtr(listObj)
 	if err != nil {
 		return err
@@ -905,6 +910,11 @@ func (s *store) Watch(ctx context.Context, key string, opts storage.ListOptions)
 	if err != nil {
 		return nil, err
 	}
+
+	if opts.Predicate.Sharding != nil {
+		return nil, fmt.Errorf("watch from storage with sharding option is not supported")
+	}
+
 	rev, err := s.versioner.ParseResourceVersion(opts.ResourceVersion)
 	if err != nil {
 		return nil, err
