@@ -495,6 +495,11 @@ func (s *store) List(ctx context.Context, key, resourceVersion string, pred stor
 		utiltrace.Field{"limit", pred.Limit},
 		utiltrace.Field{"continue", pred.Continue})
 	defer trace.LogIfLong(500 * time.Millisecond)
+
+	if pred.Sharding != nil {
+		return fmt.Errorf("list from storage with sharding option is not supported")
+	}
+
 	listPtr, err := meta.GetItemsPtr(listObj)
 	if err != nil {
 		return err
@@ -701,6 +706,9 @@ func (s *store) WatchList(ctx context.Context, key string, resourceVersion strin
 }
 
 func (s *store) watch(ctx context.Context, key string, rv string, pred storage.SelectionPredicate, recursive bool) (watch.Interface, error) {
+	if pred.Sharding != nil {
+		return nil, fmt.Errorf("watch from storage with sharding option is not supported")
+	}
 	rev, err := s.versioner.ParseResourceVersion(rv)
 	if err != nil {
 		return nil, err
