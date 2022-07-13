@@ -160,6 +160,12 @@ const (
 	//
 	// Return list from cache when listOptions.ResurceVersion is unset
 	DisableListPenetration featuregate.Feature = "DisableListPenetration"
+
+	// owner: @xuchen.xiaoying
+	// alpha: v1.18
+	//
+	// Tune client watch cache size to prevent being dropped
+	TuneWatcherChanSize featuregate.Feature = "TuneWatcherChanSize"
 )
 
 func init() {
@@ -188,4 +194,5 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 	SelectorIndex:           {Default: false, PreRelease: featuregate.Alpha},
 	WatchLag:                {Default: false, PreRelease: featuregate.Alpha},
 	DisableListPenetration:  {Default: false, PreRelease: featuregate.Alpha},
+	TuneWatcherChanSize:     {Default: false, PreRelease: featuregate.Alpha},
 }
