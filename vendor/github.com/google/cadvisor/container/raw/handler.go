@@ -247,11 +247,11 @@ func (h *rawContainerHandler) getFsStats(stats *info.ContainerStats) error {
 
 func (h *rawContainerHandler) checkStats(stats *info.ContainerStats) {
 	if stats.Cpu.Usage.Total == 0 {
-		klog.Infof("invalid cpu stats of %v", h.name)
+		klog.V(5).Infof("invalid cpu stats of %v", h.name)
 	}
 
 	if stats.Memory.WorkingSet == 0 {
-		klog.Infof("invalid mem stats of %v", h.name)
+		klog.V(5).Infof("invalid mem stats of %v", h.name)
 	}
 }
 

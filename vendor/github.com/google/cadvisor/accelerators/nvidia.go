@@ -183,7 +183,7 @@ func (nm *nvidiaManager) GetCollector(devicesCgroupPath string) (stats.Collector
 	for _, minor := range nvidiaMinorNumbers {
 		device, ok := nm.nvidiaDevices[minor]
 		if !ok {
-			klog.Warningf("failed go get NVIDIA device minor number: %v", device)
+			klog.Warningf("failed to get NVIDIA device minor number: %v", device)
 			return &stats.NoopCollector{}, fmt.Errorf("NVIDIA device minor number %d not found in cached devices", minor)
 		}
 		nc.devices = append(nc.devices, device)
