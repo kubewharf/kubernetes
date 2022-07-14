@@ -31,7 +31,7 @@ import (
 	"github.com/google/cadvisor/utils/sysfs"
 	"github.com/google/cadvisor/utils/sysinfo"
 
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 )
 
 const hugepagesDirectory = "/sys/kernel/mm/hugepages/"

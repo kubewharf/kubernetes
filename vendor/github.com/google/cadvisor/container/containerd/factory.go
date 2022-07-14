@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"golang.org/x/net/context"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 
 	"github.com/google/cadvisor/container"
 	"github.com/google/cadvisor/container/libcontainer"

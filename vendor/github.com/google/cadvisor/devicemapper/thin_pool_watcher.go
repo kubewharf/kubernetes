@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 )
 
 // ThinPoolWatcher maintains a cache of device name -> usage stats for a

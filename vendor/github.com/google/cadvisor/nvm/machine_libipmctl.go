@@ -24,7 +24,7 @@ import (
 	info "github.com/google/cadvisor/info/v1"
 	"sync"
 
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 )
 
 var (

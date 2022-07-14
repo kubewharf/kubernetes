@@ -20,7 +20,7 @@ package perf
 import (
 	"github.com/google/cadvisor/stats"
 
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 )
 
 func NewCollector(cgroupPath string, events Events, numCores int) stats.Collector {

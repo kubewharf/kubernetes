@@ -50,7 +50,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs2"
 	"github.com/opencontainers/runc/libcontainer/intelrdt"
 
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	"k8s.io/utils/clock"
 )
 

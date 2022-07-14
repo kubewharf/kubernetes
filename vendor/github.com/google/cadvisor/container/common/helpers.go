@@ -31,7 +31,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/pkg/errors"
 
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 )
 
 func DebugInfo(watches map[string][]string) map[string][]string {
