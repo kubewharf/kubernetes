@@ -1,0 +1,97 @@
+name: AutoGenerate Changelog
+trigger:
+  manual:
+jobs:
+  prelease_job:
+    name: auto-generate tag for prelease
+    image: hub.byted.org/compile/go-with-standard-version:e7ca061c385eec5448865662a032e5e3
+    if: ${{ globs(make_strings("dev/**", "test/**"), make_strings(Head.Branch)) }}
+    steps:
+      - id: auto_tag
+        commands:
+        - |
+          tags=`git tag -l --points-at HEAD`
+          if [ -z $tags ]; then
+            version=`jq -r .version package.json`
+            sha=`echo ${{Head.SHA}} | head -c 8`
+            rand=`cat /dev/urandom | head -n 5 | md5sum | head -c 5`
+            version="$version-${sha}-${rand}"
+            git tag $version 
+            git remote set-url origin https://${{USER_NAME}}:${{ACCESS_TOKEN}}@code.byted.org/${{Repo.Name}}
+            git push origin --tags
+          else
+            version=$tags
+          fi
+        - echo "::set-output name=version::$version"
+      - id: compile
+        uses: actions/scm@semver-version
+        continue-on-error: true
+        inputs:
+          version: ${{ Steps.auto_tag.Outputs.version }}
+          scm_repo: ${{ SCM_REPO }}
+          message: "details: https://code.byted.org/${{Repo.Name}}/tags/${{ Steps.auto_tag.Outputs.version }}"
+      - id: clean
+        if: ${{ Steps.compile.ExitCode != 0 }}
+        commands:
+        - git push --delete origin "${{ Steps.auto_tag.Outputs.version }}"
+  release_job:
+    name: auto-generate changelog file from git commit messages
+    image: hub.byted.org/compile/go-with-standard-version:e7ca061c385eec5448865662a032e5e3
+    if: ${{ globs(make_strings("tce-1.18.10", "release/**"), make_strings(Head.Branch)) }}
+    steps:
+      - id: check
+        commands:
+        - |
+          export RELEASE_TYPE=2
+          set +e
+          infile=`jq -e -r '."standard-version".infile' package.json`
+          if [ $? -ne 0 ]; then
+            infile="CHANGELOG.md"
+          fi
+
+          if [ ! -f $infile ]; then
+            export RELEASE_TYPE=1 
+          fi      
+
+          tags=`git tag -l --points-at HEAD`
+          version=`jq -r .version package.json`
+          echo "$tags" | grep -q "v$version"
+          if [ $? -eq 0 ]; then
+            export RELEASE_TYPE=0 
+          fi
+          set -e
+        - echo "::set-output name=release_type::$RELEASE_TYPE"
+        - echo "::set-output name=infile::$infile"
+      - id: first_release
+        if: ${{ Steps.check.Outputs.release_type == "1" }}
+        commands:
+        - git checkout ${{Head.Branch}}
+        - npm run release -- --first-release
+      - id: normal_release
+        if: ${{ Steps.check.Outputs.release_type == "2" }}
+        commands:
+        - git checkout ${{Head.Branch}}
+        - npm run release -- release-as patch
+      - id: git_push
+        if: ${{ Steps.check.Outputs.release_type != "0" && Steps.first_release.ExitCode == 0 && Steps.normal_release.ExitCode == 0 }} 
+        commands:
+        - git remote set-url origin https://${{USER_NAME}}:${{ACCESS_TOKEN}}@code.byted.org/${{Repo.Name}}
+        - git push --follow-tags origin ${{Head.Branch}}
+        - version=`jq -r .version package.json`
+        - sha=`git rev-parse HEAD`
+        - echo "::set-output name=version::$version"
+        - echo "::set-output name=sha::$sha"
+      - id: compile
+        if: ${{ Steps.check.Outputs.release_type != "0" && Steps.git_push.ExitCode == 0 }}
+        uses: actions/scm@semver-version
+        continue-on-error: true
+        inputs:
+          version: ${{ Steps.git_push.Outputs.version }}
+          version_type: online
+          sha: ${{ Steps.git_push.Outputs.sha }}
+          scm_repo: ${{ SCM_REPO }}
+          message: "details: https://code.byted.org/${{Repo.Name}}/blob/${{Head.Branch}}/${{Steps.check.Outputs.infile}}"
+      - id: clean
+        if: ${{ Steps.compile.ExitCode != 0 && Steps.check.Outputs.release_type != "0" }}
+        commands:
+        - git push --delete origin "v${{ Steps.git_push.Outputs.version }}" 
