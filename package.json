@@ -1,0 +1,119 @@
+{
+  "name": "kubernetes",
+  "version": "18.10.0",
+  "description": "kubernetes",
+  "main": "config.js",
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
+  "scripts": {
+    "dryrun": "standard-version --dry-run",
+    "release": "standard-version",
+    "release-minor": "standard-version --release-as minor",
+    "release-major": "standard-version --release-as major",
+    "release-patch": "standard-version --release-as patch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@code.byted.org:tce/kubernetes.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "config": {
+    "commitizen": {
+      "path": "/usr/local/lib/node_modules/cz-customizable"
+    },
+    "cz-customizable": {
+      "config": "./config.js"
+    }
+  },
+  "commitlint": {
+    "rules": {
+      "subject-case": [
+        2,
+        "never",
+        [
+          "sentence-case",
+          "start-case",
+          "pascal-case",
+          "upper-case"
+        ]
+      ],
+      "subject-empty": [
+        2,
+        "never"
+      ],
+      "subject-full-stop": [
+        2,
+        "never",
+        "."
+      ],
+      "type-case": [
+        2,
+        "always",
+        "lower-case"
+      ],
+      "type-empty": [
+        2,
+        "never"
+      ],
+      "type-enum": [
+        2,
+        "always",
+        [
+          "chore",
+          "docs",
+          "feat",
+          "fix",
+          "perf",
+          "refactor",
+          "revert",
+          "style",
+          "test"
+        ]
+      ]
+    }
+  },
+  "standard-version": {
+    "issuePrefixes": [
+      "M-"
+    ],
+    "infile": "CHANGELOG/CHANGELOG-tce.md",
+    "issueUrlFormat": "https://meego.feishu.cn/tioi-sched/story/detail/{{id}}",
+    "types": [
+      {
+        "type": "feat",
+        "section": "Features"
+      },
+      {
+        "type": "fix",
+        "section": "Bug Fixes"
+      },
+      {
+        "type": "chorea",
+        "hidden": true
+      },
+      {
+        "type": "docs",
+        "hidden": true
+      },
+      {
+        "type": "style",
+        "hidden": true
+      },
+      {
+        "type": "refactor",
+        "section": "Refactor"
+      },
+      {
+        "type": "perf",
+        "section": "Performance"
+      },
+      {
+        "type": "test",
+        "hidden": true
+      }
+    ]
+  }
+}
