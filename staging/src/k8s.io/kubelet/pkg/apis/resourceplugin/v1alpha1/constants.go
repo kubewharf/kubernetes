@@ -16,6 +16,10 @@ limitations under the License.
 
 package v1alpha1
 
+import (
+	"k8s.io/apimachinery/pkg/util/sets"
+)
+
 const (
 	// Healthy means that the resource is healthy
 	Healthy = "Healthy"
@@ -50,6 +54,24 @@ const (
 	PodRoleLabelKey      = "bytedance.com/pod-role"
 	PodTypeAnnotationKey = "godel.bytedance.com/pod-resource-type"
 
+	KatalystQoSLevelAnnotationKey     = "katalyst.cloud/qos_level"
+	KatalystNumaBindingAnnotationKey  = "katalyst.cloud/numa_binding"
+	KatalystSkipQRMAdmitAnnotationKey = "katalyst.cloud/skip_qrm_admit"
+
+	KatalystQoSLevelLabelKey = KatalystQoSLevelAnnotationKey
+
+	KatalystQoSLevelDedicatedCores = "dedicated_cores"
+	KatalystQoSLevelSharedCores    = "shared_cores"
+	KatalystQoSLevelReclaimedCores = "reclaimed_cores"
+	KatalystQoSLevelSystemCores    = "system_cores"
+
+	KatalystValueTrue = "true"
+
+	KatalystMemoryEnhancementAnnotationKey = "katalyst.cloud/memory_enhancement"
+	KatalystCPUEnhancementAnnotationKey    = "katalyst.cloud/cpu_enhancement"
+
+	KatalystMemoryEnhancementKeyNumaBinding = "numa_binding"
+
 	PodRoleWorker          = "worker"
 	PodRoleParameterServer = "ps"
 	PodRoleParameterSocket = "socket"
@@ -61,3 +83,9 @@ const (
 )
 
 var SupportedVersions = [...]string{"v1alpha1"}
+var SupportedKatalystQoSLevels = sets.NewString(
+	KatalystQoSLevelDedicatedCores,
+	KatalystQoSLevelSharedCores,
+	KatalystQoSLevelReclaimedCores,
+	KatalystQoSLevelSystemCores,
+)

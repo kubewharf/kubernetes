@@ -68,7 +68,7 @@ func generateResourceResponse() *pluginapi.ResourceAllocationResponse {
 		PodRole:      "mock_role",
 		PodType:      "mock_type",
 		ResourceName: "mock_res",
-		AllocatationResult: &pluginapi.ResourceAllocation{
+		AllocationResult: &pluginapi.ResourceAllocation{
 			ResourceAllocation: map[string]*pluginapi.ResourceAllocationInfo{
 				"mock_res": generateResourceAllocationInfo(),
 			},

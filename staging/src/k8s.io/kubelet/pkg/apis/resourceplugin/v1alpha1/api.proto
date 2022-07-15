@@ -66,6 +66,8 @@ message ResourceRequest {
     string resource_name = 9;
     TopologyHint hint = 10;
     map<string,double> resource_requests = 11;
+    map<string, string> labels = 12;
+    map<string, string> annotations = 13;
 }
 
 message ResourceHintsResponse {
@@ -79,6 +81,8 @@ message ResourceHintsResponse {
     string pod_type = 8;
     string resource_name = 9;
     map<string,ListOfTopologyHints> resource_hints = 10;
+    map<string, string> labels = 11;
+    map<string, string> annotations = 12;
 }
 
 message ResourceAllocationResponse {
@@ -91,7 +95,9 @@ message ResourceAllocationResponse {
 	string pod_role = 7;
     string pod_type = 8;
     string resource_name = 9;
-    ResourceAllocation allocatation_result = 10;
+    ResourceAllocation allocation_result = 10;
+    map<string, string> labels = 11;
+    map<string, string> annotations = 12;
 }
 
 message ListOfTopologyHints {
@@ -134,14 +140,14 @@ message ResourceAllocationInfo {
 	bool is_scalar_resource = 3;
 	// only for exclusive resources
 	double allocated_quantity = 4; 
-    string allocatation_result = 5;
+    string allocation_result = 5;
     map<string,string> envs = 6;
     map<string,string> annotations = 7;
-    // topology hints corresponds to allocatation information.
+    // topology hints corresponds to allocation information.
     // we need it when kubelet restarts and resurces had been allocated.
     // - why don't we use GetTopologyAwareResources of qrm to generate hints?
     // - for those resources with accompanying resources,
-    //   we can't generate hints of its accompanying resource by its allocatation_result.
+    //   we can't generate hints of its accompanying resource by its allocation_result.
     ListOfTopologyHints resource_hints = 8;
 }
 
@@ -172,7 +178,7 @@ message TopologyAwareResource {
 }
 
 message TopologyAwareQuantity {
-    string resource_value = 1;
+    double resource_value = 1;
     uint64 node = 2;
 }
 
@@ -187,8 +193,10 @@ message GetTopologyAwareAllocatableResourcesResponse {
 message AllocatableTopologyAwareResource {
     bool is_node_resource = 1;
     bool is_scalar_resource = 2;
-    double aggregated_quantity = 3; 
-    repeated TopologyAwareQuantity topology_aware_quantity_list = 4;
+    double aggregated_allocatable_quantity = 3;
+    repeated TopologyAwareQuantity topology_aware_allocatable_quantity_list = 4;
+    double aggregated_capacity_quantity = 5;
+    repeated TopologyAwareQuantity topology_aware_capacity_quantity_list = 6;
 }
 
 // - PreStartContainer is expected to be called before each container start if indicated by plugin during registration phase.

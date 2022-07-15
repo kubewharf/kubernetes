@@ -221,11 +221,13 @@ func containerResourcesFromResourceManagerAllocatableResponse(res *resourceplugi
 		}
 
 		result = append(result, &podresourcesapi.AllocatableTopologyAwareResource{
-			ResourceName:              resourceName,
-			IsNodeResource:            resource.IsNodeResource,
-			IsScalarResource:          resource.IsScalarResource,
-			AggregatedQuantity:        resource.AggregatedQuantity,
-			TopologyAwareQuantityList: transformTopologyAwareQuantity(resource.TopologyAwareQuantityList),
+			ResourceName:                         resourceName,
+			IsNodeResource:                       resource.IsNodeResource,
+			IsScalarResource:                     resource.IsScalarResource,
+			AggregatedAllocatableQuantity:        resource.AggregatedAllocatableQuantity,
+			TopologyAwareAllocatableQuantityList: transformTopologyAwareQuantity(resource.TopologyAwareAllocatableQuantityList),
+			AggregatedCapacityQuantity:           resource.AggregatedCapacityQuantity,
+			TopologyAwareCapacityQuantityList:    transformTopologyAwareQuantity(resource.TopologyAwareCapacityQuantityList),
 		})
 	}
 

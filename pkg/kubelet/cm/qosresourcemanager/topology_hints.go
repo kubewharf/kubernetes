@@ -25,6 +25,7 @@ import (
 	pluginapi "k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	"k8s.io/kubernetes/pkg/kubelet/metrics"
+	maputil "k8s.io/kubernetes/pkg/util/maps"
 )
 
 func (m *ManagerImpl) GetPodTopologyHints(pod *v1.Pod) map[string][]topologymanager.TopologyHint {
@@ -41,7 +42,7 @@ func (m *ManagerImpl) GetTopologyHints(pod *v1.Pod, container *v1.Container) map
 		return nil
 	}
 
-	if isSkippedPod(pod) {
+	if isSkippedPod(pod, true) {
 		klog.V(4).Infof("[qosresourcemanager] skip get topology hints for pod")
 		return nil
 	}
@@ -115,6 +116,8 @@ func (m *ManagerImpl) GetTopologyHints(pod *v1.Pod, container *v1.Container) map
 				ContainerIndex:   containerIndex,
 				PodRole:          pod.Labels[pluginapi.PodRoleLabelKey],
 				PodType:          pod.Annotations[pluginapi.PodTypeAnnotationKey],
+				Labels:           maputil.CopySS(pod.Labels),
+				Annotations:      maputil.CopySS(pod.Annotations),
 				ResourceName:     resource,
 				ResourceRequests: map[string]float64{resource: ParseQuantityToFloat64(requestedObj)},
 			}
@@ -123,7 +126,20 @@ func (m *ManagerImpl) GetTopologyHints(pod *v1.Pod, container *v1.Container) map
 
 			if err != nil {
 				klog.Errorf("[qosresourcemanager] GetContextWithSpecificInfo failed with error: %v", err)
-				return resourceHints
+				// empty TopologyHint list will cause fail in restricted topology manager policy
+				// nil TopologyHint list assumes no NUMA preference
+				resourceHints[resource] = []topologymanager.TopologyHint{}
+				continue
+			}
+
+			err = DecorateQRMResourceRequest(resourceReq, pod, container)
+
+			if err != nil {
+				klog.Errorf("[qosresourcemanager] DecorateQRMResourceRequest failed with error: %v", err)
+				// empty TopologyHint list will cause fail in restricted topology manager policy
+				// nil TopologyHint list assumes no NUMA preference
+				resourceHints[resource] = []topologymanager.TopologyHint{}
+				continue
 			}
 
 			resp, err := eI.e.getTopologyHints(ctx, resourceReq)

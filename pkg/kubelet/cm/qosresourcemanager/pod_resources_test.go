@@ -25,7 +25,7 @@ func TestPodResources(t *testing.T) {
 	normalAllocation2 := generateResourceAllocationInfo()
 	normalAllocation2.Annotations["mock_key_2"] = "mock_ano_2"
 	normalAllocation2.OciPropertyName = "CpusetMems"
-	normalAllocation2.AllocatationResult = "1,2"
+	normalAllocation2.AllocationResult = "1,2"
 
 	overrideAllocation := generateResourceAllocationInfo()
 	overrideAllocation.Envs["mock_key"] = "mock_env_2"
@@ -238,7 +238,7 @@ func generateResourceAllocationInfo() *pluginapi.ResourceAllocationInfo {
 		IsNodeResource:     true,
 		IsScalarResource:   true,
 		AllocatedQuantity:  3,
-		AllocatationResult: "5-6,10",
+		AllocationResult: "5-6,10",
 		Envs:               map[string]string{"mock_key": "mock_env"},
 		Annotations:        map[string]string{"mock_key": "mock_ano"},
 		ResourceHints:      &pluginapi.ListOfTopologyHints{},

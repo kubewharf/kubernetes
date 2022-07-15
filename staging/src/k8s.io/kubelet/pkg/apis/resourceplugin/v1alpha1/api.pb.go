@@ -228,6 +228,8 @@ type ResourceRequest struct {
 	ResourceName         string             `protobuf:"bytes,9,opt,name=resource_name,json=resourceName,proto3" json:"resource_name,omitempty"`
 	Hint                 *TopologyHint      `protobuf:"bytes,10,opt,name=hint,proto3" json:"hint,omitempty"`
 	ResourceRequests     map[string]float64 `protobuf:"bytes,11,rep,name=resource_requests,json=resourceRequests,proto3" json:"resource_requests,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"fixed64,2,opt,name=value,proto3"`
+	Labels               map[string]string  `protobuf:"bytes,12,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Annotations          map[string]string  `protobuf:"bytes,13,rep,name=annotations,proto3" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
 	XXX_sizecache        int32              `json:"-"`
 }
@@ -341,6 +343,20 @@ func (m *ResourceRequest) GetResourceRequests() map[string]float64 {
 	return nil
 }
 
+func (m *ResourceRequest) GetLabels() map[string]string {
+	if m != nil {
+		return m.Labels
+	}
+	return nil
+}
+
+func (m *ResourceRequest) GetAnnotations() map[string]string {
+	if m != nil {
+		return m.Annotations
+	}
+	return nil
+}
+
 type ResourceHintsResponse struct {
 	PodUid               string                          `protobuf:"bytes,1,opt,name=pod_uid,json=podUid,proto3" json:"pod_uid,omitempty"`
 	PodNamespace         string                          `protobuf:"bytes,2,opt,name=pod_namespace,json=podNamespace,proto3" json:"pod_namespace,omitempty"`
@@ -352,6 +368,8 @@ type ResourceHintsResponse struct {
 	PodType              string                          `protobuf:"bytes,8,opt,name=pod_type,json=podType,proto3" json:"pod_type,omitempty"`
 	ResourceName         string                          `protobuf:"bytes,9,opt,name=resource_name,json=resourceName,proto3" json:"resource_name,omitempty"`
 	ResourceHints        map[string]*ListOfTopologyHints `protobuf:"bytes,10,rep,name=resource_hints,json=resourceHints,proto3" json:"resource_hints,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Labels               map[string]string               `protobuf:"bytes,11,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Annotations          map[string]string               `protobuf:"bytes,12,rep,name=annotations,proto3" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}                        `json:"-"`
 	XXX_sizecache        int32                           `json:"-"`
 }
@@ -458,6 +476,20 @@ func (m *ResourceHintsResponse) GetResourceHints() map[string]*ListOfTopologyHin
 	return nil
 }
 
+func (m *ResourceHintsResponse) GetLabels() map[string]string {
+	if m != nil {
+		return m.Labels
+	}
+	return nil
+}
+
+func (m *ResourceHintsResponse) GetAnnotations() map[string]string {
+	if m != nil {
+		return m.Annotations
+	}
+	return nil
+}
+
 type ResourceAllocationResponse struct {
 	PodUid               string              `protobuf:"bytes,1,opt,name=pod_uid,json=podUid,proto3" json:"pod_uid,omitempty"`
 	PodNamespace         string              `protobuf:"bytes,2,opt,name=pod_namespace,json=podNamespace,proto3" json:"pod_namespace,omitempty"`
@@ -468,7 +500,9 @@ type ResourceAllocationResponse struct {
 	PodRole              string              `protobuf:"bytes,7,opt,name=pod_role,json=podRole,proto3" json:"pod_role,omitempty"`
 	PodType              string              `protobuf:"bytes,8,opt,name=pod_type,json=podType,proto3" json:"pod_type,omitempty"`
 	ResourceName         string              `protobuf:"bytes,9,opt,name=resource_name,json=resourceName,proto3" json:"resource_name,omitempty"`
-	AllocatationResult   *ResourceAllocation `protobuf:"bytes,10,opt,name=allocatation_result,json=allocatationResult,proto3" json:"allocatation_result,omitempty"`
+	AllocationResult     *ResourceAllocation `protobuf:"bytes,10,opt,name=allocation_result,json=allocationResult,proto3" json:"allocation_result,omitempty"`
+	Labels               map[string]string   `protobuf:"bytes,11,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Annotations          map[string]string   `protobuf:"bytes,12,rep,name=annotations,proto3" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
 	XXX_sizecache        int32               `json:"-"`
 }
@@ -568,9 +602,23 @@ func (m *ResourceAllocationResponse) GetResourceName() string {
 	return ""
 }
 
-func (m *ResourceAllocationResponse) GetAllocatationResult() *ResourceAllocation {
+func (m *ResourceAllocationResponse) GetAllocationResult() *ResourceAllocation {
 	if m != nil {
-		return m.AllocatationResult
+		return m.AllocationResult
+	}
+	return nil
+}
+
+func (m *ResourceAllocationResponse) GetLabels() map[string]string {
+	if m != nil {
+		return m.Labels
+	}
+	return nil
+}
+
+func (m *ResourceAllocationResponse) GetAnnotations() map[string]string {
+	if m != nil {
+		return m.Annotations
 	}
 	return nil
 }
@@ -969,15 +1017,15 @@ type ResourceAllocationInfo struct {
 	IsNodeResource   bool   `protobuf:"varint,2,opt,name=is_node_resource,json=isNodeResource,proto3" json:"is_node_resource,omitempty"`
 	IsScalarResource bool   `protobuf:"varint,3,opt,name=is_scalar_resource,json=isScalarResource,proto3" json:"is_scalar_resource,omitempty"`
 	// only for exclusive resources
-	AllocatedQuantity  float64           `protobuf:"fixed64,4,opt,name=allocated_quantity,json=allocatedQuantity,proto3" json:"allocated_quantity,omitempty"`
-	AllocatationResult string            `protobuf:"bytes,5,opt,name=allocatation_result,json=allocatationResult,proto3" json:"allocatation_result,omitempty"`
-	Envs               map[string]string `protobuf:"bytes,6,rep,name=envs,proto3" json:"envs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	Annotations        map[string]string `protobuf:"bytes,7,rep,name=annotations,proto3" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	// topology hints corresponds to allocatation information.
+	AllocatedQuantity float64           `protobuf:"fixed64,4,opt,name=allocated_quantity,json=allocatedQuantity,proto3" json:"allocated_quantity,omitempty"`
+	AllocationResult  string            `protobuf:"bytes,5,opt,name=allocation_result,json=allocationResult,proto3" json:"allocation_result,omitempty"`
+	Envs              map[string]string `protobuf:"bytes,6,rep,name=envs,proto3" json:"envs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Annotations       map[string]string `protobuf:"bytes,7,rep,name=annotations,proto3" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	// topology hints corresponds to allocation information.
 	// we need it when kubelet restarts and resurces had been allocated.
 	// - why don't we use GetTopologyAwareResources of qrm to generate hints?
 	// - for those resources with accompanying resources,
-	//   we can't generate hints of its accompanying resource by its allocatation_result.
+	//   we can't generate hints of its accompanying resource by its allocation_result.
 	ResourceHints        *ListOfTopologyHints `protobuf:"bytes,8,opt,name=resource_hints,json=resourceHints,proto3" json:"resource_hints,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
 	XXX_sizecache        int32                `json:"-"`
@@ -1043,9 +1091,9 @@ func (m *ResourceAllocationInfo) GetAllocatedQuantity() float64 {
 	return 0
 }
 
-func (m *ResourceAllocationInfo) GetAllocatationResult() string {
+func (m *ResourceAllocationInfo) GetAllocationResult() string {
 	if m != nil {
-		return m.AllocatationResult
+		return m.AllocationResult
 	}
 	return ""
 }
@@ -1332,7 +1380,7 @@ func (m *TopologyAwareResource) GetOriginalTopologyAwareQuantityList() []*Topolo
 }
 
 type TopologyAwareQuantity struct {
-	ResourceValue        string   `protobuf:"bytes,1,opt,name=resource_value,json=resourceValue,proto3" json:"resource_value,omitempty"`
+	ResourceValue        float64  `protobuf:"fixed64,1,opt,name=resource_value,json=resourceValue,proto3" json:"resource_value,omitempty"`
 	Node                 uint64   `protobuf:"varint,2,opt,name=node,proto3" json:"node,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1370,11 +1418,11 @@ func (m *TopologyAwareQuantity) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_TopologyAwareQuantity proto.InternalMessageInfo
 
-func (m *TopologyAwareQuantity) GetResourceValue() string {
+func (m *TopologyAwareQuantity) GetResourceValue() float64 {
 	if m != nil {
 		return m.ResourceValue
 	}
-	return ""
+	return 0
 }
 
 func (m *TopologyAwareQuantity) GetNode() uint64 {
@@ -1471,12 +1519,14 @@ func (m *GetTopologyAwareAllocatableResourcesResponse) GetAllocatableResources()
 }
 
 type AllocatableTopologyAwareResource struct {
-	IsNodeResource            bool                     `protobuf:"varint,1,opt,name=is_node_resource,json=isNodeResource,proto3" json:"is_node_resource,omitempty"`
-	IsScalarResource          bool                     `protobuf:"varint,2,opt,name=is_scalar_resource,json=isScalarResource,proto3" json:"is_scalar_resource,omitempty"`
-	AggregatedQuantity        float64                  `protobuf:"fixed64,3,opt,name=aggregated_quantity,json=aggregatedQuantity,proto3" json:"aggregated_quantity,omitempty"`
-	TopologyAwareQuantityList []*TopologyAwareQuantity `protobuf:"bytes,4,rep,name=topology_aware_quantity_list,json=topologyAwareQuantityList,proto3" json:"topology_aware_quantity_list,omitempty"`
-	XXX_NoUnkeyedLiteral      struct{}                 `json:"-"`
-	XXX_sizecache             int32                    `json:"-"`
+	IsNodeResource                       bool                     `protobuf:"varint,1,opt,name=is_node_resource,json=isNodeResource,proto3" json:"is_node_resource,omitempty"`
+	IsScalarResource                     bool                     `protobuf:"varint,2,opt,name=is_scalar_resource,json=isScalarResource,proto3" json:"is_scalar_resource,omitempty"`
+	AggregatedAllocatableQuantity        float64                  `protobuf:"fixed64,3,opt,name=aggregated_allocatable_quantity,json=aggregatedAllocatableQuantity,proto3" json:"aggregated_allocatable_quantity,omitempty"`
+	TopologyAwareAllocatableQuantityList []*TopologyAwareQuantity `protobuf:"bytes,4,rep,name=topology_aware_allocatable_quantity_list,json=topologyAwareAllocatableQuantityList,proto3" json:"topology_aware_allocatable_quantity_list,omitempty"`
+	AggregatedCapacityQuantity           float64                  `protobuf:"fixed64,5,opt,name=aggregated_capacity_quantity,json=aggregatedCapacityQuantity,proto3" json:"aggregated_capacity_quantity,omitempty"`
+	TopologyAwareCapacityQuantityList    []*TopologyAwareQuantity `protobuf:"bytes,6,rep,name=topology_aware_capacity_quantity_list,json=topologyAwareCapacityQuantityList,proto3" json:"topology_aware_capacity_quantity_list,omitempty"`
+	XXX_NoUnkeyedLiteral                 struct{}                 `json:"-"`
+	XXX_sizecache                        int32                    `json:"-"`
 }
 
 func (m *AllocatableTopologyAwareResource) Reset()      { *m = AllocatableTopologyAwareResource{} }
@@ -1525,16 +1575,30 @@ func (m *AllocatableTopologyAwareResource) GetIsScalarResource() bool {
 	return false
 }
 
-func (m *AllocatableTopologyAwareResource) GetAggregatedQuantity() float64 {
+func (m *AllocatableTopologyAwareResource) GetAggregatedAllocatableQuantity() float64 {
 	if m != nil {
-		return m.AggregatedQuantity
+		return m.AggregatedAllocatableQuantity
 	}
 	return 0
 }
 
-func (m *AllocatableTopologyAwareResource) GetTopologyAwareQuantityList() []*TopologyAwareQuantity {
+func (m *AllocatableTopologyAwareResource) GetTopologyAwareAllocatableQuantityList() []*TopologyAwareQuantity {
 	if m != nil {
-		return m.TopologyAwareQuantityList
+		return m.TopologyAwareAllocatableQuantityList
+	}
+	return nil
+}
+
+func (m *AllocatableTopologyAwareResource) GetAggregatedCapacityQuantity() float64 {
+	if m != nil {
+		return m.AggregatedCapacityQuantity
+	}
+	return 0
+}
+
+func (m *AllocatableTopologyAwareResource) GetTopologyAwareCapacityQuantityList() []*TopologyAwareQuantity {
+	if m != nil {
+		return m.TopologyAwareCapacityQuantityList
 	}
 	return nil
 }
@@ -1655,10 +1719,16 @@ func init() {
 	proto.RegisterType((*ResourcePluginOptions)(nil), "resourceplugin.v1alpha1.ResourcePluginOptions")
 	proto.RegisterType((*RegisterRequest)(nil), "resourceplugin.v1alpha1.RegisterRequest")
 	proto.RegisterType((*ResourceRequest)(nil), "resourceplugin.v1alpha1.ResourceRequest")
+	proto.RegisterMapType((map[string]string)(nil), "resourceplugin.v1alpha1.ResourceRequest.AnnotationsEntry")
+	proto.RegisterMapType((map[string]string)(nil), "resourceplugin.v1alpha1.ResourceRequest.LabelsEntry")
 	proto.RegisterMapType((map[string]float64)(nil), "resourceplugin.v1alpha1.ResourceRequest.ResourceRequestsEntry")
 	proto.RegisterType((*ResourceHintsResponse)(nil), "resourceplugin.v1alpha1.ResourceHintsResponse")
+	proto.RegisterMapType((map[string]string)(nil), "resourceplugin.v1alpha1.ResourceHintsResponse.AnnotationsEntry")
+	proto.RegisterMapType((map[string]string)(nil), "resourceplugin.v1alpha1.ResourceHintsResponse.LabelsEntry")
 	proto.RegisterMapType((map[string]*ListOfTopologyHints)(nil), "resourceplugin.v1alpha1.ResourceHintsResponse.ResourceHintsEntry")
 	proto.RegisterType((*ResourceAllocationResponse)(nil), "resourceplugin.v1alpha1.ResourceAllocationResponse")
+	proto.RegisterMapType((map[string]string)(nil), "resourceplugin.v1alpha1.ResourceAllocationResponse.AnnotationsEntry")
+	proto.RegisterMapType((map[string]string)(nil), "resourceplugin.v1alpha1.ResourceAllocationResponse.LabelsEntry")
 	proto.RegisterType((*ListOfTopologyHints)(nil), "resourceplugin.v1alpha1.ListOfTopologyHints")
 	proto.RegisterType((*TopologyHint)(nil), "resourceplugin.v1alpha1.TopologyHint")
 	proto.RegisterType((*Empty)(nil), "resourceplugin.v1alpha1.Empty")
@@ -1691,114 +1761,124 @@ func init() {
 func init() { proto.RegisterFile("api.proto", fileDescriptor_00212fb1f9d3bf1c) }
 
 var fileDescriptor_00212fb1f9d3bf1c = []byte{
-	// 1704 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x59, 0x4f, 0x6f, 0xdb, 0x46,
-	0x16, 0x17, 0x25, 0xd9, 0x92, 0x9e, 0xff, 0x44, 0x1e, 0xc7, 0xb1, 0xcc, 0xcd, 0x2a, 0x0e, 0x77,
-	0x9d, 0xd5, 0xc6, 0x89, 0x8c, 0x38, 0x40, 0xfe, 0x2d, 0x90, 0x8d, 0xe2, 0x08, 0x89, 0x81, 0xd8,
-	0xf1, 0xd2, 0xde, 0x1c, 0x16, 0x0b, 0x10, 0xb4, 0x34, 0x96, 0x89, 0xd0, 0x1c, 0x86, 0xa4, 0x9c,
-	0x15, 0xb0, 0x87, 0x34, 0x68, 0x4f, 0xbd, 0xf4, 0xd0, 0x53, 0x91, 0x63, 0xbf, 0x42, 0xfb, 0x05,
-	0xda, 0x43, 0x50, 0xa0, 0x40, 0x7b, 0x29, 0x7a, 0x6c, 0xdc, 0xcf, 0xd1, 0xa0, 0x98, 0x19, 0x92,
-	0x22, 0x45, 0xd2, 0x94, 0x9c, 0x14, 0xc8, 0x21, 0x37, 0xcd, 0x7b, 0x6f, 0xde, 0xbc, 0x79, 0xf3,
-	0x7b, 0x3f, 0xbe, 0x19, 0x41, 0x49, 0x35, 0xb5, 0xba, 0x69, 0x11, 0x87, 0xa0, 0x79, 0x0b, 0xdb,
-	0xa4, 0x6b, 0xb5, 0xb0, 0xa9, 0x77, 0x3b, 0x9a, 0x51, 0x3f, 0xbc, 0xa2, 0xea, 0xe6, 0xbe, 0x7a,
-	0x45, 0xbc, 0xdc, 0xd1, 0x9c, 0xfd, 0xee, 0x6e, 0xbd, 0x45, 0x0e, 0x56, 0x3a, 0xa4, 0x43, 0x56,
-	0x98, 0xfd, 0x6e, 0x77, 0x8f, 0x8d, 0xd8, 0x80, 0xfd, 0xe2, 0x7e, 0xa4, 0x2f, 0x05, 0x98, 0x93,
-	0x5d, 0x57, 0x5b, 0xcc, 0xd5, 0x23, 0xd3, 0xd1, 0x88, 0x61, 0xa3, 0x4b, 0x80, 0x4c, 0x0b, 0x2b,
-	0xb6, 0xa3, 0x5a, 0x8e, 0x62, 0xe1, 0xa7, 0x5d, 0xcd, 0xc2, 0xed, 0x8a, 0xb0, 0x28, 0xd4, 0x8a,
-	0x72, 0xd9, 0xb4, 0xf0, 0x36, 0x55, 0xc8, 0xae, 0x1c, 0x5d, 0x83, 0xf9, 0x67, 0x9a, 0xb3, 0xaf,
-	0x38, 0xc4, 0x24, 0x3a, 0xe9, 0xf4, 0x14, 0x55, 0xd7, 0x3a, 0xc6, 0x01, 0x36, 0x9c, 0x4a, 0x96,
-	0x4d, 0x99, 0xa3, 0xea, 0x1d, 0x57, 0xdb, 0xf0, 0x94, 0x68, 0x09, 0xa6, 0x0d, 0x8c, 0xdb, 0x8a,
-	0x85, 0x5b, 0xc4, 0x68, 0x69, 0x3a, 0xae, 0xe4, 0x98, 0xf9, 0x14, 0x95, 0xca, 0x9e, 0x50, 0xfa,
-	0x5a, 0x80, 0x53, 0x32, 0xee, 0x68, 0xb6, 0x83, 0x2d, 0xba, 0x26, 0xb6, 0x1d, 0x54, 0x81, 0xc2,
-	0x21, 0xb6, 0x6c, 0x8d, 0x18, 0x2c, 0xaa, 0x92, 0xec, 0x0d, 0x91, 0x08, 0x45, 0x6c, 0xb4, 0x4d,
-	0xa2, 0xb9, 0xab, 0x97, 0x64, 0x7f, 0x8c, 0xfe, 0x02, 0x53, 0x5e, 0xea, 0x14, 0x43, 0x3d, 0xe0,
-	0xeb, 0x95, 0xe4, 0x49, 0x4f, 0xb8, 0xa9, 0x1e, 0x60, 0xf4, 0x00, 0x0a, 0x84, 0xa7, 0xa1, 0x92,
-	0x5f, 0x14, 0x6a, 0x13, 0xab, 0xf5, 0x7a, 0x42, 0xbe, 0xeb, 0xb1, 0xc9, 0x93, 0xbd, 0xe9, 0xd2,
-	0x8f, 0x79, 0x1a, 0x38, 0x37, 0xf1, 0x02, 0x9f, 0x87, 0x82, 0x49, 0xda, 0x4a, 0x57, 0x6b, 0xbb,
-	0x81, 0x8f, 0x9b, 0xa4, 0xfd, 0x6f, 0xad, 0x4d, 0x63, 0xa3, 0x0a, 0x1a, 0x96, 0x6d, 0xaa, 0x2d,
-	0xec, 0x06, 0x3f, 0x69, 0x92, 0xf6, 0xa6, 0x27, 0x43, 0x0b, 0x50, 0xf4, 0x8c, 0xdc, 0xd8, 0x0b,
-	0xae, 0x9e, 0x26, 0xb3, 0x45, 0x0c, 0x47, 0xd5, 0x0c, 0x6c, 0x71, 0x83, 0x3c, 0x33, 0x98, 0xf2,
-	0xa5, 0xcc, 0x6c, 0x23, 0x68, 0xe6, 0xf4, 0x4c, 0x5c, 0x19, 0x5b, 0x14, 0x6a, 0xd3, 0xab, 0x17,
-	0x12, 0x37, 0xb9, 0xe6, 0x99, 0xef, 0xf4, 0x4c, 0x1c, 0x70, 0x47, 0x87, 0xe8, 0x6f, 0x70, 0xaa,
-	0xef, 0x4e, 0x33, 0xda, 0xf8, 0x7f, 0x95, 0xf1, 0x45, 0xa1, 0x96, 0x97, 0xfb, 0xab, 0xac, 0x53,
-	0xa9, 0x17, 0xb9, 0x45, 0x74, 0x5c, 0x29, 0xf8, 0x91, 0xcb, 0x44, 0xf7, 0x37, 0xc5, 0x82, 0x29,
-	0xfa, 0x2a, 0xe6, 0x3e, 0x72, 0x60, 0xa5, 0x98, 0x03, 0xbb, 0x09, 0xf9, 0x7d, 0x7a, 0xda, 0xc0,
-	0x4e, 0x6b, 0x29, 0x71, 0x23, 0x1e, 0x00, 0x1f, 0x68, 0x86, 0x23, 0xb3, 0x29, 0xe8, 0x09, 0xcc,
-	0xf8, 0xfe, 0x2d, 0x7e, 0x42, 0x76, 0x65, 0x62, 0x31, 0x57, 0x9b, 0x58, 0xbd, 0x9d, 0x7a, 0xea,
-	0xee, 0x91, 0x0e, 0x8e, 0xed, 0xa6, 0xe1, 0x58, 0x3d, 0xb9, 0x6c, 0x0d, 0x88, 0xc5, 0xb5, 0x7e,
-	0xb5, 0x85, 0x4c, 0x51, 0x19, 0x72, 0x4f, 0x70, 0xcf, 0xc5, 0x03, 0xfd, 0x89, 0x4e, 0xc3, 0xd8,
-	0xa1, 0xaa, 0x77, 0x39, 0x08, 0x04, 0x99, 0x0f, 0x6e, 0x65, 0x6f, 0x08, 0xd2, 0xb7, 0xf9, 0xbe,
-	0x17, 0xba, 0x11, 0x5b, 0xc6, 0xb6, 0x49, 0x0c, 0x1b, 0x7f, 0x40, 0xd6, 0xbb, 0x47, 0xd6, 0x3e,
-	0x4c, 0xfb, 0x46, 0x14, 0x2f, 0x76, 0x05, 0x18, 0x36, 0x1a, 0xa9, 0xd8, 0x08, 0x1d, 0x4d, 0x58,
-	0xca, 0xe1, 0xe1, 0xaf, 0xce, 0x64, 0xa2, 0x01, 0x28, 0x6a, 0x14, 0x03, 0x8c, 0xbb, 0x41, 0x60,
-	0x4c, 0xac, 0x5e, 0x4a, 0x0c, 0xe4, 0xa1, 0x66, 0x3b, 0x8f, 0xf6, 0x82, 0x90, 0xb7, 0x83, 0x30,
-	0xfa, 0x3e, 0x07, 0xa2, 0xb7, 0x60, 0x43, 0xd7, 0x49, 0x4b, 0xa5, 0x94, 0xf5, 0x01, 0x4b, 0x7f,
-	0x1c, 0x96, 0xfe, 0x0b, 0xb3, 0x2a, 0x4f, 0x34, 0x4b, 0xb5, 0x62, 0x61, 0xbb, 0xab, 0x7b, 0xa4,
-	0xb5, 0x9c, 0x0a, 0xa8, 0xc0, 0x21, 0xa1, 0xa0, 0x1f, 0x99, 0xb9, 0x91, 0x64, 0x98, 0x8d, 0x39,
-	0x71, 0xf4, 0x0f, 0x18, 0xe3, 0xb8, 0x15, 0x18, 0x6e, 0x87, 0xe4, 0x46, 0x3e, 0x47, 0xba, 0x0b,
-	0x93, 0x41, 0x31, 0x25, 0x25, 0x83, 0xb4, 0x31, 0x77, 0x96, 0x97, 0xf9, 0x00, 0x9d, 0x85, 0x92,
-	0x69, 0xe1, 0x3d, 0x6c, 0xd1, 0x0e, 0x81, 0x7f, 0xee, 0xfb, 0x02, 0xa9, 0x00, 0x63, 0xcd, 0x03,
-	0xd3, 0xe9, 0x49, 0xcb, 0x50, 0x96, 0xf1, 0x01, 0x39, 0xc4, 0x5b, 0xa4, 0x9d, 0xf6, 0x2d, 0x94,
-	0x66, 0x61, 0x26, 0x60, 0xcc, 0x31, 0x29, 0x9d, 0x83, 0x3f, 0xdf, 0xc7, 0x8e, 0x97, 0x0f, 0x3b,
-	0x88, 0x5a, 0xe6, 0x4e, 0x7a, 0x23, 0x40, 0x35, 0xc9, 0xc2, 0xc5, 0xb5, 0xc1, 0xe1, 0xeb, 0x65,
-	0xc1, 0xcb, 0xcb, 0x7a, 0x62, 0x5e, 0x8e, 0xf7, 0x57, 0xe7, 0xf1, 0x71, 0x35, 0xaf, 0x6b, 0x5a,
-	0x09, 0xbe, 0x48, 0xd4, 0x61, 0x26, 0x62, 0x12, 0x53, 0xd5, 0x8d, 0x70, 0x55, 0x2f, 0xa7, 0xa3,
-	0xdc, 0x77, 0x19, 0x2c, 0xea, 0x37, 0x02, 0xa0, 0xa8, 0x05, 0x72, 0x60, 0xb6, 0x8f, 0xfe, 0xc1,
-	0xad, 0xaf, 0x8d, 0xb0, 0x56, 0x8c, 0x88, 0x6f, 0x1a, 0xb5, 0x22, 0x0a, 0xd1, 0x82, 0xf9, 0x04,
-	0xf3, 0xb7, 0x49, 0x40, 0x4c, 0x39, 0x04, 0x12, 0xf0, 0x22, 0xdb, 0xa7, 0xd1, 0xbe, 0x05, 0x4d,
-	0x80, 0x5f, 0x9f, 0xaa, 0x2f, 0x4e, 0x4d, 0x40, 0xd4, 0x53, 0x8c, 0xc8, 0x4d, 0x80, 0x15, 0x51,
-	0x88, 0x87, 0x30, 0x9f, 0x60, 0x1e, 0x93, 0x80, 0x66, 0x38, 0x01, 0x2b, 0x23, 0x04, 0xb5, 0x6e,
-	0xec, 0x91, 0x60, 0x12, 0x7e, 0xcb, 0xc3, 0x99, 0x78, 0x2b, 0x74, 0x11, 0x66, 0x48, 0x4b, 0x53,
-	0x4c, 0x8b, 0x98, 0xd8, 0x72, 0x7a, 0x9c, 0xac, 0x78, 0x14, 0xa7, 0x48, 0x4b, 0xdb, 0x72, 0xe5,
-	0x8c, 0xaf, 0x6a, 0x50, 0xd6, 0x6c, 0x85, 0xd6, 0xb8, 0x8f, 0x19, 0xb7, 0xbc, 0xa7, 0x35, 0x7b,
-	0x93, 0xb4, 0xb1, 0xb7, 0x06, 0xbd, 0x2c, 0x68, 0xb6, 0x62, 0xb7, 0x54, 0x5d, 0xed, 0xe3, 0xcb,
-	0x6d, 0xe5, 0xcb, 0x9a, 0xbd, 0xcd, 0x14, 0xbe, 0xf5, 0x65, 0xf0, 0xf8, 0x0b, 0xb7, 0x95, 0xa7,
-	0x5d, 0xd5, 0x70, 0x34, 0xa7, 0xc7, 0xbe, 0x02, 0x82, 0x3c, 0xe3, 0x6b, 0xfe, 0xe5, 0x2a, 0xd0,
-	0x4a, 0x3c, 0x6d, 0x8e, 0xb1, 0xa0, 0x63, 0x98, 0x10, 0x6d, 0x40, 0x1e, 0x1b, 0x87, 0x76, 0x65,
-	0x9c, 0x9d, 0xee, 0xcd, 0x11, 0x13, 0x59, 0x6f, 0x1a, 0x87, 0x2e, 0xa8, 0x99, 0x1b, 0xb4, 0x0b,
-	0x13, 0xaa, 0x61, 0x10, 0xbe, 0x84, 0x5d, 0x29, 0x30, 0xaf, 0x77, 0x46, 0xf5, 0xda, 0xe8, 0xbb,
-	0xe0, 0xce, 0x83, 0x4e, 0xd1, 0x76, 0xa4, 0xcd, 0x28, 0x9e, 0xe0, 0xeb, 0x3e, 0xd0, 0x51, 0x5c,
-	0x87, 0x92, 0xbf, 0x97, 0xb4, 0x0e, 0xb3, 0x14, 0xc0, 0x8f, 0x78, 0x1b, 0xca, 0x83, 0xe1, 0x8e,
-	0x32, 0x5f, 0xda, 0x85, 0xc5, 0xfb, 0xd8, 0xf1, 0x6f, 0x7b, 0xcf, 0x54, 0x0b, 0xf7, 0xd9, 0x2a,
-	0xed, 0x16, 0x14, 0xed, 0x0f, 0xb2, 0x31, 0xfd, 0x81, 0xf4, 0x71, 0x16, 0xce, 0x1f, 0xb3, 0x48,
-	0x5a, 0x17, 0x13, 0x6c, 0x50, 0xb2, 0xe1, 0x06, 0x25, 0xd2, 0xe0, 0xe4, 0x62, 0x1a, 0x9c, 0x4f,
-	0x04, 0x90, 0x02, 0xfd, 0x89, 0x7f, 0xed, 0xa5, 0x61, 0x04, 0x18, 0x96, 0x5f, 0x1f, 0x6f, 0x0c,
-	0xd1, 0xb3, 0xc4, 0xef, 0xe3, 0x5c, 0xeb, 0x78, 0x03, 0xe9, 0x9b, 0x2c, 0x9c, 0x4b, 0x71, 0x12,
-	0x93, 0x51, 0x21, 0xae, 0xe3, 0xfa, 0x48, 0xf0, 0x0b, 0x0d, 0x07, 0x3f, 0x90, 0x59, 0x06, 0xf8,
-	0xad, 0x93, 0xee, 0xa1, 0xde, 0xf0, 0x7c, 0x0e, 0x7e, 0x32, 0xd4, 0x88, 0x42, 0xec, 0xc2, 0x7c,
-	0x82, 0x79, 0x0c, 0x00, 0xef, 0x85, 0x19, 0xb3, 0x9e, 0xda, 0xda, 0x84, 0x02, 0x0b, 0x02, 0xf6,
-	0xa7, 0x1c, 0xcc, 0xc5, 0x1a, 0xc5, 0x72, 0xa0, 0x30, 0x02, 0x07, 0x66, 0x13, 0x38, 0x90, 0x92,
-	0x5a, 0xa7, 0x63, 0xe1, 0x4e, 0x98, 0x04, 0x73, 0x8c, 0x04, 0x51, 0x5f, 0xe5, 0xb3, 0xe0, 0x1d,
-	0x38, 0x4b, 0x2c, 0xad, 0xa3, 0x19, 0xaa, 0xae, 0xc4, 0xcd, 0xe4, 0xf4, 0x29, 0x7a, 0x36, 0x8d,
-	0xa8, 0x07, 0x02, 0x67, 0x07, 0x70, 0xea, 0x4d, 0x56, 0x74, 0xcd, 0xa6, 0x84, 0x9a, 0x1b, 0x3e,
-	0x8b, 0x9e, 0x57, 0x79, 0xc1, 0x89, 0x13, 0x53, 0x76, 0x42, 0xcf, 0x05, 0x58, 0xf2, 0x63, 0x3e,
-	0x76, 0xe9, 0xf1, 0x13, 0x2d, 0x7d, 0xde, 0x73, 0xbe, 0x93, 0x14, 0x82, 0x24, 0x0f, 0x9c, 0xab,
-	0x9f, 0x8c, 0xa5, 0x00, 0xe1, 0x72, 0x10, 0xb9, 0x35, 0xe1, 0x49, 0x1f, 0x53, 0x21, 0x42, 0x90,
-	0xa7, 0x67, 0xcf, 0x8e, 0x31, 0x2f, 0xb3, 0xdf, 0xd2, 0x65, 0x58, 0x1e, 0x24, 0x1e, 0x17, 0xb3,
-	0xea, 0xae, 0x1e, 0x21, 0x3a, 0xe9, 0xbb, 0x2c, 0x5c, 0x1a, 0xce, 0xde, 0xe5, 0xac, 0xcf, 0x05,
-	0x98, 0x53, 0xfb, 0x06, 0x91, 0x7e, 0x4d, 0x39, 0xae, 0x55, 0x1d, 0x7a, 0x99, 0x7a, 0x9c, 0x92,
-	0x17, 0xe6, 0x69, 0x35, 0x46, 0x25, 0xbe, 0x10, 0x60, 0x21, 0x71, 0x4e, 0x4c, 0x75, 0x3e, 0x0a,
-	0x57, 0x67, 0xf2, 0x67, 0x38, 0xe0, 0x34, 0xb5, 0x50, 0x5f, 0x66, 0x61, 0x31, 0xcd, 0xfe, 0xfd,
-	0xa9, 0xd9, 0xb4, 0x8a, 0xcb, 0xbf, 0xe3, 0x8a, 0x93, 0xbe, 0x10, 0xa0, 0xb2, 0xe5, 0xbe, 0xcd,
-	0x06, 0x5a, 0xef, 0xf7, 0xe2, 0xdd, 0x51, 0xfa, 0x13, 0x2c, 0xc4, 0xc4, 0xc6, 0xd1, 0x78, 0xf1,
-	0x9f, 0x30, 0x15, 0xba, 0xbf, 0xa3, 0x22, 0xe4, 0xd7, 0x37, 0xd7, 0x77, 0xca, 0x19, 0xfa, 0x6b,
-	0xa3, 0xb1, 0xbe, 0x59, 0x16, 0xd0, 0x04, 0x14, 0xb6, 0xd7, 0xef, 0x35, 0xd7, 0x1a, 0x72, 0x39,
-	0x8b, 0xa6, 0xa0, 0xd4, 0xdc, 0x7a, 0xd0, 0xdc, 0x68, 0xca, 0x8d, 0x87, 0xe5, 0xdc, 0xea, 0x1e,
-	0x4c, 0xf2, 0x17, 0x62, 0x8b, 0x77, 0xfc, 0x8f, 0xa1, 0xe8, 0xbd, 0x18, 0xa3, 0xda, 0x31, 0xcd,
-	0x5a, 0xe8, 0x51, 0x59, 0xac, 0x26, 0x5a, 0xf2, 0x3b, 0x6c, 0x66, 0xf5, 0x65, 0x11, 0xa6, 0xc3,
-	0x8f, 0xbe, 0xc8, 0x80, 0x72, 0xa0, 0xf2, 0xf8, 0xb5, 0xbb, 0x36, 0xec, 0xdb, 0xa1, 0x58, 0x1f,
-	0xed, 0x25, 0x49, 0xca, 0xa0, 0x36, 0x94, 0xfc, 0xbb, 0x31, 0xfa, 0xfb, 0x31, 0xd3, 0xc3, 0x97,
-	0x6d, 0xf1, 0xe2, 0x30, 0xa6, 0xfe, 0x2a, 0x9f, 0x0a, 0x70, 0x26, 0xfe, 0xee, 0x8b, 0xae, 0x8d,
-	0x7c, 0x59, 0xe6, 0x01, 0x5c, 0x3f, 0xe1, 0x25, 0x5b, 0xca, 0x50, 0x52, 0x5c, 0x48, 0x6c, 0xf7,
-	0xd0, 0xcd, 0xa1, 0x29, 0x71, 0x90, 0x9e, 0xc5, 0x5b, 0x27, 0x99, 0xea, 0x87, 0xf5, 0x95, 0x00,
-	0x7f, 0x1d, 0x86, 0x75, 0xd1, 0xbd, 0xb7, 0x24, 0x6d, 0x1e, 0x6c, 0xf3, 0x9d, 0x50, 0xbf, 0x94,
-	0x41, 0x3a, 0x54, 0x02, 0x29, 0x0f, 0xff, 0xf3, 0x93, 0x52, 0x03, 0xe2, 0x88, 0x7f, 0x86, 0x48,
-	0x19, 0xf4, 0x04, 0x8a, 0x5e, 0x57, 0x37, 0x42, 0x61, 0x5c, 0x1d, 0xe5, 0x09, 0xa0, 0xbf, 0xb5,
-	0xff, 0xc3, 0x4c, 0x84, 0x66, 0xd0, 0x95, 0x44, 0x5f, 0x49, 0x74, 0x29, 0xae, 0x8e, 0x32, 0xc5,
-	0x5b, 0xfd, 0xee, 0x85, 0x57, 0xaf, 0xab, 0xc2, 0xcf, 0xaf, 0xab, 0x99, 0xe7, 0x47, 0x55, 0xe1,
-	0xd5, 0x51, 0x55, 0xf8, 0xe1, 0xa8, 0x2a, 0xfc, 0x72, 0x54, 0x15, 0x3e, 0xfb, 0xb5, 0x9a, 0xf9,
-	0x4f, 0xd1, 0xf3, 0xb1, 0x3b, 0xce, 0xfe, 0x7f, 0xbb, 0xfa, 0x7b, 0x00, 0x00, 0x00, 0xff, 0xff,
-	0xe1, 0xaa, 0x3a, 0xfc, 0xd4, 0x1b, 0x00, 0x00,
+	// 1864 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x59, 0xcd, 0x73, 0xd3, 0xda,
+	0x15, 0xb7, 0x6c, 0xc7, 0x1f, 0x27, 0x1f, 0x38, 0x37, 0x84, 0x38, 0x6a, 0x70, 0x82, 0x4a, 0xa8,
+	0x4b, 0xc0, 0x19, 0x42, 0x07, 0x08, 0x9d, 0x01, 0x4c, 0xe2, 0x42, 0x66, 0x92, 0x90, 0x2a, 0x29,
+	0xed, 0xb4, 0x0b, 0x8f, 0x62, 0xdf, 0x38, 0x1a, 0x14, 0x5d, 0x21, 0xc9, 0xa1, 0x9e, 0xe9, 0x82,
+	0x32, 0xa5, 0x9b, 0x6e, 0x58, 0x74, 0xd5, 0xe9, 0xb2, 0xff, 0x42, 0xfb, 0x0f, 0x74, 0xc3, 0x74,
+	0xd5, 0x55, 0xa7, 0xcb, 0x92, 0xfe, 0x0f, 0xef, 0xcd, 0xdb, 0x30, 0x6f, 0x74, 0xaf, 0x3e, 0x2d,
+	0xc9, 0x5f, 0xc0, 0x7b, 0x2c, 0xd8, 0x49, 0xe7, 0x9e, 0x7b, 0xbe, 0x7f, 0xe7, 0x1e, 0x5d, 0x41,
+	0x5e, 0xd2, 0xe4, 0x8a, 0xa6, 0x13, 0x93, 0xa0, 0x39, 0x1d, 0x1b, 0xa4, 0xad, 0x37, 0xb0, 0xa6,
+	0xb4, 0x5b, 0xb2, 0x5a, 0x39, 0xbd, 0x21, 0x29, 0xda, 0xb1, 0x74, 0x83, 0xbf, 0xde, 0x92, 0xcd,
+	0xe3, 0xf6, 0x61, 0xa5, 0x41, 0x4e, 0x56, 0x5b, 0xa4, 0x45, 0x56, 0x29, 0xff, 0x61, 0xfb, 0x88,
+	0xbe, 0xd1, 0x17, 0xfa, 0xc4, 0xe4, 0x08, 0x7f, 0xe3, 0x60, 0x56, 0xb4, 0x45, 0xed, 0x51, 0x51,
+	0x4f, 0x34, 0x53, 0x26, 0xaa, 0x81, 0xae, 0x01, 0xd2, 0x74, 0x5c, 0x37, 0x4c, 0x49, 0x37, 0xeb,
+	0x3a, 0x7e, 0xde, 0x96, 0x75, 0xdc, 0x2c, 0x72, 0x4b, 0x5c, 0x39, 0x27, 0x16, 0x34, 0x1d, 0xef,
+	0x5b, 0x0b, 0xa2, 0x4d, 0x47, 0xb7, 0x60, 0xee, 0x85, 0x6c, 0x1e, 0xd7, 0x4d, 0xa2, 0x11, 0x85,
+	0xb4, 0x3a, 0x75, 0x49, 0x91, 0x5b, 0xea, 0x09, 0x56, 0xcd, 0x62, 0x92, 0x6e, 0x99, 0xb5, 0x96,
+	0x0f, 0xec, 0xd5, 0xaa, 0xb3, 0x88, 0x96, 0x61, 0x4a, 0xc5, 0xb8, 0x59, 0xd7, 0x71, 0x83, 0xa8,
+	0x0d, 0x59, 0xc1, 0xc5, 0x14, 0x65, 0x9f, 0xb4, 0xa8, 0xa2, 0x43, 0x14, 0xfe, 0xc1, 0xc1, 0x39,
+	0x11, 0xb7, 0x64, 0xc3, 0xc4, 0xba, 0xa5, 0x13, 0x1b, 0x26, 0x2a, 0x42, 0xf6, 0x14, 0xeb, 0x86,
+	0x4c, 0x54, 0x6a, 0x55, 0x5e, 0x74, 0x5e, 0x11, 0x0f, 0x39, 0xac, 0x36, 0x35, 0x22, 0xdb, 0xda,
+	0xf3, 0xa2, 0xfb, 0x8e, 0x7e, 0x08, 0x93, 0x4e, 0xe8, 0xea, 0xaa, 0x74, 0xc2, 0xf4, 0xe5, 0xc5,
+	0x09, 0x87, 0xb8, 0x2b, 0x9d, 0x60, 0xf4, 0x18, 0xb2, 0x84, 0x85, 0xa1, 0x98, 0x5e, 0xe2, 0xca,
+	0xe3, 0x6b, 0x95, 0x4a, 0x4c, 0xbc, 0x2b, 0x91, 0xc1, 0x13, 0x9d, 0xed, 0xc2, 0xd7, 0x19, 0xcb,
+	0x70, 0xc6, 0xe2, 0x18, 0x3e, 0x07, 0x59, 0x8d, 0x34, 0xeb, 0x6d, 0xb9, 0x69, 0x1b, 0x9e, 0xd1,
+	0x48, 0xf3, 0x17, 0x72, 0xd3, 0xb2, 0xcd, 0x5a, 0xb0, 0xcc, 0x32, 0x34, 0xa9, 0x81, 0x6d, 0xe3,
+	0x27, 0x34, 0xd2, 0xdc, 0x75, 0x68, 0x68, 0x1e, 0x72, 0x0e, 0x93, 0x6d, 0x7b, 0xd6, 0x5e, 0xb7,
+	0x82, 0xd9, 0x20, 0xaa, 0x29, 0xc9, 0x2a, 0xd6, 0x19, 0x43, 0x9a, 0x32, 0x4c, 0xba, 0x54, 0xca,
+	0xb6, 0xe3, 0x67, 0x33, 0x3b, 0x1a, 0x2e, 0x8e, 0x2d, 0x71, 0xe5, 0xa9, 0xb5, 0x2b, 0xb1, 0x4e,
+	0x6e, 0x38, 0xec, 0x07, 0x1d, 0x0d, 0xfb, 0xc4, 0x59, 0xaf, 0xe8, 0x47, 0x70, 0xce, 0x13, 0x27,
+	0xab, 0x4d, 0xfc, 0xdb, 0x62, 0x66, 0x89, 0x2b, 0xa7, 0x45, 0x4f, 0xcb, 0x96, 0x45, 0x75, 0x2c,
+	0xd7, 0x89, 0x82, 0x8b, 0x59, 0xd7, 0x72, 0x91, 0x28, 0xae, 0x53, 0xd4, 0x98, 0x9c, 0xbb, 0x44,
+	0xc5, 0x87, 0x12, 0x96, 0x8f, 0x48, 0xd8, 0x3a, 0xa4, 0x8f, 0xad, 0x6c, 0x03, 0xcd, 0xd6, 0x72,
+	0xac, 0x23, 0x4e, 0x01, 0x3e, 0x96, 0x55, 0x53, 0xa4, 0x5b, 0xd0, 0x33, 0x98, 0x76, 0xe5, 0xeb,
+	0x2c, 0x43, 0x46, 0x71, 0x7c, 0x29, 0x55, 0x1e, 0x5f, 0xbb, 0xd7, 0x37, 0xeb, 0x76, 0x4a, 0xbb,
+	0xdf, 0x8d, 0x9a, 0x6a, 0xea, 0x1d, 0xb1, 0xa0, 0x77, 0x91, 0xd1, 0x36, 0x64, 0x14, 0xe9, 0x10,
+	0x2b, 0x46, 0x71, 0x82, 0x6a, 0xf8, 0xc9, 0xc0, 0x1a, 0xb6, 0xe9, 0x36, 0x26, 0xd7, 0x96, 0x81,
+	0x7e, 0x03, 0xe3, 0x92, 0xaa, 0x12, 0x53, 0x62, 0xa5, 0x3a, 0x49, 0x45, 0xae, 0x0f, 0x2c, 0xb2,
+	0xea, 0xed, 0x65, 0x72, 0xfd, 0xd2, 0xf8, 0x0d, 0xaf, 0x31, 0x04, 0xbc, 0x42, 0x05, 0x48, 0x3d,
+	0xc3, 0x1d, 0xbb, 0x74, 0xad, 0x47, 0x74, 0x1e, 0xc6, 0x4e, 0x25, 0xa5, 0xcd, 0xea, 0x95, 0x13,
+	0xd9, 0xcb, 0xdd, 0xe4, 0x1d, 0x8e, 0x5f, 0x87, 0x71, 0x9f, 0xe1, 0xfd, 0xb6, 0xe6, 0xfd, 0x5b,
+	0xef, 0x41, 0xa1, 0xdb, 0xc0, 0x61, 0xf6, 0x0b, 0x5f, 0x65, 0x3c, 0x07, 0xac, 0x74, 0x1b, 0x22,
+	0x36, 0x34, 0xa2, 0x1a, 0xf8, 0x0b, 0xfe, 0x3e, 0x3e, 0xfe, 0x8e, 0x61, 0xca, 0x65, 0xb2, 0x50,
+	0x65, 0x14, 0x81, 0x16, 0x63, 0xb5, 0x6f, 0x31, 0x06, 0x52, 0x13, 0xa4, 0xb2, 0xa2, 0x74, 0xb5,
+	0x53, 0x1a, 0x12, 0x5d, 0x04, 0x31, 0x8c, 0xde, 0x1d, 0x52, 0x43, 0x14, 0x8e, 0xa4, 0x20, 0x8e,
+	0x18, 0x34, 0xef, 0x0f, 0x29, 0xb8, 0x37, 0x9a, 0x54, 0x40, 0x61, 0xdf, 0x22, 0xea, 0xf9, 0xa1,
+	0xbf, 0x9e, 0xc7, 0xd7, 0xae, 0xc5, 0x1a, 0xb1, 0x2d, 0x1b, 0xe6, 0x93, 0x23, 0x7f, 0x3f, 0x33,
+	0x3e, 0x13, 0xe0, 0xbd, 0xce, 0x00, 0xef, 0xf8, 0x5a, 0x55, 0x14, 0xd2, 0xa0, 0x82, 0xbe, 0xa0,
+	0xef, 0xd3, 0xa1, 0xef, 0x57, 0x30, 0x2d, 0xb9, 0x81, 0xae, 0xeb, 0xd8, 0x68, 0x2b, 0xce, 0x51,
+	0xb8, 0xd2, 0xb7, 0x8a, 0x7d, 0x29, 0x2a, 0x48, 0xfe, 0x74, 0xb5, 0x15, 0x13, 0xfd, 0xb2, 0x0b,
+	0x6d, 0xf7, 0x87, 0x11, 0xd7, 0x0b, 0x72, 0x47, 0x51, 0x90, 0xdb, 0x1c, 0x45, 0x7a, 0x6f, 0xdc,
+	0x7d, 0x8f, 0x38, 0x10, 0x61, 0x26, 0x02, 0xa4, 0xe8, 0xa7, 0x30, 0xc6, 0x3a, 0x24, 0x47, 0x7d,
+	0x1e, 0x70, 0x56, 0x61, 0x7b, 0x84, 0x87, 0x30, 0xe1, 0x27, 0x5b, 0xda, 0x55, 0xd2, 0xc4, 0x4c,
+	0x58, 0x5a, 0x64, 0x2f, 0x68, 0x01, 0xf2, 0x9a, 0x8e, 0x8f, 0xb0, 0x6e, 0x4d, 0xec, 0x6c, 0xfc,
+	0xf6, 0x08, 0x42, 0x16, 0xc6, 0x6a, 0x27, 0x9a, 0xd9, 0x11, 0x56, 0xa0, 0x20, 0xe2, 0x13, 0x72,
+	0x8a, 0xf7, 0x48, 0xb3, 0xdf, 0x6c, 0x2a, 0xcc, 0xc0, 0xb4, 0x8f, 0x99, 0xc5, 0x5e, 0x58, 0x84,
+	0x8b, 0x8f, 0xb0, 0xe9, 0x24, 0xc7, 0xf0, 0x67, 0x87, 0x8a, 0x13, 0xde, 0x73, 0x50, 0x8a, 0xe3,
+	0xb0, 0xfb, 0x81, 0xca, 0x60, 0xef, 0x44, 0xc1, 0x89, 0xcb, 0x56, 0x6c, 0x5c, 0x7a, 0xcb, 0xab,
+	0x30, 0xfb, 0xd8, 0x32, 0x2b, 0x08, 0xab, 0x83, 0xb8, 0x24, 0x5e, 0x81, 0xe9, 0x10, 0x4b, 0x44,
+	0x5e, 0xab, 0xc1, 0x46, 0xbc, 0xd2, 0xbf, 0x3b, 0xb8, 0x22, 0xfd, 0x45, 0xf0, 0x9e, 0x03, 0x14,
+	0xe6, 0x40, 0x26, 0xcc, 0x78, 0x5d, 0xa3, 0xdb, 0xf5, 0x8d, 0x21, 0x74, 0x45, 0x90, 0x98, 0xd3,
+	0xa8, 0x11, 0x5a, 0xe0, 0x75, 0x98, 0x8b, 0x61, 0xff, 0x90, 0x00, 0x44, 0x60, 0xd3, 0x17, 0x80,
+	0x57, 0x49, 0xef, 0xe4, 0xf3, 0x38, 0xac, 0x00, 0xb8, 0x7d, 0xcd, 0xeb, 0x3a, 0x7d, 0x03, 0x10,
+	0x96, 0x14, 0x41, 0xb2, 0x03, 0xa0, 0x87, 0x16, 0xf8, 0x53, 0x98, 0x8b, 0x61, 0x8f, 0x08, 0x40,
+	0x2d, 0x18, 0x80, 0xd5, 0x21, 0x8c, 0xda, 0x52, 0x8f, 0x88, 0x3f, 0x08, 0xdf, 0xa4, 0xe1, 0x42,
+	0x34, 0x17, 0xba, 0x0a, 0xd3, 0xa4, 0x21, 0xd7, 0x35, 0x9d, 0x68, 0x58, 0x37, 0x3b, 0xac, 0xc9,
+	0x33, 0x2b, 0xce, 0x91, 0x86, 0xbc, 0x67, 0xd3, 0x69, 0x9f, 0x2f, 0x43, 0x41, 0x36, 0xea, 0x16,
+	0xc6, 0xdd, 0x9a, 0xb1, 0xe1, 0x3d, 0x25, 0x1b, 0xbb, 0xa4, 0x89, 0x1d, 0x1d, 0xd6, 0xc7, 0xbb,
+	0x6c, 0xd4, 0x8d, 0x86, 0xa4, 0x48, 0x5e, 0x7d, 0xd9, 0x9f, 0xd6, 0x05, 0xd9, 0xd8, 0xa7, 0x0b,
+	0x2e, 0xf7, 0x75, 0x40, 0x76, 0x0e, 0x70, 0xb3, 0xfe, 0xbc, 0x2d, 0xa9, 0xa6, 0x6c, 0x76, 0xe8,
+	0xe9, 0xc9, 0x89, 0xd3, 0xee, 0xca, 0xcf, 0xed, 0x05, 0xb4, 0x12, 0x75, 0xdc, 0x8c, 0x51, 0x93,
+	0xc3, 0x27, 0xc8, 0x0e, 0xa4, 0xb1, 0x7a, 0x6a, 0x14, 0x33, 0x03, 0x7e, 0x9c, 0x04, 0xc3, 0x53,
+	0xa9, 0xa9, 0xa7, 0x76, 0x41, 0x53, 0x31, 0xe8, 0x30, 0x78, 0x6e, 0x64, 0xa9, 0xd4, 0x07, 0xc3,
+	0x4a, 0xed, 0x79, 0x66, 0xa0, 0xfd, 0xd0, 0x30, 0x9b, 0x1b, 0x61, 0x18, 0x0b, 0xce, 0xad, 0xfc,
+	0x6d, 0xc8, 0xbb, 0xbe, 0x7c, 0xa7, 0xc7, 0xd0, 0x21, 0x2c, 0x3d, 0xc2, 0xa6, 0x7b, 0xf3, 0xf2,
+	0x42, 0xd2, 0xb1, 0xd7, 0xa9, 0xfa, 0xdd, 0x48, 0x84, 0x67, 0xaa, 0x64, 0xc4, 0x4c, 0x25, 0xfc,
+	0x21, 0x09, 0x97, 0x7a, 0x28, 0xe9, 0x37, 0xf9, 0xf9, 0x87, 0xba, 0x64, 0x70, 0xa8, 0x0b, 0x0d,
+	0x85, 0xa9, 0x88, 0xa1, 0xf0, 0x35, 0x07, 0x82, 0x6f, 0xa6, 0x73, 0xaf, 0xa0, 0x2c, 0x33, 0x7c,
+	0xdd, 0x95, 0x5d, 0xe5, 0xdc, 0x19, 0x60, 0xce, 0x8b, 0xf6, 0x63, 0xb1, 0xd1, 0x9b, 0x41, 0xf8,
+	0x67, 0x12, 0x16, 0xfb, 0x08, 0x89, 0x88, 0x28, 0x17, 0x35, 0xa5, 0xfe, 0x9e, 0x83, 0x19, 0x0f,
+	0x93, 0x9e, 0x0f, 0x49, 0x5a, 0xf0, 0x7b, 0xa3, 0xfa, 0x50, 0xa9, 0x3a, 0x32, 0xbb, 0x8f, 0x0b,
+	0x29, 0xb4, 0xc0, 0xb7, 0x61, 0x2e, 0x86, 0x3d, 0xa2, 0x00, 0x37, 0x83, 0xdd, 0xb2, 0xd2, 0x77,
+	0xac, 0x09, 0x18, 0xe6, 0x2f, 0xd8, 0xff, 0xa4, 0x60, 0x36, 0x92, 0x29, 0xb2, 0xff, 0x71, 0x43,
+	0xf4, 0xbf, 0x64, 0x4c, 0xff, 0x5b, 0x85, 0x19, 0xa9, 0xd5, 0xd2, 0x71, 0x2b, 0xd8, 0x00, 0x53,
+	0xb4, 0x01, 0x22, 0x6f, 0xc9, 0xed, 0x80, 0x0f, 0x60, 0x81, 0xe8, 0x72, 0x4b, 0x56, 0x25, 0xa5,
+	0x1e, 0xb5, 0x93, 0xb5, 0x4e, 0xde, 0xe1, 0xa9, 0x86, 0x25, 0x10, 0x58, 0xe8, 0xaa, 0x53, 0x67,
+	0x73, 0x5d, 0x91, 0x0d, 0xab, 0x9d, 0xa6, 0x06, 0x8f, 0xa2, 0x23, 0x55, 0x9c, 0x37, 0xa3, 0xc8,
+	0x56, 0x77, 0x42, 0x2f, 0x39, 0x58, 0x76, 0x6d, 0xee, 0xa9, 0x3a, 0x33, 0x92, 0xea, 0x4b, 0x8e,
+	0xf0, 0x83, 0x38, 0x13, 0x04, 0xb1, 0x2b, 0xaf, 0x6e, 0x30, 0x96, 0x7d, 0x0d, 0x97, 0x15, 0x11,
+	0x47, 0x03, 0xe8, 0xb6, 0xd0, 0xa7, 0x16, 0x11, 0x21, 0x48, 0x5b, 0xb9, 0xa7, 0x69, 0x4c, 0x8b,
+	0xf4, 0x59, 0xb8, 0x0e, 0x2b, 0xdd, 0x8d, 0xc7, 0xae, 0x59, 0xe9, 0x50, 0x09, 0x35, 0x3a, 0xe1,
+	0x5f, 0x49, 0xb8, 0x36, 0x18, 0xbf, 0xdd, 0xb3, 0xfe, 0xcc, 0xc1, 0xac, 0xe4, 0x31, 0x84, 0x66,
+	0xb5, 0x7a, 0xaf, 0x31, 0x75, 0x60, 0x35, 0x95, 0xa8, 0x45, 0x06, 0xcc, 0xf3, 0x52, 0xc4, 0x12,
+	0xff, 0x8a, 0x83, 0xf9, 0xd8, 0x3d, 0x11, 0xe8, 0x7c, 0x12, 0x44, 0x67, 0xfc, 0x31, 0xec, 0x13,
+	0xda, 0x17, 0xa8, 0x6f, 0xd2, 0xb0, 0xd4, 0x8f, 0xff, 0x93, 0x61, 0xf6, 0x67, 0xb0, 0xe8, 0x43,
+	0x9e, 0x3f, 0x45, 0x5d, 0xf8, 0xbd, 0xe8, 0xb1, 0xf9, 0x8c, 0x75, 0x6b, 0xef, 0x8f, 0x1c, 0x94,
+	0xbb, 0xe0, 0x10, 0x25, 0x8c, 0x41, 0x23, 0x3d, 0x12, 0x34, 0x2e, 0x9b, 0x31, 0x75, 0x10, 0x00,
+	0xe8, 0x03, 0x58, 0xf0, 0x39, 0xd4, 0x90, 0x34, 0xa9, 0x61, 0xe9, 0x75, 0xbd, 0x19, 0x63, 0x3d,
+	0xc5, 0xe3, 0xd9, 0xb0, 0x59, 0x5c, 0x57, 0x2c, 0x88, 0x77, 0xb9, 0x12, 0x12, 0xf3, 0x41, 0x10,
+	0x0f, 0xf8, 0xd1, 0xad, 0x9e, 0x42, 0xfc, 0x2f, 0x1c, 0x14, 0xf7, 0xec, 0x7f, 0x43, 0xbe, 0x4f,
+	0x8d, 0xcf, 0xe2, 0xbf, 0x87, 0xf0, 0x03, 0x98, 0x8f, 0xb0, 0x8d, 0x21, 0xf0, 0xea, 0x7d, 0x98,
+	0x0c, 0xdc, 0xf3, 0xa0, 0x1c, 0xa4, 0xb7, 0x76, 0xb7, 0x0e, 0x0a, 0x09, 0xeb, 0x69, 0xa7, 0xba,
+	0xb5, 0x5b, 0xe0, 0xd0, 0x38, 0x64, 0xf7, 0xb7, 0x36, 0x6b, 0x1b, 0x55, 0xb1, 0x90, 0x44, 0x93,
+	0x90, 0xaf, 0xed, 0x3d, 0xae, 0xed, 0xd4, 0xc4, 0xea, 0x76, 0x21, 0xb5, 0x76, 0x04, 0x13, 0xec,
+	0x0f, 0x95, 0xce, 0xbe, 0x70, 0x9e, 0x42, 0xce, 0xf9, 0x63, 0x85, 0xca, 0x3d, 0x06, 0xd4, 0xc0,
+	0x4f, 0x2d, 0xbe, 0x14, 0xcb, 0xc9, 0xbe, 0xd9, 0x13, 0x6b, 0x7f, 0xcd, 0xc1, 0x54, 0xf0, 0xa7,
+	0x13, 0x52, 0xa1, 0xe0, 0xeb, 0x36, 0xec, 0x9a, 0xa1, 0x3c, 0xe8, 0x6f, 0x00, 0xbe, 0x32, 0xdc,
+	0x45, 0xa7, 0x90, 0x40, 0x4d, 0xc8, 0xbb, 0x77, 0x01, 0xe8, 0xc7, 0x3d, 0xb6, 0x07, 0x2f, 0x17,
+	0xf8, 0xab, 0x83, 0xb0, 0xba, 0x5a, 0xfe, 0xc4, 0xc1, 0x85, 0xe8, 0x6f, 0x7d, 0x74, 0x6b, 0xe8,
+	0xcb, 0x01, 0x66, 0xc0, 0xed, 0x11, 0x2f, 0x15, 0x84, 0x84, 0x75, 0x10, 0xcc, 0xc7, 0x8e, 0xb8,
+	0x68, 0x7d, 0xe0, 0x63, 0xa0, 0xfb, 0x48, 0xe2, 0xef, 0x8e, 0xb2, 0xd5, 0x35, 0xeb, 0xef, 0x1c,
+	0x5c, 0x1e, 0xe4, 0xa4, 0x41, 0x9b, 0x1f, 0x78, 0x50, 0x31, 0x63, 0x6b, 0x1f, 0xe5, 0xb8, 0x13,
+	0x12, 0x48, 0x81, 0xa2, 0x2f, 0xe4, 0xc1, 0x3f, 0xcf, 0x7d, 0x30, 0xc0, 0x0f, 0xf9, 0x33, 0x56,
+	0x48, 0xa0, 0x67, 0x90, 0x73, 0x26, 0xd9, 0x21, 0x80, 0x71, 0x73, 0x84, 0xeb, 0x48, 0x21, 0x81,
+	0x7e, 0x07, 0xd3, 0xa1, 0x36, 0x83, 0x6e, 0xc4, 0xca, 0x8a, 0x6b, 0x97, 0xfc, 0xda, 0x30, 0x5b,
+	0x1c, 0xed, 0x0f, 0xaf, 0xbc, 0x7d, 0x57, 0xe2, 0xfe, 0xfb, 0xae, 0x94, 0x78, 0x79, 0x56, 0xe2,
+	0xde, 0x9e, 0x95, 0xb8, 0x7f, 0x9f, 0x95, 0xb8, 0xff, 0x9d, 0x95, 0xb8, 0x37, 0xff, 0x2f, 0x25,
+	0x7e, 0x9d, 0x73, 0x64, 0x1c, 0x66, 0xe8, 0xff, 0xff, 0x9b, 0xdf, 0x06, 0x00, 0x00, 0xff, 0xff,
+	0xd1, 0x90, 0x91, 0x63, 0x54, 0x20, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -2362,6 +2442,44 @@ func (m *ResourceRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.Annotations) > 0 {
+		for k := range m.Annotations {
+			v := m.Annotations[k]
+			baseI := i
+			i -= len(v)
+			copy(dAtA[i:], v)
+			i = encodeVarintApi(dAtA, i, uint64(len(v)))
+			i--
+			dAtA[i] = 0x12
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintApi(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintApi(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x6a
+		}
+	}
+	if len(m.Labels) > 0 {
+		for k := range m.Labels {
+			v := m.Labels[k]
+			baseI := i
+			i -= len(v)
+			copy(dAtA[i:], v)
+			i = encodeVarintApi(dAtA, i, uint64(len(v)))
+			i--
+			dAtA[i] = 0x12
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintApi(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintApi(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x62
+		}
+	}
 	if len(m.ResourceRequests) > 0 {
 		for k := range m.ResourceRequests {
 			v := m.ResourceRequests[k]
@@ -2474,6 +2592,44 @@ func (m *ResourceHintsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.Annotations) > 0 {
+		for k := range m.Annotations {
+			v := m.Annotations[k]
+			baseI := i
+			i -= len(v)
+			copy(dAtA[i:], v)
+			i = encodeVarintApi(dAtA, i, uint64(len(v)))
+			i--
+			dAtA[i] = 0x12
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintApi(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintApi(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x62
+		}
+	}
+	if len(m.Labels) > 0 {
+		for k := range m.Labels {
+			v := m.Labels[k]
+			baseI := i
+			i -= len(v)
+			copy(dAtA[i:], v)
+			i = encodeVarintApi(dAtA, i, uint64(len(v)))
+			i--
+			dAtA[i] = 0x12
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintApi(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintApi(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x5a
+		}
+	}
 	if len(m.ResourceHints) > 0 {
 		for k := range m.ResourceHints {
 			v := m.ResourceHints[k]
@@ -2582,9 +2738,47 @@ func (m *ResourceAllocationResponse) MarshalToSizedBuffer(dAtA []byte) (int, err
 	_ = i
 	var l int
 	_ = l
-	if m.AllocatationResult != nil {
+	if len(m.Annotations) > 0 {
+		for k := range m.Annotations {
+			v := m.Annotations[k]
+			baseI := i
+			i -= len(v)
+			copy(dAtA[i:], v)
+			i = encodeVarintApi(dAtA, i, uint64(len(v)))
+			i--
+			dAtA[i] = 0x12
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintApi(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintApi(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x62
+		}
+	}
+	if len(m.Labels) > 0 {
+		for k := range m.Labels {
+			v := m.Labels[k]
+			baseI := i
+			i -= len(v)
+			copy(dAtA[i:], v)
+			i = encodeVarintApi(dAtA, i, uint64(len(v)))
+			i--
+			dAtA[i] = 0x12
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintApi(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintApi(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x5a
+		}
+	}
+	if m.AllocationResult != nil {
 		{
-			size, err := m.AllocatationResult.MarshalToSizedBuffer(dAtA[:i])
+			size, err := m.AllocationResult.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
@@ -3060,10 +3254,10 @@ func (m *ResourceAllocationInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) 
 			dAtA[i] = 0x32
 		}
 	}
-	if len(m.AllocatationResult) > 0 {
-		i -= len(m.AllocatationResult)
-		copy(dAtA[i:], m.AllocatationResult)
-		i = encodeVarintApi(dAtA, i, uint64(len(m.AllocatationResult)))
+	if len(m.AllocationResult) > 0 {
+		i -= len(m.AllocationResult)
+		copy(dAtA[i:], m.AllocationResult)
+		i = encodeVarintApi(dAtA, i, uint64(len(m.AllocationResult)))
 		i--
 		dAtA[i] = 0x2a
 	}
@@ -3360,12 +3554,11 @@ func (m *TopologyAwareQuantity) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x10
 	}
-	if len(m.ResourceValue) > 0 {
-		i -= len(m.ResourceValue)
-		copy(dAtA[i:], m.ResourceValue)
-		i = encodeVarintApi(dAtA, i, uint64(len(m.ResourceValue)))
+	if m.ResourceValue != 0 {
+		i -= 8
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.ResourceValue))))
 		i--
-		dAtA[i] = 0xa
+		dAtA[i] = 0x9
 	}
 	return len(dAtA) - i, nil
 }
@@ -3462,10 +3655,30 @@ func (m *AllocatableTopologyAwareResource) MarshalToSizedBuffer(dAtA []byte) (in
 	_ = i
 	var l int
 	_ = l
-	if len(m.TopologyAwareQuantityList) > 0 {
-		for iNdEx := len(m.TopologyAwareQuantityList) - 1; iNdEx >= 0; iNdEx-- {
+	if len(m.TopologyAwareCapacityQuantityList) > 0 {
+		for iNdEx := len(m.TopologyAwareCapacityQuantityList) - 1; iNdEx >= 0; iNdEx-- {
 			{
-				size, err := m.TopologyAwareQuantityList[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				size, err := m.TopologyAwareCapacityQuantityList[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintApi(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x32
+		}
+	}
+	if m.AggregatedCapacityQuantity != 0 {
+		i -= 8
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.AggregatedCapacityQuantity))))
+		i--
+		dAtA[i] = 0x29
+	}
+	if len(m.TopologyAwareAllocatableQuantityList) > 0 {
+		for iNdEx := len(m.TopologyAwareAllocatableQuantityList) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.TopologyAwareAllocatableQuantityList[iNdEx].MarshalToSizedBuffer(dAtA[:i])
 				if err != nil {
 					return 0, err
 				}
@@ -3476,9 +3689,9 @@ func (m *AllocatableTopologyAwareResource) MarshalToSizedBuffer(dAtA []byte) (in
 			dAtA[i] = 0x22
 		}
 	}
-	if m.AggregatedQuantity != 0 {
+	if m.AggregatedAllocatableQuantity != 0 {
 		i -= 8
-		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.AggregatedQuantity))))
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.AggregatedAllocatableQuantity))))
 		i--
 		dAtA[i] = 0x19
 	}
@@ -3685,6 +3898,22 @@ func (m *ResourceRequest) Size() (n int) {
 			n += mapEntrySize + 1 + sovApi(uint64(mapEntrySize))
 		}
 	}
+	if len(m.Labels) > 0 {
+		for k, v := range m.Labels {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovApi(uint64(len(k))) + 1 + len(v) + sovApi(uint64(len(v)))
+			n += mapEntrySize + 1 + sovApi(uint64(mapEntrySize))
+		}
+	}
+	if len(m.Annotations) > 0 {
+		for k, v := range m.Annotations {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovApi(uint64(len(k))) + 1 + len(v) + sovApi(uint64(len(v)))
+			n += mapEntrySize + 1 + sovApi(uint64(mapEntrySize))
+		}
+	}
 	return n
 }
 
@@ -3741,6 +3970,22 @@ func (m *ResourceHintsResponse) Size() (n int) {
 			n += mapEntrySize + 1 + sovApi(uint64(mapEntrySize))
 		}
 	}
+	if len(m.Labels) > 0 {
+		for k, v := range m.Labels {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovApi(uint64(len(k))) + 1 + len(v) + sovApi(uint64(len(v)))
+			n += mapEntrySize + 1 + sovApi(uint64(mapEntrySize))
+		}
+	}
+	if len(m.Annotations) > 0 {
+		for k, v := range m.Annotations {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovApi(uint64(len(k))) + 1 + len(v) + sovApi(uint64(len(v)))
+			n += mapEntrySize + 1 + sovApi(uint64(mapEntrySize))
+		}
+	}
 	return n
 }
 
@@ -3784,9 +4029,25 @@ func (m *ResourceAllocationResponse) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovApi(uint64(l))
 	}
-	if m.AllocatationResult != nil {
-		l = m.AllocatationResult.Size()
+	if m.AllocationResult != nil {
+		l = m.AllocationResult.Size()
 		n += 1 + l + sovApi(uint64(l))
+	}
+	if len(m.Labels) > 0 {
+		for k, v := range m.Labels {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovApi(uint64(len(k))) + 1 + len(v) + sovApi(uint64(len(v)))
+			n += mapEntrySize + 1 + sovApi(uint64(mapEntrySize))
+		}
+	}
+	if len(m.Annotations) > 0 {
+		for k, v := range m.Annotations {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovApi(uint64(len(k))) + 1 + len(v) + sovApi(uint64(len(v)))
+			n += mapEntrySize + 1 + sovApi(uint64(mapEntrySize))
+		}
 	}
 	return n
 }
@@ -3950,7 +4211,7 @@ func (m *ResourceAllocationInfo) Size() (n int) {
 	if m.AllocatedQuantity != 0 {
 		n += 9
 	}
-	l = len(m.AllocatationResult)
+	l = len(m.AllocationResult)
 	if l > 0 {
 		n += 1 + l + sovApi(uint64(l))
 	}
@@ -4084,9 +4345,8 @@ func (m *TopologyAwareQuantity) Size() (n int) {
 	}
 	var l int
 	_ = l
-	l = len(m.ResourceValue)
-	if l > 0 {
-		n += 1 + l + sovApi(uint64(l))
+	if m.ResourceValue != 0 {
+		n += 9
 	}
 	if m.Node != 0 {
 		n += 1 + sovApi(uint64(m.Node))
@@ -4137,11 +4397,20 @@ func (m *AllocatableTopologyAwareResource) Size() (n int) {
 	if m.IsScalarResource {
 		n += 2
 	}
-	if m.AggregatedQuantity != 0 {
+	if m.AggregatedAllocatableQuantity != 0 {
 		n += 9
 	}
-	if len(m.TopologyAwareQuantityList) > 0 {
-		for _, e := range m.TopologyAwareQuantityList {
+	if len(m.TopologyAwareAllocatableQuantityList) > 0 {
+		for _, e := range m.TopologyAwareAllocatableQuantityList {
+			l = e.Size()
+			n += 1 + l + sovApi(uint64(l))
+		}
+	}
+	if m.AggregatedCapacityQuantity != 0 {
+		n += 9
+	}
+	if len(m.TopologyAwareCapacityQuantityList) > 0 {
+		for _, e := range m.TopologyAwareCapacityQuantityList {
 			l = e.Size()
 			n += 1 + l + sovApi(uint64(l))
 		}
@@ -4228,6 +4497,26 @@ func (this *ResourceRequest) String() string {
 		mapStringForResourceRequests += fmt.Sprintf("%v: %v,", k, this.ResourceRequests[k])
 	}
 	mapStringForResourceRequests += "}"
+	keysForLabels := make([]string, 0, len(this.Labels))
+	for k := range this.Labels {
+		keysForLabels = append(keysForLabels, k)
+	}
+	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+	mapStringForLabels := "map[string]string{"
+	for _, k := range keysForLabels {
+		mapStringForLabels += fmt.Sprintf("%v: %v,", k, this.Labels[k])
+	}
+	mapStringForLabels += "}"
+	keysForAnnotations := make([]string, 0, len(this.Annotations))
+	for k := range this.Annotations {
+		keysForAnnotations = append(keysForAnnotations, k)
+	}
+	github_com_gogo_protobuf_sortkeys.Strings(keysForAnnotations)
+	mapStringForAnnotations := "map[string]string{"
+	for _, k := range keysForAnnotations {
+		mapStringForAnnotations += fmt.Sprintf("%v: %v,", k, this.Annotations[k])
+	}
+	mapStringForAnnotations += "}"
 	s := strings.Join([]string{`&ResourceRequest{`,
 		`PodUid:` + fmt.Sprintf("%v", this.PodUid) + `,`,
 		`PodNamespace:` + fmt.Sprintf("%v", this.PodNamespace) + `,`,
@@ -4240,6 +4529,8 @@ func (this *ResourceRequest) String() string {
 		`ResourceName:` + fmt.Sprintf("%v", this.ResourceName) + `,`,
 		`Hint:` + strings.Replace(this.Hint.String(), "TopologyHint", "TopologyHint", 1) + `,`,
 		`ResourceRequests:` + mapStringForResourceRequests + `,`,
+		`Labels:` + mapStringForLabels + `,`,
+		`Annotations:` + mapStringForAnnotations + `,`,
 		`}`,
 	}, "")
 	return s
@@ -4258,6 +4549,26 @@ func (this *ResourceHintsResponse) String() string {
 		mapStringForResourceHints += fmt.Sprintf("%v: %v,", k, this.ResourceHints[k])
 	}
 	mapStringForResourceHints += "}"
+	keysForLabels := make([]string, 0, len(this.Labels))
+	for k := range this.Labels {
+		keysForLabels = append(keysForLabels, k)
+	}
+	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+	mapStringForLabels := "map[string]string{"
+	for _, k := range keysForLabels {
+		mapStringForLabels += fmt.Sprintf("%v: %v,", k, this.Labels[k])
+	}
+	mapStringForLabels += "}"
+	keysForAnnotations := make([]string, 0, len(this.Annotations))
+	for k := range this.Annotations {
+		keysForAnnotations = append(keysForAnnotations, k)
+	}
+	github_com_gogo_protobuf_sortkeys.Strings(keysForAnnotations)
+	mapStringForAnnotations := "map[string]string{"
+	for _, k := range keysForAnnotations {
+		mapStringForAnnotations += fmt.Sprintf("%v: %v,", k, this.Annotations[k])
+	}
+	mapStringForAnnotations += "}"
 	s := strings.Join([]string{`&ResourceHintsResponse{`,
 		`PodUid:` + fmt.Sprintf("%v", this.PodUid) + `,`,
 		`PodNamespace:` + fmt.Sprintf("%v", this.PodNamespace) + `,`,
@@ -4269,6 +4580,8 @@ func (this *ResourceHintsResponse) String() string {
 		`PodType:` + fmt.Sprintf("%v", this.PodType) + `,`,
 		`ResourceName:` + fmt.Sprintf("%v", this.ResourceName) + `,`,
 		`ResourceHints:` + mapStringForResourceHints + `,`,
+		`Labels:` + mapStringForLabels + `,`,
+		`Annotations:` + mapStringForAnnotations + `,`,
 		`}`,
 	}, "")
 	return s
@@ -4277,6 +4590,26 @@ func (this *ResourceAllocationResponse) String() string {
 	if this == nil {
 		return "nil"
 	}
+	keysForLabels := make([]string, 0, len(this.Labels))
+	for k := range this.Labels {
+		keysForLabels = append(keysForLabels, k)
+	}
+	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+	mapStringForLabels := "map[string]string{"
+	for _, k := range keysForLabels {
+		mapStringForLabels += fmt.Sprintf("%v: %v,", k, this.Labels[k])
+	}
+	mapStringForLabels += "}"
+	keysForAnnotations := make([]string, 0, len(this.Annotations))
+	for k := range this.Annotations {
+		keysForAnnotations = append(keysForAnnotations, k)
+	}
+	github_com_gogo_protobuf_sortkeys.Strings(keysForAnnotations)
+	mapStringForAnnotations := "map[string]string{"
+	for _, k := range keysForAnnotations {
+		mapStringForAnnotations += fmt.Sprintf("%v: %v,", k, this.Annotations[k])
+	}
+	mapStringForAnnotations += "}"
 	s := strings.Join([]string{`&ResourceAllocationResponse{`,
 		`PodUid:` + fmt.Sprintf("%v", this.PodUid) + `,`,
 		`PodNamespace:` + fmt.Sprintf("%v", this.PodNamespace) + `,`,
@@ -4287,7 +4620,9 @@ func (this *ResourceAllocationResponse) String() string {
 		`PodRole:` + fmt.Sprintf("%v", this.PodRole) + `,`,
 		`PodType:` + fmt.Sprintf("%v", this.PodType) + `,`,
 		`ResourceName:` + fmt.Sprintf("%v", this.ResourceName) + `,`,
-		`AllocatationResult:` + strings.Replace(this.AllocatationResult.String(), "ResourceAllocation", "ResourceAllocation", 1) + `,`,
+		`AllocationResult:` + strings.Replace(this.AllocationResult.String(), "ResourceAllocation", "ResourceAllocation", 1) + `,`,
+		`Labels:` + mapStringForLabels + `,`,
+		`Annotations:` + mapStringForAnnotations + `,`,
 		`}`,
 	}, "")
 	return s
@@ -4444,7 +4779,7 @@ func (this *ResourceAllocationInfo) String() string {
 		`IsNodeResource:` + fmt.Sprintf("%v", this.IsNodeResource) + `,`,
 		`IsScalarResource:` + fmt.Sprintf("%v", this.IsScalarResource) + `,`,
 		`AllocatedQuantity:` + fmt.Sprintf("%v", this.AllocatedQuantity) + `,`,
-		`AllocatationResult:` + fmt.Sprintf("%v", this.AllocatationResult) + `,`,
+		`AllocationResult:` + fmt.Sprintf("%v", this.AllocationResult) + `,`,
 		`Envs:` + mapStringForEnvs + `,`,
 		`Annotations:` + mapStringForAnnotations + `,`,
 		`ResourceHints:` + strings.Replace(this.ResourceHints.String(), "ListOfTopologyHints", "ListOfTopologyHints", 1) + `,`,
@@ -4566,16 +4901,23 @@ func (this *AllocatableTopologyAwareResource) String() string {
 	if this == nil {
 		return "nil"
 	}
-	repeatedStringForTopologyAwareQuantityList := "[]*TopologyAwareQuantity{"
-	for _, f := range this.TopologyAwareQuantityList {
-		repeatedStringForTopologyAwareQuantityList += strings.Replace(f.String(), "TopologyAwareQuantity", "TopologyAwareQuantity", 1) + ","
+	repeatedStringForTopologyAwareAllocatableQuantityList := "[]*TopologyAwareQuantity{"
+	for _, f := range this.TopologyAwareAllocatableQuantityList {
+		repeatedStringForTopologyAwareAllocatableQuantityList += strings.Replace(f.String(), "TopologyAwareQuantity", "TopologyAwareQuantity", 1) + ","
 	}
-	repeatedStringForTopologyAwareQuantityList += "}"
+	repeatedStringForTopologyAwareAllocatableQuantityList += "}"
+	repeatedStringForTopologyAwareCapacityQuantityList := "[]*TopologyAwareQuantity{"
+	for _, f := range this.TopologyAwareCapacityQuantityList {
+		repeatedStringForTopologyAwareCapacityQuantityList += strings.Replace(f.String(), "TopologyAwareQuantity", "TopologyAwareQuantity", 1) + ","
+	}
+	repeatedStringForTopologyAwareCapacityQuantityList += "}"
 	s := strings.Join([]string{`&AllocatableTopologyAwareResource{`,
 		`IsNodeResource:` + fmt.Sprintf("%v", this.IsNodeResource) + `,`,
 		`IsScalarResource:` + fmt.Sprintf("%v", this.IsScalarResource) + `,`,
-		`AggregatedQuantity:` + fmt.Sprintf("%v", this.AggregatedQuantity) + `,`,
-		`TopologyAwareQuantityList:` + repeatedStringForTopologyAwareQuantityList + `,`,
+		`AggregatedAllocatableQuantity:` + fmt.Sprintf("%v", this.AggregatedAllocatableQuantity) + `,`,
+		`TopologyAwareAllocatableQuantityList:` + repeatedStringForTopologyAwareAllocatableQuantityList + `,`,
+		`AggregatedCapacityQuantity:` + fmt.Sprintf("%v", this.AggregatedCapacityQuantity) + `,`,
+		`TopologyAwareCapacityQuantityList:` + repeatedStringForTopologyAwareCapacityQuantityList + `,`,
 		`}`,
 	}, "")
 	return s
@@ -5341,6 +5683,260 @@ func (m *ResourceRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.ResourceRequests[mapkey] = mapvalue
 			iNdEx = postIndex
+		case 12:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Labels", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Labels == nil {
+				m.Labels = make(map[string]string)
+			}
+			var mapkey string
+			var mapvalue string
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowApi
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					wire |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					var stringLenmapkey uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowApi
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapkey |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapkey := int(stringLenmapkey)
+					if intStringLenmapkey < 0 {
+						return ErrInvalidLengthApi
+					}
+					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthApi
+					}
+					if postStringIndexmapkey > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
+					iNdEx = postStringIndexmapkey
+				} else if fieldNum == 2 {
+					var stringLenmapvalue uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowApi
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapvalue |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapvalue := int(stringLenmapvalue)
+					if intStringLenmapvalue < 0 {
+						return ErrInvalidLengthApi
+					}
+					postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+					if postStringIndexmapvalue < 0 {
+						return ErrInvalidLengthApi
+					}
+					if postStringIndexmapvalue > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapvalue = string(dAtA[iNdEx:postStringIndexmapvalue])
+					iNdEx = postStringIndexmapvalue
+				} else {
+					iNdEx = entryPreIndex
+					skippy, err := skipApi(dAtA[iNdEx:])
+					if err != nil {
+						return err
+					}
+					if skippy < 0 {
+						return ErrInvalidLengthApi
+					}
+					if (iNdEx + skippy) > postIndex {
+						return io.ErrUnexpectedEOF
+					}
+					iNdEx += skippy
+				}
+			}
+			m.Labels[mapkey] = mapvalue
+			iNdEx = postIndex
+		case 13:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Annotations", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Annotations == nil {
+				m.Annotations = make(map[string]string)
+			}
+			var mapkey string
+			var mapvalue string
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowApi
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					wire |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					var stringLenmapkey uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowApi
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapkey |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapkey := int(stringLenmapkey)
+					if intStringLenmapkey < 0 {
+						return ErrInvalidLengthApi
+					}
+					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthApi
+					}
+					if postStringIndexmapkey > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
+					iNdEx = postStringIndexmapkey
+				} else if fieldNum == 2 {
+					var stringLenmapvalue uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowApi
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapvalue |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapvalue := int(stringLenmapvalue)
+					if intStringLenmapvalue < 0 {
+						return ErrInvalidLengthApi
+					}
+					postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+					if postStringIndexmapvalue < 0 {
+						return ErrInvalidLengthApi
+					}
+					if postStringIndexmapvalue > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapvalue = string(dAtA[iNdEx:postStringIndexmapvalue])
+					iNdEx = postStringIndexmapvalue
+				} else {
+					iNdEx = entryPreIndex
+					skippy, err := skipApi(dAtA[iNdEx:])
+					if err != nil {
+						return err
+					}
+					if skippy < 0 {
+						return ErrInvalidLengthApi
+					}
+					if (iNdEx + skippy) > postIndex {
+						return io.ErrUnexpectedEOF
+					}
+					iNdEx += skippy
+				}
+			}
+			m.Annotations[mapkey] = mapvalue
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipApi(dAtA[iNdEx:])
@@ -5785,6 +6381,260 @@ func (m *ResourceHintsResponse) Unmarshal(dAtA []byte) error {
 			}
 			m.ResourceHints[mapkey] = mapvalue
 			iNdEx = postIndex
+		case 11:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Labels", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Labels == nil {
+				m.Labels = make(map[string]string)
+			}
+			var mapkey string
+			var mapvalue string
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowApi
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					wire |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					var stringLenmapkey uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowApi
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapkey |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapkey := int(stringLenmapkey)
+					if intStringLenmapkey < 0 {
+						return ErrInvalidLengthApi
+					}
+					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthApi
+					}
+					if postStringIndexmapkey > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
+					iNdEx = postStringIndexmapkey
+				} else if fieldNum == 2 {
+					var stringLenmapvalue uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowApi
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapvalue |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapvalue := int(stringLenmapvalue)
+					if intStringLenmapvalue < 0 {
+						return ErrInvalidLengthApi
+					}
+					postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+					if postStringIndexmapvalue < 0 {
+						return ErrInvalidLengthApi
+					}
+					if postStringIndexmapvalue > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapvalue = string(dAtA[iNdEx:postStringIndexmapvalue])
+					iNdEx = postStringIndexmapvalue
+				} else {
+					iNdEx = entryPreIndex
+					skippy, err := skipApi(dAtA[iNdEx:])
+					if err != nil {
+						return err
+					}
+					if skippy < 0 {
+						return ErrInvalidLengthApi
+					}
+					if (iNdEx + skippy) > postIndex {
+						return io.ErrUnexpectedEOF
+					}
+					iNdEx += skippy
+				}
+			}
+			m.Labels[mapkey] = mapvalue
+			iNdEx = postIndex
+		case 12:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Annotations", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Annotations == nil {
+				m.Annotations = make(map[string]string)
+			}
+			var mapkey string
+			var mapvalue string
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowApi
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					wire |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					var stringLenmapkey uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowApi
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapkey |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapkey := int(stringLenmapkey)
+					if intStringLenmapkey < 0 {
+						return ErrInvalidLengthApi
+					}
+					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthApi
+					}
+					if postStringIndexmapkey > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
+					iNdEx = postStringIndexmapkey
+				} else if fieldNum == 2 {
+					var stringLenmapvalue uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowApi
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapvalue |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapvalue := int(stringLenmapvalue)
+					if intStringLenmapvalue < 0 {
+						return ErrInvalidLengthApi
+					}
+					postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+					if postStringIndexmapvalue < 0 {
+						return ErrInvalidLengthApi
+					}
+					if postStringIndexmapvalue > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapvalue = string(dAtA[iNdEx:postStringIndexmapvalue])
+					iNdEx = postStringIndexmapvalue
+				} else {
+					iNdEx = entryPreIndex
+					skippy, err := skipApi(dAtA[iNdEx:])
+					if err != nil {
+						return err
+					}
+					if skippy < 0 {
+						return ErrInvalidLengthApi
+					}
+					if (iNdEx + skippy) > postIndex {
+						return io.ErrUnexpectedEOF
+					}
+					iNdEx += skippy
+				}
+			}
+			m.Annotations[mapkey] = mapvalue
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipApi(dAtA[iNdEx:])
@@ -6102,7 +6952,7 @@ func (m *ResourceAllocationResponse) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 10:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AllocatationResult", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field AllocationResult", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -6129,12 +6979,266 @@ func (m *ResourceAllocationResponse) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.AllocatationResult == nil {
-				m.AllocatationResult = &ResourceAllocation{}
+			if m.AllocationResult == nil {
+				m.AllocationResult = &ResourceAllocation{}
 			}
-			if err := m.AllocatationResult.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.AllocationResult.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
+			iNdEx = postIndex
+		case 11:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Labels", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Labels == nil {
+				m.Labels = make(map[string]string)
+			}
+			var mapkey string
+			var mapvalue string
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowApi
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					wire |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					var stringLenmapkey uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowApi
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapkey |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapkey := int(stringLenmapkey)
+					if intStringLenmapkey < 0 {
+						return ErrInvalidLengthApi
+					}
+					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthApi
+					}
+					if postStringIndexmapkey > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
+					iNdEx = postStringIndexmapkey
+				} else if fieldNum == 2 {
+					var stringLenmapvalue uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowApi
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapvalue |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapvalue := int(stringLenmapvalue)
+					if intStringLenmapvalue < 0 {
+						return ErrInvalidLengthApi
+					}
+					postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+					if postStringIndexmapvalue < 0 {
+						return ErrInvalidLengthApi
+					}
+					if postStringIndexmapvalue > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapvalue = string(dAtA[iNdEx:postStringIndexmapvalue])
+					iNdEx = postStringIndexmapvalue
+				} else {
+					iNdEx = entryPreIndex
+					skippy, err := skipApi(dAtA[iNdEx:])
+					if err != nil {
+						return err
+					}
+					if skippy < 0 {
+						return ErrInvalidLengthApi
+					}
+					if (iNdEx + skippy) > postIndex {
+						return io.ErrUnexpectedEOF
+					}
+					iNdEx += skippy
+				}
+			}
+			m.Labels[mapkey] = mapvalue
+			iNdEx = postIndex
+		case 12:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Annotations", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Annotations == nil {
+				m.Annotations = make(map[string]string)
+			}
+			var mapkey string
+			var mapvalue string
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowApi
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					wire |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					var stringLenmapkey uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowApi
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapkey |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapkey := int(stringLenmapkey)
+					if intStringLenmapkey < 0 {
+						return ErrInvalidLengthApi
+					}
+					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthApi
+					}
+					if postStringIndexmapkey > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
+					iNdEx = postStringIndexmapkey
+				} else if fieldNum == 2 {
+					var stringLenmapvalue uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowApi
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapvalue |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapvalue := int(stringLenmapvalue)
+					if intStringLenmapvalue < 0 {
+						return ErrInvalidLengthApi
+					}
+					postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+					if postStringIndexmapvalue < 0 {
+						return ErrInvalidLengthApi
+					}
+					if postStringIndexmapvalue > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapvalue = string(dAtA[iNdEx:postStringIndexmapvalue])
+					iNdEx = postStringIndexmapvalue
+				} else {
+					iNdEx = entryPreIndex
+					skippy, err := skipApi(dAtA[iNdEx:])
+					if err != nil {
+						return err
+					}
+					if skippy < 0 {
+						return ErrInvalidLengthApi
+					}
+					if (iNdEx + skippy) > postIndex {
+						return io.ErrUnexpectedEOF
+					}
+					iNdEx += skippy
+				}
+			}
+			m.Annotations[mapkey] = mapvalue
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -7300,7 +8404,7 @@ func (m *ResourceAllocationInfo) Unmarshal(dAtA []byte) error {
 			m.AllocatedQuantity = float64(math.Float64frombits(v))
 		case 5:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AllocatationResult", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field AllocationResult", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -7328,7 +8432,7 @@ func (m *ResourceAllocationInfo) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.AllocatationResult = string(dAtA[iNdEx:postIndex])
+			m.AllocationResult = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 6:
 			if wireType != 2 {
@@ -8373,37 +9477,16 @@ func (m *TopologyAwareQuantity) Unmarshal(dAtA []byte) error {
 		}
 		switch fieldNum {
 		case 1:
-			if wireType != 2 {
+			if wireType != 1 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ResourceValue", wireType)
 			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowApi
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthApi
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthApi
-			}
-			if postIndex > l {
+			var v uint64
+			if (iNdEx + 8) > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.ResourceValue = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
+			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+			iNdEx += 8
+			m.ResourceValue = float64(math.Float64frombits(v))
 		case 2:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Node", wireType)
@@ -8753,7 +9836,7 @@ func (m *AllocatableTopologyAwareResource) Unmarshal(dAtA []byte) error {
 			m.IsScalarResource = bool(v != 0)
 		case 3:
 			if wireType != 1 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AggregatedQuantity", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field AggregatedAllocatableQuantity", wireType)
 			}
 			var v uint64
 			if (iNdEx + 8) > l {
@@ -8761,10 +9844,10 @@ func (m *AllocatableTopologyAwareResource) Unmarshal(dAtA []byte) error {
 			}
 			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
 			iNdEx += 8
-			m.AggregatedQuantity = float64(math.Float64frombits(v))
+			m.AggregatedAllocatableQuantity = float64(math.Float64frombits(v))
 		case 4:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field TopologyAwareQuantityList", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field TopologyAwareAllocatableQuantityList", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -8791,8 +9874,53 @@ func (m *AllocatableTopologyAwareResource) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.TopologyAwareQuantityList = append(m.TopologyAwareQuantityList, &TopologyAwareQuantity{})
-			if err := m.TopologyAwareQuantityList[len(m.TopologyAwareQuantityList)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			m.TopologyAwareAllocatableQuantityList = append(m.TopologyAwareAllocatableQuantityList, &TopologyAwareQuantity{})
+			if err := m.TopologyAwareAllocatableQuantityList[len(m.TopologyAwareAllocatableQuantityList)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AggregatedCapacityQuantity", wireType)
+			}
+			var v uint64
+			if (iNdEx + 8) > l {
+				return io.ErrUnexpectedEOF
+			}
+			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+			iNdEx += 8
+			m.AggregatedCapacityQuantity = float64(math.Float64frombits(v))
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TopologyAwareCapacityQuantityList", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TopologyAwareCapacityQuantityList = append(m.TopologyAwareCapacityQuantityList, &TopologyAwareQuantity{})
+			if err := m.TopologyAwareCapacityQuantityList[len(m.TopologyAwareCapacityQuantityList)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

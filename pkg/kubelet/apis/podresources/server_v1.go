@@ -26,6 +26,7 @@ import (
 
 	v1 "k8s.io/kubelet/pkg/apis/podresources/v1"
 	pluginapi "k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1"
+	maputil "k8s.io/kubernetes/pkg/util/maps"
 )
 
 // podResourcesServerV1alpha1 implements PodResourcesListerServer
@@ -61,11 +62,13 @@ func (p *v1PodResourcesServer) List(ctx context.Context, req *v1.ListPodResource
 
 	for i, pod := range pods {
 		pRes := v1.PodResources{
-			Name:       pod.Name,
-			Namespace:  pod.Namespace,
-			PodRole:    pod.Labels[pluginapi.PodRoleLabelKey],
-			PodType:    pod.Annotations[pluginapi.PodTypeAnnotationKey],
-			Containers: make([]*v1.ContainerResources, len(pod.Spec.Containers)),
+			Name:        pod.Name,
+			Namespace:   pod.Namespace,
+			PodRole:     pod.Labels[pluginapi.PodRoleLabelKey],
+			PodType:     pod.Annotations[pluginapi.PodTypeAnnotationKey],
+			Labels:      maputil.CopySS(pod.Labels),
+			Annotations: maputil.CopySS(pod.Annotations),
+			Containers:  make([]*v1.ContainerResources, len(pod.Spec.Containers)),
 		}
 
 		for j, container := range pod.Spec.Containers {

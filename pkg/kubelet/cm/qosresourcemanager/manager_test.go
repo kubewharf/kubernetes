@@ -682,15 +682,15 @@ func TestCheckPoint(t *testing.T) {
 	}, &MockEndpoint{
 		allocateFunc: func(req *pluginapi.ResourceRequest) (*pluginapi.ResourceAllocationResponse, error) {
 			resp := new(pluginapi.ResourceAllocationResponse)
-			resp.AllocatationResult = new(pluginapi.ResourceAllocation)
-			resp.AllocatationResult.ResourceAllocation = make(map[string]*pluginapi.ResourceAllocationInfo)
-			resp.AllocatationResult.ResourceAllocation["domain2.com/resource2"] = new(pluginapi.ResourceAllocationInfo)
-			resp.AllocatationResult.ResourceAllocation["domain2.com/resource2"].Envs = make(map[string]string)
-			resp.AllocatationResult.ResourceAllocation["domain2.com/resource2"].Envs["key2"] = "val2"
-			resp.AllocatationResult.ResourceAllocation["domain2.com/resource2"].IsScalarResource = true
-			resp.AllocatationResult.ResourceAllocation["domain2.com/resource2"].IsNodeResource = true
-			resp.AllocatationResult.ResourceAllocation["domain2.com/resource2"].AllocatedQuantity = 1
-			resp.AllocatationResult.ResourceAllocation["domain2.com/resource2"].AllocatationResult = "0"
+			resp.AllocationResult = new(pluginapi.ResourceAllocation)
+			resp.AllocationResult.ResourceAllocation = make(map[string]*pluginapi.ResourceAllocationInfo)
+			resp.AllocationResult.ResourceAllocation["domain2.com/resource2"] = new(pluginapi.ResourceAllocationInfo)
+			resp.AllocationResult.ResourceAllocation["domain2.com/resource2"].Envs = make(map[string]string)
+			resp.AllocationResult.ResourceAllocation["domain2.com/resource2"].Envs["key2"] = "val2"
+			resp.AllocationResult.ResourceAllocation["domain2.com/resource2"].IsScalarResource = true
+			resp.AllocationResult.ResourceAllocation["domain2.com/resource2"].IsNodeResource = true
+			resp.AllocationResult.ResourceAllocation["domain2.com/resource2"].AllocatedQuantity = 1
+			resp.AllocationResult.ResourceAllocation["domain2.com/resource2"].AllocationResult = "0"
 			return resp, nil
 		},
 	})
@@ -711,7 +711,7 @@ func TestCheckPoint(t *testing.T) {
 	as.NotNil(resp)
 
 	// ensures checkpoint matches with result from allocateFunc after remove checkpoint file
-	as.Equal(resp[res2.resourceName].AllocatationResult, "0")
+	as.Equal(resp[res2.resourceName].AllocationResult, "0")
 
 	testManager.reconcileState()
 
@@ -723,7 +723,7 @@ func TestCheckPoint(t *testing.T) {
 	as.NotNil(resp)
 
 	// ensures checkpoint matches with result from allocateFunc after checkpoint file resumes
-	as.Equal(resp[res2.resourceName].AllocatationResult, "0")
+	as.Equal(resp[res2.resourceName].AllocationResult, "0")
 }
 
 func TestGetResourceRunContainerOptions(t *testing.T) {
@@ -775,7 +775,7 @@ func TestGetResourceRunContainerOptions(t *testing.T) {
 	// ensures prestart has been called
 	as.Equal(pod2.Annotations[PreStartAnnotationKey], PreStartAnnotationValue)
 
-	// ensures AllocatationResult and OCI result in chk and runContainerOpt are equal
+	// ensures AllocationResult and OCI result in chk and runContainerOpt are equal
 	resp1 := testManager.podResources.containerAllResources(string(pod1.UID), pod1.Spec.Containers[0].Name)
 	as.NotNil(resp1)
 	as.NotNil(resp1[res1.resourceName])
@@ -784,8 +784,8 @@ func TestGetResourceRunContainerOptions(t *testing.T) {
 	as.NotNil(resp2)
 	as.NotNil(resp2[res2.resourceName])
 
-	as.Equal(resp1[res1.resourceName].AllocatationResult, runContainerOpts1.Resources.GetCpusetCpus())
-	as.Equal(resp2[res2.resourceName].AllocatationResult, runContainerOpts2.Resources.GetCpusetMems())
+	as.Equal(resp1[res1.resourceName].AllocationResult, runContainerOpts1.Resources.GetCpusetCpus())
+	as.Equal(resp2[res2.resourceName].AllocationResult, runContainerOpts2.Resources.GetCpusetMems())
 
 	// ensures annotations and envs in chk and runContainerOpt are equal
 	as.Condition(func() bool {
@@ -1030,7 +1030,7 @@ func TestGetTopologyAwareResources(t *testing.T) {
 					IsScalarResource:   res1Allocation.IsScalarResource,
 					AggregatedQuantity: res1Allocation.AllocatedQuantity,
 					TopologyAwareQuantityList: []*pluginapi.TopologyAwareQuantity{
-						{ResourceValue: res1Allocation.AllocatationResult, Node: 0},
+						{ResourceValue: res1Allocation.AllocationResult, Node: 0},
 					},
 				},
 			},
@@ -1049,7 +1049,7 @@ func TestGetTopologyAwareResources(t *testing.T) {
 					IsScalarResource:   res2Allocation.IsScalarResource,
 					AggregatedQuantity: res2Allocation.AllocatedQuantity,
 					TopologyAwareQuantityList: []*pluginapi.TopologyAwareQuantity{
-						{ResourceValue: res2Allocation.AllocatationResult, Node: 1},
+						{ResourceValue: res2Allocation.AllocationResult, Node: 1},
 					},
 				},
 			},
@@ -1249,14 +1249,14 @@ func allocateStubFunc() func(*pluginapi.ResourceRequest) (*pluginapi.ResourceAll
 		resp := new(pluginapi.ResourceAllocationResponse)
 		resp.ResourceName = "domain1.com/resource1"
 		//resp.ContainerName = "Cont1"
-		resp.AllocatationResult = new(pluginapi.ResourceAllocation)
-		resp.AllocatationResult.ResourceAllocation = make(map[string]*pluginapi.ResourceAllocationInfo)
-		resp.AllocatationResult.ResourceAllocation["domain1.com/resource1"] = new(pluginapi.ResourceAllocationInfo)
-		resp.AllocatationResult.ResourceAllocation["domain1.com/resource1"].Envs = make(map[string]string)
-		resp.AllocatationResult.ResourceAllocation["domain1.com/resource1"].Envs["key1"] = "val1"
-		resp.AllocatationResult.ResourceAllocation["domain1.com/resource1"].IsScalarResource = true
-		resp.AllocatationResult.ResourceAllocation["domain1.com/resource1"].IsNodeResource = true
-		resp.AllocatationResult.ResourceAllocation["domain1.com/resource1"].AllocatedQuantity = 2
+		resp.AllocationResult = new(pluginapi.ResourceAllocation)
+		resp.AllocationResult.ResourceAllocation = make(map[string]*pluginapi.ResourceAllocationInfo)
+		resp.AllocationResult.ResourceAllocation["domain1.com/resource1"] = new(pluginapi.ResourceAllocationInfo)
+		resp.AllocationResult.ResourceAllocation["domain1.com/resource1"].Envs = make(map[string]string)
+		resp.AllocationResult.ResourceAllocation["domain1.com/resource1"].Envs["key1"] = "val1"
+		resp.AllocationResult.ResourceAllocation["domain1.com/resource1"].IsScalarResource = true
+		resp.AllocationResult.ResourceAllocation["domain1.com/resource1"].IsNodeResource = true
+		resp.AllocationResult.ResourceAllocation["domain1.com/resource1"].AllocatedQuantity = 2
 		return resp, nil
 	}
 }
@@ -1309,18 +1309,18 @@ func registerEndpointByRes(manager *ManagerImpl, testRes []TestResource) error {
 					}
 
 					resp := new(pluginapi.ResourceAllocationResponse)
-					resp.AllocatationResult = new(pluginapi.ResourceAllocation)
-					resp.AllocatationResult.ResourceAllocation = make(map[string]*pluginapi.ResourceAllocationInfo)
-					resp.AllocatationResult.ResourceAllocation[curResourceName] = new(pluginapi.ResourceAllocationInfo)
-					resp.AllocatationResult.ResourceAllocation[curResourceName].Envs = make(map[string]string)
-					resp.AllocatationResult.ResourceAllocation[curResourceName].Envs[fmt.Sprintf("key%d", i)] = fmt.Sprintf("val%d", i)
-					resp.AllocatationResult.ResourceAllocation[curResourceName].Annotations = make(map[string]string)
-					resp.AllocatationResult.ResourceAllocation[curResourceName].Annotations[fmt.Sprintf("key%d", i)] = fmt.Sprintf("val%d", i)
-					resp.AllocatationResult.ResourceAllocation[curResourceName].IsScalarResource = true
-					resp.AllocatationResult.ResourceAllocation[curResourceName].IsNodeResource = true
-					resp.AllocatationResult.ResourceAllocation[curResourceName].AllocatedQuantity = req.ResourceRequests[curResourceName]
-					resp.AllocatationResult.ResourceAllocation[curResourceName].AllocatationResult = "0-1"
-					resp.AllocatationResult.ResourceAllocation[curResourceName].OciPropertyName = OciPropertyName
+					resp.AllocationResult = new(pluginapi.ResourceAllocation)
+					resp.AllocationResult.ResourceAllocation = make(map[string]*pluginapi.ResourceAllocationInfo)
+					resp.AllocationResult.ResourceAllocation[curResourceName] = new(pluginapi.ResourceAllocationInfo)
+					resp.AllocationResult.ResourceAllocation[curResourceName].Envs = make(map[string]string)
+					resp.AllocationResult.ResourceAllocation[curResourceName].Envs[fmt.Sprintf("key%d", i)] = fmt.Sprintf("val%d", i)
+					resp.AllocationResult.ResourceAllocation[curResourceName].Annotations = make(map[string]string)
+					resp.AllocationResult.ResourceAllocation[curResourceName].Annotations[fmt.Sprintf("key%d", i)] = fmt.Sprintf("val%d", i)
+					resp.AllocationResult.ResourceAllocation[curResourceName].IsScalarResource = true
+					resp.AllocationResult.ResourceAllocation[curResourceName].IsNodeResource = true
+					resp.AllocationResult.ResourceAllocation[curResourceName].AllocatedQuantity = req.ResourceRequests[curResourceName]
+					resp.AllocationResult.ResourceAllocation[curResourceName].AllocationResult = "0-1"
+					resp.AllocationResult.ResourceAllocation[curResourceName].OciPropertyName = OciPropertyName
 					return resp, nil
 				},
 			})

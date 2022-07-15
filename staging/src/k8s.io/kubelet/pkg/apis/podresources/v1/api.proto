@@ -47,6 +47,8 @@ message PodResources {
     string pod_role = 3;
     string pod_type = 4;
     repeated ContainerResources containers = 5;
+    map<string, string> labels = 6;
+    map<string, string> annotations = 7;
 }
 
 // ContainerResources contains information about the resources assigned to a container
@@ -89,12 +91,14 @@ message AllocatableTopologyAwareResource {
     string resource_name = 1;
     bool is_node_resource = 2;
     bool is_scalar_resource = 3;
-    double aggregated_quantity = 4;
-    repeated TopologyAwareQuantity topology_aware_quantity_list = 5;
+    double aggregated_allocatable_quantity = 4;
+    repeated TopologyAwareQuantity topology_aware_allocatable_quantity_list = 5;
+    double aggregated_capacity_quantity = 6;
+    repeated TopologyAwareQuantity topology_aware_capacity_quantity_list = 7;
 }
 
 message TopologyAwareQuantity {
-    string resource_value = 1;
+    double resource_value = 1;
     uint64 node = 2;
 }
 

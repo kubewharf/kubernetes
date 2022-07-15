@@ -111,6 +111,26 @@ func (pres *podResourcesChk) insert(podUID, contName, resourceName string, alloc
 	pres.resources[podUID][contName][resourceName] = proto.Clone(allocationInfo).(*pluginapi.ResourceAllocationInfo)
 }
 
+func (pres *podResourcesChk) deleteResourceAllocationInfo(podUID, contName, resourceName string) {
+	pres.Lock()
+	defer pres.Unlock()
+
+	if pres.resources[podUID] != nil && pres.resources[podUID][contName] != nil {
+		delete(pres.resources[podUID][contName], resourceName)
+	}
+}
+
+func (pres *podResourcesChk) deletePod(podUID string) {
+	pres.Lock()
+	defer pres.Unlock()
+
+	if pres.resources == nil {
+		return
+	}
+
+	delete(pres.resources, podUID)
+}
+
 func (pres *podResourcesChk) delete(pods []string) {
 	pres.Lock()
 	defer pres.Unlock()
@@ -271,15 +291,15 @@ func assembleOciResourceConfig(podUID, containerName string, opts *kubecontainer
 				return fmt.Errorf("OCI resource config doesn't support oci property name: %s for resource: %s", resourceAllocationInfo.OciPropertyName, resourceName)
 			}
 
-			sErr := setReflectValue(field, resourceAllocationInfo.AllocatationResult)
+			sErr := setReflectValue(field, resourceAllocationInfo.AllocationResult)
 
 			if sErr != nil {
 				return fmt.Errorf("set oci property name: %s for resource: %s to value: %s failed with error: %v",
-					resourceAllocationInfo.OciPropertyName, resourceName, resourceAllocationInfo.AllocatationResult, sErr)
+					resourceAllocationInfo.OciPropertyName, resourceName, resourceAllocationInfo.AllocationResult, sErr)
 			}
 
 			klog.Infof("[qosresourcemanager.assembleOciResourceConfig] podUID: %s, containerName: %s, set oci property: %s for resource: %s to value: %s in OCI resource config ",
-				podUID, containerName, resourceAllocationInfo.OciPropertyName, resourceName, resourceAllocationInfo.AllocatationResult)
+				podUID, containerName, resourceAllocationInfo.OciPropertyName, resourceName, resourceAllocationInfo.AllocationResult)
 		}
 	}
 
