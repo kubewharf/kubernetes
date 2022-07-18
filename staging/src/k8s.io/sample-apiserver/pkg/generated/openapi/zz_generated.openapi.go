@@ -1120,6 +1120,13 @@ func schema_pkg_apis_meta_v1_ListOptions(ref common.ReferenceCallback) common.Op
 							Format:      "",
 						},
 					},
+					"listFromWatch": {
+						SchemaProps: spec.SchemaProps{
+							Description: "If true, use watch request to get list responses",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

@@ -43,6 +43,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/features"
@@ -853,6 +854,14 @@ func (s *store) WatchList(ctx context.Context, key string, resourceVersion strin
 func (s *store) watch(ctx context.Context, key string, rv string, pred storage.SelectionPredicate, recursive bool) (watch.Interface, error) {
 	if pred.Sharding != nil {
 		return nil, fmt.Errorf("watch from storage with sharding option is not supported")
+	}
+	if pred.ListFromWatch {
+		// if we got here that means the request is from an client that supports streaming (LIST)
+		// however the resource this storage deals with does not - the resource is not served from the watch cache.
+		// usually that means the server doesn't support caching or caching has been deliberately disabled form this particular resource.
+		// in that case we return a well known error to instruct the reflector/informer to fall back to the previous mode
+		// TODO: add correct group resource
+		return nil, apierrors.NewMethodNotSupported(schema.GroupResource{Group: "", Resource: ""}, "do not set listFromWatch query option")
 	}
 	rev, err := s.versioner.ParseResourceVersion(rv)
 	if err != nil {

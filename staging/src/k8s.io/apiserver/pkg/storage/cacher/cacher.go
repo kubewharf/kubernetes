@@ -391,6 +391,7 @@ func NewCacherFromConfig(config Config) (*Cacher, error) {
 	// Configure reflector's pager to for an appropriate pagination chunk size for fetching data from
 	// storage. The pager falls back to full list if paginated list calls fail due to an "Expired" error.
 	reflector.WatchListPageSize = storageWatchListPageSize
+	reflector.DisableStreamList = true
 
 	cacher.watchCache = watchCache
 	cacher.reflector = reflector
@@ -463,6 +464,16 @@ func (c *Cacher) Watch(ctx context.Context, key string, resourceVersion string, 
 		return nil, err
 	}
 
+	if pred.ListFromWatch {
+		// check
+		if watchRV != 0 {
+			return newErrWatcher(errors.NewBadRequest("resource version must be unset or '0' when using list from watch")), nil
+		}
+		if !pred.AllowWatchBookmarks {
+			return newErrWatcher(errors.NewBadRequest("allowWatchBookmarks must be true when using list from watch")), nil
+		}
+	}
+
 	c.ready.wait()
 
 	triggerValue, triggerSupported := "", false
@@ -507,12 +518,32 @@ func (c *Cacher) Watch(ctx context.Context, key string, resourceVersion string, 
 	// underlying watchCache is calling processEvent under its lock.
 	c.watchCache.RLock()
 	defer c.watchCache.RUnlock()
+
+	bookmarkAfterResourceVersion := uint64(0)
+	if pred.ListFromWatch {
+		bookmarkAfterResourceVersion = c.watchCache.resourceVersion
+		watcher.setBookmarkAfterResourceVersion(bookmarkAfterResourceVersion)
+	}
+
 	initEvents, err := c.watchCache.GetAllEventsSinceThreadUnsafe(watchRV)
 	if err != nil {
 		// To match the uncached watch implementation, once we have passed authn/authz/admission,
 		// and successfully parsed a resource version, other errors must fail with a watch event of type ERROR,
 		// rather than a directly returned error.
 		return newErrWatcher(err), nil
+	}
+
+	if pred.ListFromWatch {
+		bookmarkEvent := &watchCacheEvent{
+			Type:            watch.Bookmark,
+			Object:          c.newFunc(),
+			ResourceVersion: bookmarkAfterResourceVersion,
+		}
+		if err := c.versioner.UpdateObject(bookmarkEvent.Object, bookmarkEvent.ResourceVersion); err != nil {
+			klog.Errorf("failure to set resourceVersion to %d on bookmark event %+v", bookmarkEvent.ResourceVersion, bookmarkEvent.Object)
+			return newErrWatcher(err), nil
+		}
+		initEvents = append(initEvents, bookmarkEvent)
 	}
 
 	// With some events already sent, update resourceVersion so that
@@ -523,6 +554,12 @@ func (c *Cacher) Watch(ctx context.Context, key string, resourceVersion string, 
 	}
 
 	func() {
+		if pred.ListFromWatch {
+			// we don't need to add this list watcher to Cacher.watchers, because
+			// it doesn't care about new events even bookmark event.
+			klog.V(3).Infof("[Cacher] ignore a streaming list cache watcher, bookmarkAfterResourceVersion=%d", bookmarkAfterResourceVersion)
+			return
+		}
 		c.Lock()
 		defer c.Unlock()
 		// Update watcher.forget function once we can compute it.
@@ -1203,21 +1240,29 @@ type cacheWatcher struct {
 	deadline            time.Time
 	allowWatchBookmarks bool
 	// Object type of the cache watcher interests
-	objectType reflect.Type
+	objectType                   reflect.Type
+	bookmarkAfterResourceVersion uint64
 }
 
 func newCacheWatcher(chanSize int, filter filterWithAttrsFunc, forget func(), versioner storage.Versioner, deadline time.Time, allowWatchBookmarks bool, objectType reflect.Type) *cacheWatcher {
 	return &cacheWatcher{
-		input:               make(chan *watchCacheEvent, chanSize),
-		result:              make(chan watch.Event, chanSize),
-		done:                make(chan struct{}),
-		filter:              filter,
-		stopped:             false,
-		forget:              forget,
-		versioner:           versioner,
-		deadline:            deadline,
-		allowWatchBookmarks: allowWatchBookmarks,
-		objectType:          objectType,
+		input:                        make(chan *watchCacheEvent, chanSize),
+		result:                       make(chan watch.Event, chanSize),
+		done:                         make(chan struct{}),
+		filter:                       filter,
+		stopped:                      false,
+		forget:                       forget,
+		versioner:                    versioner,
+		deadline:                     deadline,
+		allowWatchBookmarks:          allowWatchBookmarks,
+		objectType:                   objectType,
+		bookmarkAfterResourceVersion: 0,
+	}
+}
+
+func (c *cacheWatcher) setBookmarkAfterResourceVersion(i uint64) {
+	if i > 0 {
+		c.bookmarkAfterResourceVersion = i
 	}
 }
 
@@ -1228,6 +1273,9 @@ func (c *cacheWatcher) ResultChan() <-chan watch.Event {
 
 // Implements watch.Interface.
 func (c *cacheWatcher) Stop() {
+	if c.bookmarkAfterResourceVersion > 0 {
+		klog.V(3).Info("stream list cache watcher closed")
+	}
 	c.forget()
 }
 
@@ -1339,6 +1387,14 @@ func (c *cacheWatcher) convertToWatchEvent(event *watchCacheEvent) *watch.Event 
 
 // NOTE: sendWatchCacheEvent is assumed to not modify <event> !!!
 func (c *cacheWatcher) sendWatchCacheEvent(event *watchCacheEvent) {
+	if c.bookmarkAfterResourceVersion > 0 {
+		// ignore bookmark event when resourceVersion < bookmarkAfterResourceVersion
+		if event.Type == watch.Bookmark && event.ResourceVersion < c.bookmarkAfterResourceVersion {
+			klog.V(3).Infof("ingore bookmark event because resourceVersion(%d) < bookmarkAfterResourceVersion(%d)", event.ResourceVersion, c.bookmarkAfterResourceVersion)
+			return
+		}
+	}
+
 	watchEvent := c.convertToWatchEvent(event)
 	if watchEvent == nil {
 		// Watcher is not interested in that object.

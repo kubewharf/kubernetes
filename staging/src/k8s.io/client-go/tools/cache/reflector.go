@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"os"
 	"reflect"
 	"strconv"
 	"sync"
@@ -101,6 +102,11 @@ type Reflector struct {
 	// etcd, which is significantly less efficient and may lead to serious performance and
 	// scalability problems.
 	WatchListPageSize int64
+	// DisableStreamList force disable stream listn reflector, it is useful for watch cacher
+	// in apiserver.
+	// The reflector will return an error if a StreamListerWatcher is provided when strea
+	// list is disabled
+	DisableStreamList bool
 }
 
 var (
@@ -210,6 +216,29 @@ func (r *Reflector) resyncChan() (<-chan time.Time, func() bool) {
 	return t.C(), t.Stop
 }
 
+func (r *Reflector) prepareForStreamList() (StreamListerWatcher, bool, error) {
+	slw, ok := r.listerWatcher.(StreamListerWatcher)
+	if ok && r.DisableStreamList {
+		// the listerWatcher can not be StreamListerWatcher when streamList is disabled
+		return nil, false, fmt.Errorf("%s: stream list is disabled but got StreamListerWatcher", r.name)
+	}
+
+	if r.DisableStreamList {
+		// disable stream list
+		return nil, false, nil
+	}
+
+	switch os.Getenv("FORCE_ENABLE_STREAM_LIST") {
+	case "y", "Y", "true":
+		// force stream list
+		if !ok {
+			slw = NewStreamListerWatcherFor(r.listerWatcher, r.expectedTypeName, r.expectedType, r.expectedGVK)
+			ok = true
+		}
+	}
+	return slw, ok, nil
+}
+
 // ListAndWatch first lists all items and get the resource version at the moment of call,
 // and then use the resource version to watch.
 // It returns error if ListAndWatch didn't even try to initialize watch.
@@ -220,6 +249,30 @@ func (r *Reflector) ListAndWatch(stopCh <-chan struct{}) error {
 	options := metav1.ListOptions{ResourceVersion: r.relistResourceVersion()}
 
 	if err := func() error {
+		slw, streamListEnabled, perr := r.prepareForStreamList()
+		if perr != nil {
+			return perr
+		}
+		if streamListEnabled {
+			// stream list
+			initTrace := trace.New("Reflector ListAndWatch StreamList", trace.Field{"name", r.name})
+			defer initTrace.LogIfLong(10 * time.Second)
+			items, rv, err := slw.StreamList(options)
+			if err != nil {
+				return fmt.Errorf("%s: Failed to stream list %v: %v", r.name, r.expectedTypeName, err)
+			}
+			resourceVersion = rv
+			initTrace.Step("Objects listed")
+			if err := r.syncWith(items, resourceVersion); err != nil {
+				return fmt.Errorf("%s: Unable to sync list result: %v", r.name, err)
+			}
+			initTrace.Step("SyncWith done")
+			r.setLastSyncResourceVersion(resourceVersion)
+			initTrace.Step("Resource version updated")
+			return nil
+		}
+
+		// old way
 		initTrace := trace.New("Reflector ListAndWatch", trace.Field{"name", r.name})
 		defer initTrace.LogIfLong(10 * time.Second)
 		var list runtime.Object

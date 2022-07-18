@@ -67,6 +67,8 @@ type ListOptions struct {
 	ShardingCount    int64
 	ShardingLabelKey string
 	HashFunc         string
+	// If true, use watch request to get list responses
+	ListFromWatch bool 
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
