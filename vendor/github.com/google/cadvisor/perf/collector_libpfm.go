@@ -32,7 +32,7 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/unix"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 
 	info "github.com/google/cadvisor/info/v1"
 	"github.com/google/cadvisor/stats"

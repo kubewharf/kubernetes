@@ -25,7 +25,7 @@ import (
 	fs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	fs2 "github.com/opencontainers/runc/libcontainer/cgroups/fs2"
 	configs "github.com/opencontainers/runc/libcontainer/configs"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 )
 
 type CgroupSubsystems struct {

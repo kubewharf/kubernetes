@@ -36,7 +36,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	fs2 "github.com/opencontainers/runc/libcontainer/cgroups/fs2"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 )
 
 var (

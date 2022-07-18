@@ -26,7 +26,7 @@ import (
 	"github.com/google/cadvisor/machine"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 )
 
 type rawContainerHandler struct {

@@ -26,7 +26,7 @@ import (
 	info "github.com/google/cadvisor/info/v1"
 	"github.com/google/cadvisor/watcher"
 
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 )
 
 // The namespace under which crio aliases are unique.

@@ -62,7 +62,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20160516000752-02826c3e7903
 	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.4.2
-	github.com/google/cadvisor v0.37.6
+	github.com/google/cadvisor v0.37.7
 	github.com/google/go-cmp v0.5.2
 	github.com/google/gofuzz v1.1.0
 	github.com/google/uuid v1.1.1
@@ -327,7 +327,7 @@ replace (
 	github.com/golangplus/fmt => github.com/golangplus/fmt v0.0.0-20150411045040-2a5d6d7d2995
 	github.com/golangplus/testing => github.com/golangplus/testing v0.0.0-20180327235837-af21d9c3145e
 	github.com/google/btree => github.com/google/btree v1.0.0
-	github.com/google/cadvisor => code.byted.org/tce/cadvisor v0.37.6
+	github.com/google/cadvisor => code.byted.org/tce/cadvisor v0.37.7
 	github.com/google/go-cmp => github.com/google/go-cmp v0.3.0
 	github.com/google/go-github => github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-querystring => github.com/google/go-querystring v1.0.0

@@ -35,7 +35,7 @@ import (
 	dockercontainer "github.com/docker/docker/api/types/container"
 	docker "github.com/docker/docker/client"
 	"golang.org/x/net/context"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 )
 
 const (
