@@ -28,14 +28,15 @@ import (
 )
 
 type PodListerExpansion interface {
-	PodsForTCELabel(namespace, indexName string) PodTCELabelLister
+	PodsForTCELabel(namespace, indexName, indexKey string) PodTCELabelLister
 }
 
-func (s *podLister) PodsForTCELabel(namespace, indexName string) PodTCELabelLister {
+func (s *podLister) PodsForTCELabel(namespace, indexName, indexKey string) PodTCELabelLister {
 	return podTCELabelLister{
 		indexer:   s.indexer,
 		namespace: namespace,
 		indexName: indexName,
+		indexKey:  indexKey,
 	}
 }
 
@@ -47,9 +48,22 @@ type podTCELabelLister struct {
 	indexer   cache.Indexer
 	namespace string
 	indexName string
+	indexKey  string
 }
 
 func (s podTCELabelLister) List(labelSelector *metav1.LabelSelector) (ret []*v1.Pod, err error) {
+	if _, exist := labelSelector.MatchLabels[s.indexKey]; !exist {
+		// If index key is not exist, fallback to slow path
+		selector, err := metav1.LabelSelectorAsSelector(labelSelector)
+		if err != nil {
+			return ret, err
+		}
+		err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
+			ret = append(ret, m.(*v1.Pod))
+		})
+		return ret, err
+	}
+
 	items, err := s.indexer.Index(s.indexName, &metav1.ObjectMeta{Labels: labelSelector.MatchLabels})
 	if err != nil {
 		// Ignore error; do slow search without index.

@@ -391,6 +391,7 @@ func startReplicationController(ctx ControllerContext) (http.Handler, bool, erro
 		ctx.ClientBuilder.ClientOrDie("replication-controller"),
 		replicationcontroller.BurstReplicas,
 		ctx.ComponentConfig.Generic.Index.Name,
+		ctx.ComponentConfig.Generic.Index.Key,
 	).Run(int(ctx.ComponentConfig.ReplicationController.ConcurrentRCSyncs), ctx.Stop)
 	return nil, true, nil
 }

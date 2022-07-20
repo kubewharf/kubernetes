@@ -115,10 +115,11 @@ type ReplicaSetController struct {
 	queueResync workqueue.RateLimitingInterface
 
 	indexName string
+	indexKey  string
 }
 
 // NewReplicaSetController configures a replica set controller with the specified event recorder
-func NewReplicaSetController(rsInformer appsinformers.ReplicaSetInformer, podInformer coreinformers.PodInformer, kubeClient clientset.Interface, burstReplicas int, indexName string) *ReplicaSetController {
+func NewReplicaSetController(rsInformer appsinformers.ReplicaSetInformer, podInformer coreinformers.PodInformer, kubeClient clientset.Interface, burstReplicas int, indexName, indexKey string) *ReplicaSetController {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(klog.Infof)
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
@@ -131,13 +132,14 @@ func NewReplicaSetController(rsInformer appsinformers.ReplicaSetInformer, podInf
 			Recorder:   eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "replicaset-controller"}),
 		},
 		indexName,
+		indexKey,
 	)
 }
 
 // NewBaseController is the implementation of NewReplicaSetController with additional injected
 // parameters so that it can also serve as the implementation of NewReplicationController.
 func NewBaseController(rsInformer appsinformers.ReplicaSetInformer, podInformer coreinformers.PodInformer, kubeClient clientset.Interface, burstReplicas int,
-	gvk schema.GroupVersionKind, metricOwnerName, queueName string, podControl controller.PodControlInterface, indexName string) *ReplicaSetController {
+	gvk schema.GroupVersionKind, metricOwnerName, queueName string, podControl controller.PodControlInterface, indexName, indexKey string) *ReplicaSetController {
 	if kubeClient != nil && kubeClient.CoreV1().RESTClient().GetRateLimiter() != nil {
 		ratelimiter.RegisterMetricAndTrackRateLimiterUsage(metricOwnerName, kubeClient.CoreV1().RESTClient().GetRateLimiter())
 	}
@@ -174,6 +176,7 @@ func NewBaseController(rsInformer appsinformers.ReplicaSetInformer, podInformer 
 
 	rsc.syncHandler = rsc.syncReplicaSet
 	rsc.indexName = indexName
+	rsc.indexKey = indexKey
 
 	return rsc
 }
@@ -747,7 +750,7 @@ func (rsc *ReplicaSetController) syncReplicaSet(key string) error {
 	// list all pods to include the pods that don't match the rs`s selector
 	// anymore but has the stale controller ref.
 	// TODO: Do the List and Filter in a single pass, or use an index.
-	allPods, err := rsc.podLister.PodsForTCELabel(rs.Namespace, rsc.indexName).List(rs.Spec.Selector)
+	allPods, err := rsc.podLister.PodsForTCELabel(rs.Namespace, rsc.indexName, rsc.indexKey).List(rs.Spec.Selector)
 	//allPods, err := rsc.podLister.Pods(rs.Namespace).List(labels.Everything())
 	if err != nil {
 		return err
@@ -897,7 +900,7 @@ func (rsc *ReplicaSetController) getIndirectlyRelatedPods(rs *apps.ReplicaSet) (
 		if err != nil {
 			return nil, err
 		}*/
-		pods, err := rsc.podLister.PodsForTCELabel(relatedRS.Namespace, rsc.indexName).List(relatedRS.Spec.Selector)
+		pods, err := rsc.podLister.PodsForTCELabel(relatedRS.Namespace, rsc.indexName, rsc.indexKey).List(relatedRS.Spec.Selector)
 		//pods, err := rsc.podLister.Pods(relatedRS.Namespace).List(selector)
 		if err != nil {
 			return nil, err

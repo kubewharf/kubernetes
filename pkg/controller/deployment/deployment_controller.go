@@ -98,10 +98,11 @@ type DeploymentController struct {
 	queueResync workqueue.RateLimitingInterface
 
 	indexName string
+	indexKey  string
 }
 
 // NewDeploymentController creates a new DeploymentController.
-func NewDeploymentController(dInformer appsinformers.DeploymentInformer, rsInformer appsinformers.ReplicaSetInformer, podInformer coreinformers.PodInformer, client clientset.Interface, indexName string) (*DeploymentController, error) {
+func NewDeploymentController(dInformer appsinformers.DeploymentInformer, rsInformer appsinformers.ReplicaSetInformer, podInformer coreinformers.PodInformer, client clientset.Interface, indexName, indexKey string) (*DeploymentController, error) {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(klog.Infof)
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: client.CoreV1().Events("")})
@@ -148,6 +149,7 @@ func NewDeploymentController(dInformer appsinformers.DeploymentInformer, rsInfor
 	dc.rsListerSynced = rsInformer.Informer().HasSynced
 	dc.podListerSynced = podInformer.Informer().HasSynced
 	dc.indexName = indexName
+	dc.indexKey = indexKey
 	return dc, nil
 }
 
@@ -572,7 +574,7 @@ func (dc *DeploymentController) getReplicaSetsForDeployment(d *apps.Deployment) 
 // shouldn't be modified in any way.
 func (dc *DeploymentController) getPodMapForDeployment(d *apps.Deployment, rsList []*apps.ReplicaSet) (map[types.UID][]*v1.Pod, error) {
 	// Get all Pods that potentially belong to this Deployment.
-	pods, err := dc.podLister.PodsForTCELabel(d.Namespace, dc.indexName).List(d.Spec.Selector)
+	pods, err := dc.podLister.PodsForTCELabel(d.Namespace, dc.indexName, dc.indexKey).List(d.Spec.Selector)
 	if err != nil {
 		return nil, err
 	}
