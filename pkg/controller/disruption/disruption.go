@@ -547,7 +547,7 @@ func (dc *DisruptionController) getPodsForPdb(pdb *policy.PodDisruptionBudget) (
 		return []*v1.Pod{}, err
 	}
 	if _, ok := pdb.Spec.Selector.MatchLabels[dc.indexKey]; ok {
-		pods, err := dc.podLister.PodsForTCELabel(pdb.Namespace, dc.indexName).List(pdb.Spec.Selector)
+		pods, err := dc.podLister.PodsForTCELabel(pdb.Namespace, dc.indexName, dc.indexKey).List(pdb.Spec.Selector)
 		if err != nil {
 			return []*v1.Pod{}, err
 		}

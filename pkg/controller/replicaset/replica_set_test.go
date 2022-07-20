@@ -67,6 +67,7 @@ func testNewReplicaSetControllerFromClient(client clientset.Interface, stopCh ch
 		client,
 		burstReplicas,
 		"label",
+		"name",
 	)
 
 	ret.podListerSynced = alwaysReady
@@ -599,6 +600,7 @@ func TestWatchControllers(t *testing.T) {
 		client,
 		BurstReplicas,
 		"label",
+		"name",
 	)
 	informers.Start(stopCh)
 
@@ -1152,6 +1154,7 @@ func TestExpectationsOnRecreate(t *testing.T) {
 		client,
 		100,
 		"label",
+		"name",
 	)
 	f.Start(stopCh)
 	fakePodControl := controller.FakePodControl{}

@@ -133,7 +133,7 @@ func (f ControllerLister) ReplicationControllers(namespace string) corelisters.R
 }
 
 // ReplicationControllersForTCELabel returns nil
-func (f ControllerLister) ReplicationControllersForTCELabel(namespace string, indexName string) corelisters.ReplicationControllerTCELabelLister {
+func (f ControllerLister) ReplicationControllersForTCELabel(namespace string, indexName string, indexKey string) corelisters.ReplicationControllerTCELabelLister {
 	return nil
 }
 
@@ -177,7 +177,7 @@ func (f ReplicaSetLister) ReplicaSets(namespace string) appslisters.ReplicaSetNa
 }
 
 // ReplicaSetsForTCELabel returns nil
-func (f ReplicaSetLister) ReplicaSetsForTCELabel(namespace string, indexName string) appslisters.ReplicaSetTCELabelLister {
+func (f ReplicaSetLister) ReplicaSetsForTCELabel(namespace string, indexName string, indexKey string) appslisters.ReplicaSetTCELabelLister {
 	return nil
 }
 
