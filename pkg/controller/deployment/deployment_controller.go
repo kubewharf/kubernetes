@@ -542,7 +542,7 @@ func (dc *DeploymentController) handleErr(err error, key interface{}) {
 func (dc *DeploymentController) getReplicaSetsForDeployment(d *apps.Deployment) ([]*apps.ReplicaSet, error) {
 	// List all ReplicaSets to find those we own but that no longer match our
 	// selector. They will be orphaned by ClaimReplicaSets().
-	rsList, err := dc.rsLister.ReplicaSetsForTCELabel(d.Namespace, dc.indexName).List(d.Spec.Selector)
+	rsList, err := dc.rsLister.ReplicaSetsForTCELabel(d.Namespace, dc.indexName, dc.indexKey).List(d.Spec.Selector)
 	if err != nil {
 		return nil, err
 	}

@@ -31,14 +31,15 @@ import (
 // ReplicationControllerLister.
 type ReplicationControllerListerExpansion interface {
 	GetPodControllers(pod *v1.Pod) ([]*v1.ReplicationController, error)
-	ReplicationControllersForTCELabel(namespace, indexName string) ReplicationControllerTCELabelLister
+	ReplicationControllersForTCELabel(namespace, indexName, indexKey string) ReplicationControllerTCELabelLister
 }
 
-func (s *replicationControllerLister) ReplicationControllersForTCELabel(namespace, indexName string) ReplicationControllerTCELabelLister {
+func (s *replicationControllerLister) ReplicationControllersForTCELabel(namespace, indexName, indexKey string) ReplicationControllerTCELabelLister {
 	return replicationControllerTCELabelLister{
 		indexer:   s.indexer,
 		namespace: namespace,
 		indexName: indexName,
+		indexKey:  indexKey,
 	}
 }
 
@@ -50,9 +51,22 @@ type replicationControllerTCELabelLister struct {
 	indexer   cache.Indexer
 	namespace string
 	indexName string
+	indexKey  string
 }
 
 func (s replicationControllerTCELabelLister) List(labelSelector *metav1.LabelSelector) (ret []*v1.ReplicationController, err error) {
+	if _, exist := labelSelector.MatchLabels[s.indexKey]; !exist {
+		// If index key is not exist, fallback to slow path
+		selector, err := metav1.LabelSelectorAsSelector(labelSelector)
+		if err != nil {
+			return ret, err
+		}
+		err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
+			ret = append(ret, m.(*v1.ReplicationController))
+		})
+		return ret, err
+	}
+
 	items, err := s.indexer.Index(s.indexName, &metav1.ObjectMeta{Labels: labelSelector.MatchLabels})
 	if err != nil {
 		// Ignore error; do slow search without index.
