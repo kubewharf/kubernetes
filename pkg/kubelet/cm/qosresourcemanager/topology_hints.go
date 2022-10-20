@@ -21,7 +21,7 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	pluginapi "k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	"k8s.io/kubernetes/pkg/kubelet/metrics"

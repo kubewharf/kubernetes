@@ -135,6 +135,10 @@ func (cm *containerManagerStub) UpdateAllocatedDevices() {
 	return
 }
 
+func (cm *containerManagerStub) GetResourceRunContainerOptions(pod *v1.Pod, container *v1.Container) (*kubecontainer.ResourceRunContainerOptions, error) {
+	return &kubecontainer.ResourceRunContainerOptions{}, nil
+}
+
 func (cm *containerManagerStub) GetCPUs(_, _ string) []int64 {
 	return nil
 }

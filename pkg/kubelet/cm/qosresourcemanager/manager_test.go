@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/tools/record"
 	apitest "k8s.io/cri-api/pkg/apis/testing"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	watcherapi "k8s.io/kubelet/pkg/apis/pluginregistration/v1"
 	pluginapi "k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1"
 	apipod "k8s.io/kubernetes/pkg/api/pod"
@@ -34,7 +34,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/pluginmanager"
 	"k8s.io/kubernetes/pkg/kubelet/status"
 	statustest "k8s.io/kubernetes/pkg/kubelet/status/testing"
-	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
+	schedulerframework "k8s.io/kubernetes/pkg/scheduler/framework"
 )
 
 const (
@@ -1131,7 +1131,7 @@ func TestUpdatePluginResources(t *testing.T) {
 	as.Nil(err)
 
 	cachedNode := &v1.Node{}
-	nodeInfo := &schedulernodeinfo.NodeInfo{}
+	nodeInfo := &schedulerframework.NodeInfo{}
 	nodeInfo.SetNode(cachedNode)
 
 	testManager.UpdatePluginResources(nodeInfo, &lifecycle.PodAdmitAttributes{Pod: pod1})

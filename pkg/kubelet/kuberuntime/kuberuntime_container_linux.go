@@ -207,8 +207,6 @@ func (m *kubeGenericRuntimeManager) calculateLinuxResources(resources *runtimeap
 		resources.CpuQuota = cpuQuota
 		resources.CpuPeriod = cpuPeriod
 	}
-
-	return &resources
 }
 
 // GetHugepageLimitsFromResources returns limits of each hugepages from resources.

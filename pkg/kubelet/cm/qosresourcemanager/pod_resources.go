@@ -23,8 +23,8 @@ import (
 	"sync"
 
 	"k8s.io/apimachinery/pkg/util/sets"
-	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
-	"k8s.io/klog"
+	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
+	"k8s.io/klog/v2"
 	pluginapi "k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1"
 	"k8s.io/kubernetes/pkg/kubelet/cm/qosresourcemanager/checkpoint"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"

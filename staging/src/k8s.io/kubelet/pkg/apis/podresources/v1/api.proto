@@ -28,8 +28,7 @@ message AllocatableResourcesResponse {
     repeated ContainerDevices devices = 1;
     repeated int64 cpu_ids = 2;
     repeated ContainerMemory memory = 3;
-    repeated TopologyAwareResource resources = 4;
-    repeated AllocatableTopologyAwareResource resources = 5;
+    repeated AllocatableTopologyAwareResource resources = 4;
 }
 
 // ListPodResourcesRequest is the request made to the PodResourcesLister service
@@ -57,7 +56,7 @@ message ContainerResources {
     repeated ContainerDevices devices = 2;
     repeated int64 cpu_ids = 3;
     repeated ContainerMemory memory = 4;
-    repeated TopologyAwareResource resources = 4;
+    repeated TopologyAwareResource resources = 5;
 }
 
 // ContainerMemory contains information about memory and hugepages assigned to a container

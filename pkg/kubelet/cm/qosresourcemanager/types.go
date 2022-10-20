@@ -20,7 +20,7 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
-	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
 	pluginapi "k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	"k8s.io/kubernetes/pkg/kubelet/config"
@@ -28,7 +28,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 	"k8s.io/kubernetes/pkg/kubelet/pluginmanager/cache"
 	"k8s.io/kubernetes/pkg/kubelet/status"
-	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
+	schedulerframework "k8s.io/kubernetes/pkg/scheduler/framework"
 )
 
 // ActivePodsFunc is a function that returns a list of pods to reconcile.
@@ -53,7 +53,7 @@ type Manager interface {
 	// UpdatePluginResources updates node resources based on resources already
 	// allocated to pods. The node object is provided for the resource manager to
 	// update the node capacity to reflect the currently available resources.
-	UpdatePluginResources(node *schedulernodeinfo.NodeInfo, attrs *lifecycle.PodAdmitAttributes) error
+	UpdatePluginResources(node *schedulerframework.NodeInfo, attrs *lifecycle.PodAdmitAttributes) error
 
 	// Stop stops the manager.
 	Stop() error

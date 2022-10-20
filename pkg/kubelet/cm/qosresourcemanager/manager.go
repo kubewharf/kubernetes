@@ -29,15 +29,15 @@ import (
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
+	"github.com/opencontainers/selinux/go-selinux"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	pluginapi "k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1"
-	"k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager"
 	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager/errors"
 	"k8s.io/kubernetes/pkg/kubelet/cm/qosresourcemanager/checkpoint"
@@ -48,9 +48,9 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/metrics"
 	"k8s.io/kubernetes/pkg/kubelet/pluginmanager/cache"
 	"k8s.io/kubernetes/pkg/kubelet/status"
-	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
+	schedulerframework "k8s.io/kubernetes/pkg/scheduler/framework"
+	schedutil "k8s.io/kubernetes/pkg/scheduler/util"
 	maputil "k8s.io/kubernetes/pkg/util/maps"
-	"k8s.io/kubernetes/pkg/util/selinux"
 )
 
 // ManagerImpl is the structure in charge of managing Resource Plugins.
@@ -209,7 +209,7 @@ func (m *ManagerImpl) Start(activePods ActivePodsFunc, sourcesReady config.Sourc
 	if err = os.MkdirAll(m.socketdir, 0750); err != nil {
 		return err
 	}
-	if selinux.SELinuxEnabled() {
+	if selinux.GetEnabled() {
 		if err := selinux.SetFileLabel(m.socketdir, config.KubeletPluginsDirSELinuxLabel); err != nil {
 			klog.Warningf("[qosresourcemanager] Unprivileged containerized plugins might not work. Could not set selinux context on %s: %v", m.socketdir, err)
 		}
@@ -551,7 +551,7 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 }
 
 // UpdatePluginResources updates node resources based on resources already allocated to pods.
-func (m *ManagerImpl) UpdatePluginResources(node *schedulernodeinfo.NodeInfo, attrs *lifecycle.PodAdmitAttributes) error {
+func (m *ManagerImpl) UpdatePluginResources(node *schedulerframework.NodeInfo, attrs *lifecycle.PodAdmitAttributes) error {
 	pod := attrs.Pod
 
 	// quick return if no pluginResources requested
@@ -1017,13 +1017,16 @@ func (m *ManagerImpl) callPreStartContainerIfNeeded(pod *v1.Pod, container *v1.C
 // and if necessary, updates allocatableResource in nodeInfo to at least equal to
 // the allocated capacity. This allows pods that have already been scheduled on
 // the node to pass GeneralPredicates admission checking even upon resource plugin failure.
-func (m *ManagerImpl) sanitizeNodeAllocatable(node *schedulernodeinfo.NodeInfo) {
-	var newAllocatableResource *schedulernodeinfo.Resource
-	allocatableResource := node.AllocatableResource()
+func (m *ManagerImpl) sanitizeNodeAllocatable(node *schedulerframework.NodeInfo) {
+
+	var newAllocatableResource *schedulerframework.Resource
+	allocatableResource := node.Allocatable
 	if allocatableResource.ScalarResources == nil {
 		allocatableResource.ScalarResources = make(map[v1.ResourceName]int64)
 	}
+
 	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	for resource, allocatedQuantity := range m.allocatedScalarResourcesQuantity {
 		quant, ok := allocatableResource.ScalarResources[v1.ResourceName(resource)]
 		if ok && float64(quant) >= allocatedQuantity {
@@ -1036,10 +1039,8 @@ func (m *ManagerImpl) sanitizeNodeAllocatable(node *schedulernodeinfo.NodeInfo) 
 		}
 		newAllocatableResource.ScalarResources[v1.ResourceName(resource)] = int64(math.Ceil(allocatedQuantity))
 	}
-	m.mutex.Unlock()
-
 	if newAllocatableResource != nil {
-		node.SetAllocatableResource(newAllocatableResource)
+		node.Allocatable = newAllocatableResource
 	}
 }
 
@@ -1212,5 +1213,5 @@ func (m *ManagerImpl) isNodeResource(resourceName string) bool {
 
 	// currently we think we only report quantity for scalar resource to node,
 	// if there is no allocation record declaring it as node resource explicitly.
-	return helper.IsScalarResourceName(v1.ResourceName(resourceName))
+	return schedutil.IsScalarResourceName(v1.ResourceName(resourceName))
 }
