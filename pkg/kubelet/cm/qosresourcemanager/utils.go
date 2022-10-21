@@ -2,7 +2,6 @@ package qosresourcemanager
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"google.golang.org/grpc/metadata"
@@ -10,8 +9,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
 	pluginapi "k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1"
-	apipod "k8s.io/kubernetes/pkg/api/pod"
-	"k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager/bitmask"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
@@ -107,10 +104,6 @@ func isDaemonPod(pod *v1.Pod) bool {
 		return false
 	}
 
-	if _, exists := pod.Annotations[apipod.TCEDaemonPodAnnotationKey]; exists {
-		return true
-	}
-
 	for i := 0; i < len(pod.OwnerReferences); i++ {
 		if pod.OwnerReferences[i].Kind == DaemonsetKind {
 			return true
@@ -131,7 +124,6 @@ func isSkippedPod(pod *v1.Pod, isFirstAdmit bool) bool {
 		return true
 	}
 
-	// customize for tce
 	return isDaemonPod(pod) && !IsPodKatalystQoSLevelSystemCores(pod)
 }
 
@@ -279,66 +271,4 @@ func IsPodSkipFirstAdmit(pod *v1.Pod) bool {
 	}
 
 	return pod.Annotations[pluginapi.KatalystSkipQRMAdmitAnnotationKey] == pluginapi.KatalystValueTrue
-}
-
-func DecorateQRMResourceRequest(request *pluginapi.ResourceRequest, pod *v1.Pod, container *v1.Container) error {
-	if request == nil {
-		return fmt.Errorf("DecorateQRMResourceRequest got nil request")
-	} else if pod == nil {
-		return fmt.Errorf("DecorateQRMResourceRequest got nil pod")
-	} else if container == nil {
-		return fmt.Errorf("DecorateQRMResourceRequest got nil container")
-	}
-
-	if request.Annotations == nil {
-		request.Annotations = make(map[string]string)
-	}
-
-	if request.Labels == nil {
-		request.Labels = make(map[string]string)
-	}
-
-	isSocketPod := false
-
-	for i := range pod.Spec.Containers {
-		socketRequest := pod.Spec.Containers[i].Resources.Requests[v1.ResourceName(core.ResourceBytedanceSocket)].DeepCopy()
-		socketLimit := pod.Spec.Containers[i].Resources.Limits[v1.ResourceName(core.ResourceBytedanceSocket)].DeepCopy()
-
-		if !socketRequest.IsZero() || !socketLimit.IsZero() {
-			isSocketPod = true
-			klog.Infof("[DecorateQRMResourceRequest] decorate socket pod: %s/%s container: %s, find container: %s of this pod request socket resources",
-				pod.Namespace, pod.Name, container.Name, pod.Spec.Containers[i].Name)
-			break
-		}
-	}
-
-	if isSocketPod {
-		if request.Labels[pluginapi.KatalystQoSLevelLabelKey] != pluginapi.KatalystQoSLevelDedicatedCores {
-			klog.Warningf("[DecorateQRMResourceRequest] request label key: %s of socket pod: %s/%s container: %s has invalid value: %s, modify its value to: %v",
-				pluginapi.KatalystQoSLevelLabelKey, pod.Namespace, pod.Name, container.Name, request.Labels[pluginapi.KatalystQoSLevelLabelKey], pluginapi.KatalystQoSLevelDedicatedCores)
-			request.Labels[pluginapi.KatalystQoSLevelLabelKey] = pluginapi.KatalystQoSLevelDedicatedCores
-		}
-
-		if request.Annotations[pluginapi.KatalystQoSLevelAnnotationKey] !=
-			pluginapi.KatalystQoSLevelDedicatedCores {
-			klog.Warningf("[DecorateQRMResourceRequest] request annotation key: %s of socket pod: %s/%s container: %s has invalid value: %s, modify its value to: %v",
-				pluginapi.KatalystQoSLevelAnnotationKey, pod.Namespace, pod.Name, container.Name, request.Annotations[pluginapi.KatalystQoSLevelAnnotationKey], pluginapi.KatalystQoSLevelDedicatedCores)
-			request.Annotations[pluginapi.KatalystQoSLevelAnnotationKey] = pluginapi.KatalystQoSLevelDedicatedCores
-		}
-
-		memoryEnhancement := make(map[string]string)
-
-		json.Unmarshal([]byte(request.Annotations[pluginapi.KatalystMemoryEnhancementAnnotationKey]),
-			&memoryEnhancement)
-
-		if memoryEnhancement[pluginapi.KatalystMemoryEnhancementKeyNumaBinding] != pluginapi.KatalystValueTrue {
-			klog.Warningf("[DecorateQRMResourceRequest] request memory enhancement key: %s of socket pod: %s/%s container: %s has invalid value: %s, modify its value to: %v",
-				pluginapi.KatalystMemoryEnhancementKeyNumaBinding, pod.Namespace, pod.Name, container.Name, memoryEnhancement[pluginapi.KatalystMemoryEnhancementKeyNumaBinding], pluginapi.KatalystValueTrue)
-			memoryEnhancement[pluginapi.KatalystMemoryEnhancementKeyNumaBinding] = pluginapi.KatalystValueTrue
-			enhancementBytes, _ := json.Marshal(memoryEnhancement)
-			request.Annotations[pluginapi.KatalystMemoryEnhancementAnnotationKey] = string(enhancementBytes)
-		}
-	}
-
-	return nil
 }

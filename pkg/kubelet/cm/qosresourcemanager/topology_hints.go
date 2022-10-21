@@ -132,16 +132,6 @@ func (m *ManagerImpl) GetTopologyHints(pod *v1.Pod, container *v1.Container) map
 				continue
 			}
 
-			err = DecorateQRMResourceRequest(resourceReq, pod, container)
-
-			if err != nil {
-				klog.Errorf("[qosresourcemanager] DecorateQRMResourceRequest failed with error: %v", err)
-				// empty TopologyHint list will cause fail in restricted topology manager policy
-				// nil TopologyHint list assumes no NUMA preference
-				resourceHints[resource] = []topologymanager.TopologyHint{}
-				continue
-			}
-
 			resp, err := eI.e.getTopologyHints(ctx, resourceReq)
 			metrics.ResourcePluginGetTopologyHintsDuration.WithLabelValues(resource).Observe(metrics.SinceInSeconds(startRPCTime))
 			if err != nil {

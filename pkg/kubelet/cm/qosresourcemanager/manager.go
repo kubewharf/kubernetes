@@ -495,12 +495,6 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 			return fmt.Errorf("GetContextWithSpecificInfo failed with error: %v", err)
 		}
 
-		err = DecorateQRMResourceRequest(resourceReq, pod, container)
-
-		if err != nil {
-			return fmt.Errorf("DecorateQRMResourceRequest failed with error: %v", err)
-		}
-
 		resp, err := eI.e.allocate(ctx, resourceReq)
 		metrics.ResourcePluginAllocationDuration.WithLabelValues(resource).Observe(metrics.SinceInSeconds(startRPCTime))
 		if err != nil {
