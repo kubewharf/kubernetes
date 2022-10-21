@@ -351,7 +351,7 @@ func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.I
 
 	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.QoSResourceManager) {
 		klog.Infof("QosResourceManager enabled, added as a provider for topology manager")
-		cm.qosResourceManager, err = qosresourcemanager.NewManagerImpl(numaNodeInfo, cm.topologyManager, nodeConfig.ExperimentalQoSResourceManagerReconcilePeriod)
+		cm.qosResourceManager, err = qosresourcemanager.NewManagerImpl(cm.topologyManager, nodeConfig.ExperimentalQoSResourceManagerReconcilePeriod)
 		if err != nil {
 			klog.Errorf("failed to initialize qos resource manager: %v", err)
 			return nil, err

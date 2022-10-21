@@ -1355,7 +1355,6 @@ func getTestManager(tmpDir string, activePods ActivePodsFunc, testRes []TestReso
 		activePods:                       activePods,
 		sourcesReady:                     &sourcesReadyStub{},
 		checkpointManager:                ckm,
-		numaNodes:                        nil,
 		containerRuntime:                 &apitest.FakeRuntimeService{},
 		reconcilePeriod:                  5 * time.Second,
 	}

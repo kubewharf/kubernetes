@@ -151,7 +151,6 @@ func TestGetTopologyHints(t *testing.T) {
 		m := ManagerImpl{
 			podResources: newPodResourcesChk(),
 			sourcesReady: &sourcesReadyStub{},
-			numaNodes:    []int{0, 1},
 			activePods:   func() []*v1.Pod { return []*v1.Pod{tc.pod} },
 			endpoints:    tc.endpoints,
 		}

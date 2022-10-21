@@ -40,7 +40,6 @@ import (
 	"k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager"
 	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager/errors"
-	cputopology "k8s.io/kubernetes/pkg/kubelet/cm/cpumanager/topology"
 	"k8s.io/kubernetes/pkg/kubelet/cm/qosresourcemanager/checkpoint"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	"k8s.io/kubernetes/pkg/kubelet/config"
@@ -83,9 +82,6 @@ type ManagerImpl struct {
 	podResources      *podResourcesChk
 	checkpointManager checkpointmanager.CheckpointManager
 
-	// List of NUMA Nodes available on the underlying machine
-	numaNodes []int
-
 	// Store of Topology Affinties that the Resource Manager can query.
 	topologyAffinityStore topologymanager.Store
 
@@ -115,20 +111,15 @@ func (s *sourcesReadyStub) AddSource(source string) {}
 func (s *sourcesReadyStub) AllReady() bool          { return true }
 
 // NewManagerImpl creates a new manager.
-func NewManagerImpl(numaNodeInfo cputopology.NUMANodeInfo, topologyAffinityStore topologymanager.Store, reconcilePeriod time.Duration) (Manager, error) {
-	return newManagerImpl(pluginapi.KubeletSocket, numaNodeInfo, topologyAffinityStore, reconcilePeriod)
+func NewManagerImpl(topologyAffinityStore topologymanager.Store, reconcilePeriod time.Duration) (Manager, error) {
+	return newManagerImpl(pluginapi.KubeletSocket, topologyAffinityStore, reconcilePeriod)
 }
 
-func newManagerImpl(socketPath string, numaNodeInfo cputopology.NUMANodeInfo, topologyAffinityStore topologymanager.Store, reconcilePeriod time.Duration) (*ManagerImpl, error) {
+func newManagerImpl(socketPath string, topologyAffinityStore topologymanager.Store, reconcilePeriod time.Duration) (*ManagerImpl, error) {
 	klog.V(2).Infof("[qosresourcemanager] Creating Resource Plugin manager at %s", socketPath)
 
 	if socketPath == "" || !filepath.IsAbs(socketPath) {
 		return nil, fmt.Errorf(errBadSocket+" %s", socketPath)
-	}
-
-	var numaNodes []int
-	for node := range numaNodeInfo {
-		numaNodes = append(numaNodes, node)
 	}
 
 	dir, file := filepath.Split(socketPath)
@@ -137,7 +128,6 @@ func newManagerImpl(socketPath string, numaNodeInfo cputopology.NUMANodeInfo, to
 
 		socketname:                       file,
 		socketdir:                        dir,
-		numaNodes:                        numaNodes,
 		topologyAffinityStore:            topologyAffinityStore,
 		podResources:                     newPodResourcesChk(),
 		allocatedScalarResourcesQuantity: make(map[string]float64),
