@@ -163,6 +163,9 @@ func SetDefaults_KubeletConfiguration(obj *kubeletconfigv1beta1.KubeletConfigura
 	if obj.MemoryManagerPolicy == "" {
 		obj.MemoryManagerPolicy = kubeletconfigv1beta1.NoneMemoryManagerPolicy
 	}
+	if obj.QoSResourceManagerReconcilePeriod == zeroDuration {
+		obj.QoSResourceManagerReconcilePeriod = metav1.Duration{Duration: 5 * time.Second}
+	}
 	if obj.TopologyManagerPolicy == "" {
 		obj.TopologyManagerPolicy = kubeletconfigv1beta1.NoneTopologyManagerPolicy
 	}

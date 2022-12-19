@@ -118,7 +118,42 @@ func (cm *FakeContainerManager) GetCapacity() v1.ResourceList {
 	return c
 }
 
-func (cm *FakeContainerManager) GetPluginRegistrationHandler() cache.PluginHandler {
+func (cm *FakeContainerManager) UpdateAllocatedResources() {
+	cm.Lock()
+	defer cm.Unlock()
+	cm.CalledFunctions = append(cm.CalledFunctions, "UpdateAllocatedResources")
+	return
+}
+
+func (cm *FakeContainerManager) GetTopologyAwareResources(pod *v1.Pod, container *v1.Container) []*podresourcesapi.TopologyAwareResource {
+	cm.Lock()
+	defer cm.Unlock()
+	cm.CalledFunctions = append(cm.CalledFunctions, "GetTopologyAwareResources")
+	return nil
+}
+
+func (cm *FakeContainerManager) GetTopologyAwareAllocatableResources() []*podresourcesapi.AllocatableTopologyAwareResource {
+	cm.Lock()
+	defer cm.Unlock()
+	cm.CalledFunctions = append(cm.CalledFunctions, "GetTopologyAwareAllocatableResources")
+	return nil
+}
+
+func (cm *FakeContainerManager) GetResourceRunContainerOptions(pod *v1.Pod, container *v1.Container) (*kubecontainer.ResourceRunContainerOptions, error) {
+	cm.Lock()
+	defer cm.Unlock()
+	cm.CalledFunctions = append(cm.CalledFunctions, "GetResourceRunContainerOptions")
+	return &kubecontainer.ResourceRunContainerOptions{}, nil
+}
+
+func (cm *FakeContainerManager) GetResourcePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string) {
+	cm.Lock()
+	defer cm.Unlock()
+	cm.CalledFunctions = append(cm.CalledFunctions, "GetResourcePluginResourceCapacity")
+	return nil, nil, []string{}
+}
+
+func (cm *FakeContainerManager) GetPluginRegistrationHandler() map[string]cache.PluginHandler {
 	cm.Lock()
 	defer cm.Unlock()
 	cm.CalledFunctions = append(cm.CalledFunctions, "GetPluginRegistrationHandler")

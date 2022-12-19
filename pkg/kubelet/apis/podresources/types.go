@@ -51,3 +51,13 @@ type MemoryProvider interface {
 	// GetAllocatableMemory returns the allocatable memory from the node
 	GetAllocatableMemory() []*podresourcesapi.ContainerMemory
 }
+
+// ResourcesProvider knows how to provide the resources used by the given container
+type ResourcesProvider interface {
+	// UpdateAllocatedResources frees any Resources that are bound to terminated pods.
+	UpdateAllocatedResources()
+	// GetResources returns information about the resources assigned to pods and containers in topology aware format
+	GetTopologyAwareResources(pod *v1.Pod, container *v1.Container) []*podresourcesapi.TopologyAwareResource
+	// GetAllocatableResources returns information about all the resources known to the manager in topology aware format
+	GetTopologyAwareAllocatableResources() []*podresourcesapi.AllocatableTopologyAwareResource
+}

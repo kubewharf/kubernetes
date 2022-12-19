@@ -354,7 +354,7 @@ func (m *kubeGenericRuntimeManager) generateContainerConfig(container *v1.Contai
 			Value: e.Value,
 		}
 	}
-	config.Envs = envs
+	config.Envs = append(config.Envs, envs...)
 
 	return config, cleanupAction, nil
 }
