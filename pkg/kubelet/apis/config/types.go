@@ -232,6 +232,12 @@ type KubeletConfiguration struct {
 	// MemoryManagerPolicy is the name of the policy to use.
 	// Requires the MemoryManager feature gate to be enabled.
 	MemoryManagerPolicy string
+	// QoS Resource Manager reconciliation period.
+	// Requires the QoSResourceManager feature gate to be enabled.
+	QoSResourceManagerReconcilePeriod metav1.Duration
+	// Map of resource name "A" to resource name "B" during QoS Resource Manager allocation period.
+	// It's useful for the same kind resource with different types. (eg. maps best-effort-cpu to cpu)
+	QoSResourceManagerResourceNamesMap map[string]string
 	// TopologyManagerPolicy is the name of the policy to use.
 	// Policies other than "none" require the TopologyManager feature gate to be enabled.
 	TopologyManagerPolicy string
