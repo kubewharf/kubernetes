@@ -83,12 +83,16 @@ func (cm *containerManagerStub) GetCapacity() v1.ResourceList {
 	return c
 }
 
-func (cm *containerManagerStub) GetPluginRegistrationHandler() cache.PluginHandler {
+func (cm *containerManagerStub) GetPluginRegistrationHandler() map[string]cache.PluginHandler {
 	return nil
 }
 
 func (cm *containerManagerStub) GetDevicePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string) {
 	return cm.extendedPluginResources, cm.extendedPluginResources, []string{}
+}
+
+func (cm *containerManagerStub) GetResourcePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string) {
+	return nil, nil, []string{}
 }
 
 func (cm *containerManagerStub) NewPodContainerManager() PodContainerManager {
@@ -131,6 +135,10 @@ func (cm *containerManagerStub) UpdateAllocatedDevices() {
 	return
 }
 
+func (cm *containerManagerStub) GetResourceRunContainerOptions(pod *v1.Pod, container *v1.Container) (*kubecontainer.ResourceRunContainerOptions, error) {
+	return &kubecontainer.ResourceRunContainerOptions{}, nil
+}
+
 func (cm *containerManagerStub) GetCPUs(_, _ string) []int64 {
 	return nil
 }
@@ -149,6 +157,17 @@ func (cm *containerManagerStub) GetAllocatableMemory() []*podresourcesapi.Contai
 
 func (cm *containerManagerStub) GetNodeAllocatableAbsolute() v1.ResourceList {
 	return nil
+}
+
+func (cm *containerManagerStub) GetTopologyAwareResources(pod *v1.Pod, container *v1.Container) []*podresourcesapi.TopologyAwareResource {
+	return nil
+}
+
+func (cm *containerManagerStub) GetTopologyAwareAllocatableResources() []*podresourcesapi.AllocatableTopologyAwareResource {
+	return nil
+}
+
+func (cm *containerManagerStub) UpdateAllocatedResources() {
 }
 
 func NewStubContainerManager() ContainerManager {

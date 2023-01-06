@@ -17,7 +17,7 @@ limitations under the License.
 package testing
 
 import (
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	kubetypes "k8s.io/apimachinery/pkg/types"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
@@ -32,6 +32,19 @@ type FakeRuntimeHelper struct {
 	HostDomain      string
 	PodContainerDir string
 	Err             error
+}
+
+func (f *FakeRuntimeHelper) GenerateCreatePodResourceOptions(pod *v1.Pod, container *v1.Container) (*kubecontainer.RunContainerOptions, error) {
+	var opts kubecontainer.RunContainerOptions
+	if len(container.TerminationMessagePath) != 0 {
+		opts.PodContainerDir = f.PodContainerDir
+	}
+	return &opts, nil
+}
+
+func (f *FakeRuntimeHelper) GenerateResourceRunContainerOptions(pod *v1.Pod, container *v1.Container) (*kubecontainer.ResourceRunContainerOptions, error) {
+	var opts kubecontainer.ResourceRunContainerOptions
+	return &opts, nil
 }
 
 func (f *FakeRuntimeHelper) GenerateRunContainerOptions(pod *v1.Pod, container *v1.Container, podIP string, podIPs []string) (*kubecontainer.RunContainerOptions, func(), error) {

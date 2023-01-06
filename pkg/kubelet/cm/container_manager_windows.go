@@ -183,6 +183,14 @@ func (cm *containerManagerImpl) GetDevicePluginResourceCapacity() (v1.ResourceLi
 	return cm.deviceManager.GetCapacity()
 }
 
+func (cm *containerManagerImpl) GetDevicePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string) {
+	return nil, nil, []string{}
+}
+
+func (cm *containerManagerImpl) GetResourcePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string) {
+	return nil, nil, []string{}
+}
+
 func (cm *containerManagerImpl) NewPodContainerManager() PodContainerManager {
 	return &podContainerManagerStub{}
 }
@@ -254,4 +262,17 @@ func (cm *containerManagerImpl) GetAllocatableMemory() []*podresourcesapi.Contai
 
 func (cm *containerManagerImpl) GetNodeAllocatableAbsolute() v1.ResourceList {
 	return nil
+}
+
+// GetResources returns information about the resources assigned to pods and containers in topology aware format
+func (cm *containerManagerImpl) GetTopologyAwareResources(pod *v1.Pod, container *v1.Container) []*podresourcesapi.TopologyAwareResource {
+	return nil
+}
+
+// GetAllocatableResources returns information about all the resources known to the manager in topology aware format
+func (cm *containerManagerImpl) GetTopologyAwareAllocatableResources() []*podresourcesapi.AllocatableTopologyAwareResource {
+	return nil
+}
+
+func (cm *containerManagerImpl) UpdateAllocatedResources() {
 }

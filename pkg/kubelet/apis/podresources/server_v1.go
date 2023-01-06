@@ -24,25 +24,29 @@ import (
 	kubefeatures "k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/kubelet/metrics"
 
-	"k8s.io/kubelet/pkg/apis/podresources/v1"
+	v1 "k8s.io/kubelet/pkg/apis/podresources/v1"
+	pluginapi "k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1"
+	maputil "k8s.io/kubernetes/pkg/util/maps"
 )
 
 // podResourcesServerV1alpha1 implements PodResourcesListerServer
 type v1PodResourcesServer struct {
-	podsProvider    PodsProvider
-	devicesProvider DevicesProvider
-	cpusProvider    CPUsProvider
-	memoryProvider  MemoryProvider
+	podsProvider      PodsProvider
+	devicesProvider   DevicesProvider
+	cpusProvider      CPUsProvider
+	memoryProvider    MemoryProvider
+	resourcesProvider ResourcesProvider
 }
 
 // NewV1PodResourcesServer returns a PodResourcesListerServer which lists pods provided by the PodsProvider
 // with device information provided by the DevicesProvider
-func NewV1PodResourcesServer(podsProvider PodsProvider, devicesProvider DevicesProvider, cpusProvider CPUsProvider, memoryProvider MemoryProvider) v1.PodResourcesListerServer {
+func NewV1PodResourcesServer(podsProvider PodsProvider, devicesProvider DevicesProvider, cpusProvider CPUsProvider, memoryProvider MemoryProvider, resourcesProvider ResourcesProvider) v1.PodResourcesListerServer {
 	return &v1PodResourcesServer{
-		podsProvider:    podsProvider,
-		devicesProvider: devicesProvider,
-		cpusProvider:    cpusProvider,
-		memoryProvider:  memoryProvider,
+		podsProvider:      podsProvider,
+		devicesProvider:   devicesProvider,
+		cpusProvider:      cpusProvider,
+		memoryProvider:    memoryProvider,
+		resourcesProvider: resourcesProvider,
 	}
 }
 
@@ -54,25 +58,32 @@ func (p *v1PodResourcesServer) List(ctx context.Context, req *v1.ListPodResource
 	pods := p.podsProvider.GetPods()
 	podResources := make([]*v1.PodResources, len(pods))
 	p.devicesProvider.UpdateAllocatedDevices()
+	p.resourcesProvider.UpdateAllocatedResources()
 
 	for i, pod := range pods {
 		pRes := v1.PodResources{
-			Name:       pod.Name,
-			Namespace:  pod.Namespace,
-			Containers: make([]*v1.ContainerResources, len(pod.Spec.Containers)),
+			Name:        pod.Name,
+			Namespace:   pod.Namespace,
+			PodRole:     pod.Labels[pluginapi.PodRoleLabelKey],
+			PodType:     pod.Annotations[pluginapi.PodTypeAnnotationKey],
+			Labels:      maputil.CopySS(pod.Labels),
+			Annotations: maputil.CopySS(pod.Annotations),
+			Containers:  make([]*v1.ContainerResources, len(pod.Spec.Containers)),
 		}
 
 		for j, container := range pod.Spec.Containers {
 			pRes.Containers[j] = &v1.ContainerResources{
-				Name:    container.Name,
-				Devices: p.devicesProvider.GetDevices(string(pod.UID), container.Name),
-				CpuIds:  p.cpusProvider.GetCPUs(string(pod.UID), container.Name),
-				Memory:  p.memoryProvider.GetMemory(string(pod.UID), container.Name),
+				Name:      container.Name,
+				Devices:   p.devicesProvider.GetDevices(string(pod.UID), container.Name),
+				CpuIds:    p.cpusProvider.GetCPUs(string(pod.UID), container.Name),
+				Memory:    p.memoryProvider.GetMemory(string(pod.UID), container.Name),
+				Resources: p.resourcesProvider.GetTopologyAwareResources(pod, &container),
 			}
 		}
 		podResources[i] = &pRes
 	}
 
+	// [TODO](sunjianyu): List always return error nil, but what if resource plugin rpc call gets error and Resources in ContainerResources is nil?
 	return &v1.ListPodResourcesResponse{
 		PodResources: podResources,
 	}, nil
@@ -91,8 +102,9 @@ func (p *v1PodResourcesServer) GetAllocatableResources(ctx context.Context, req 
 	metrics.PodResourcesEndpointRequestsTotalCount.WithLabelValues("v1").Inc()
 
 	return &v1.AllocatableResourcesResponse{
-		Devices: p.devicesProvider.GetAllocatableDevices(),
-		CpuIds:  p.cpusProvider.GetAllocatableCPUs(),
-		Memory:  p.memoryProvider.GetAllocatableMemory(),
+		Devices:   p.devicesProvider.GetAllocatableDevices(),
+		CpuIds:    p.cpusProvider.GetAllocatableCPUs(),
+		Memory:    p.memoryProvider.GetAllocatableMemory(),
+		Resources: p.resourcesProvider.GetTopologyAwareAllocatableResources(),
 	}, nil
 }
