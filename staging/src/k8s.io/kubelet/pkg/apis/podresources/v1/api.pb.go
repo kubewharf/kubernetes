@@ -21,9 +21,11 @@ package v1
 
 import (
 	context "context"
+	encoding_binary "encoding/binary"
 	fmt "fmt"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
+	github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -84,11 +86,12 @@ var xxx_messageInfo_AllocatableResourcesRequest proto.InternalMessageInfo
 
 // AllocatableResourcesResponses contains informations about all the devices known by the kubelet
 type AllocatableResourcesResponse struct {
-	Devices              []*ContainerDevices `protobuf:"bytes,1,rep,name=devices,proto3" json:"devices,omitempty"`
-	CpuIds               []int64             `protobuf:"varint,2,rep,packed,name=cpu_ids,json=cpuIds,proto3" json:"cpu_ids,omitempty"`
-	Memory               []*ContainerMemory  `protobuf:"bytes,3,rep,name=memory,proto3" json:"memory,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
-	XXX_sizecache        int32               `json:"-"`
+	Devices              []*ContainerDevices                 `protobuf:"bytes,1,rep,name=devices,proto3" json:"devices,omitempty"`
+	CpuIds               []int64                             `protobuf:"varint,2,rep,packed,name=cpu_ids,json=cpuIds,proto3" json:"cpu_ids,omitempty"`
+	Memory               []*ContainerMemory                  `protobuf:"bytes,3,rep,name=memory,proto3" json:"memory,omitempty"`
+	Resources            []*AllocatableTopologyAwareResource `protobuf:"bytes,15,rep,name=resources,proto3" json:"resources,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                            `json:"-"`
+	XXX_sizecache        int32                               `json:"-"`
 }
 
 func (m *AllocatableResourcesResponse) Reset()      { *m = AllocatableResourcesResponse{} }
@@ -140,6 +143,13 @@ func (m *AllocatableResourcesResponse) GetCpuIds() []int64 {
 func (m *AllocatableResourcesResponse) GetMemory() []*ContainerMemory {
 	if m != nil {
 		return m.Memory
+	}
+	return nil
+}
+
+func (m *AllocatableResourcesResponse) GetResources() []*AllocatableTopologyAwareResource {
+	if m != nil {
+		return m.Resources
 	}
 	return nil
 }
@@ -232,7 +242,11 @@ func (m *ListPodResourcesResponse) GetPodResources() []*PodResources {
 type PodResources struct {
 	Name                 string                `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Namespace            string                `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
-	Containers           []*ContainerResources `protobuf:"bytes,3,rep,name=containers,proto3" json:"containers,omitempty"`
+	PodRole              string                `protobuf:"bytes,3,opt,name=pod_role,json=podRole,proto3" json:"pod_role,omitempty"`
+	PodType              string                `protobuf:"bytes,4,opt,name=pod_type,json=podType,proto3" json:"pod_type,omitempty"`
+	Containers           []*ContainerResources `protobuf:"bytes,5,rep,name=containers,proto3" json:"containers,omitempty"`
+	Labels               map[string]string     `protobuf:"bytes,6,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Annotations          map[string]string     `protobuf:"bytes,7,rep,name=annotations,proto3" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
 	XXX_sizecache        int32                 `json:"-"`
 }
@@ -283,6 +297,20 @@ func (m *PodResources) GetNamespace() string {
 	return ""
 }
 
+func (m *PodResources) GetPodRole() string {
+	if m != nil {
+		return m.PodRole
+	}
+	return ""
+}
+
+func (m *PodResources) GetPodType() string {
+	if m != nil {
+		return m.PodType
+	}
+	return ""
+}
+
 func (m *PodResources) GetContainers() []*ContainerResources {
 	if m != nil {
 		return m.Containers
@@ -290,14 +318,29 @@ func (m *PodResources) GetContainers() []*ContainerResources {
 	return nil
 }
 
+func (m *PodResources) GetLabels() map[string]string {
+	if m != nil {
+		return m.Labels
+	}
+	return nil
+}
+
+func (m *PodResources) GetAnnotations() map[string]string {
+	if m != nil {
+		return m.Annotations
+	}
+	return nil
+}
+
 // ContainerResources contains information about the resources assigned to a container
 type ContainerResources struct {
-	Name                 string              `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Devices              []*ContainerDevices `protobuf:"bytes,2,rep,name=devices,proto3" json:"devices,omitempty"`
-	CpuIds               []int64             `protobuf:"varint,3,rep,packed,name=cpu_ids,json=cpuIds,proto3" json:"cpu_ids,omitempty"`
-	Memory               []*ContainerMemory  `protobuf:"bytes,4,rep,name=memory,proto3" json:"memory,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
-	XXX_sizecache        int32               `json:"-"`
+	Name                 string                   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Devices              []*ContainerDevices      `protobuf:"bytes,2,rep,name=devices,proto3" json:"devices,omitempty"`
+	CpuIds               []int64                  `protobuf:"varint,3,rep,packed,name=cpu_ids,json=cpuIds,proto3" json:"cpu_ids,omitempty"`
+	Memory               []*ContainerMemory       `protobuf:"bytes,4,rep,name=memory,proto3" json:"memory,omitempty"`
+	Resources            []*TopologyAwareResource `protobuf:"bytes,15,rep,name=resources,proto3" json:"resources,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
+	XXX_sizecache        int32                    `json:"-"`
 }
 
 func (m *ContainerResources) Reset()      { *m = ContainerResources{} }
@@ -356,6 +399,13 @@ func (m *ContainerResources) GetCpuIds() []int64 {
 func (m *ContainerResources) GetMemory() []*ContainerMemory {
 	if m != nil {
 		return m.Memory
+	}
+	return nil
+}
+
+func (m *ContainerResources) GetResources() []*TopologyAwareResource {
+	if m != nil {
+		return m.Resources
 	}
 	return nil
 }
@@ -484,6 +534,247 @@ func (m *ContainerDevices) GetTopology() *TopologyInfo {
 	return nil
 }
 
+// TopologyAwareResource contains information about the allocated resource information in topology aware format
+type TopologyAwareResource struct {
+	ResourceName                      string                   `protobuf:"bytes,1,opt,name=resource_name,json=resourceName,proto3" json:"resource_name,omitempty"`
+	IsNodeResource                    bool                     `protobuf:"varint,2,opt,name=is_node_resource,json=isNodeResource,proto3" json:"is_node_resource,omitempty"`
+	IsScalarResource                  bool                     `protobuf:"varint,3,opt,name=is_scalar_resource,json=isScalarResource,proto3" json:"is_scalar_resource,omitempty"`
+	AggregatedQuantity                float64                  `protobuf:"fixed64,4,opt,name=aggregated_quantity,json=aggregatedQuantity,proto3" json:"aggregated_quantity,omitempty"`
+	OriginalAggregatedQuantity        float64                  `protobuf:"fixed64,5,opt,name=original_aggregated_quantity,json=originalAggregatedQuantity,proto3" json:"original_aggregated_quantity,omitempty"`
+	TopologyAwareQuantityList         []*TopologyAwareQuantity `protobuf:"bytes,6,rep,name=topology_aware_quantity_list,json=topologyAwareQuantityList,proto3" json:"topology_aware_quantity_list,omitempty"`
+	OriginalTopologyAwareQuantityList []*TopologyAwareQuantity `protobuf:"bytes,7,rep,name=original_topology_aware_quantity_list,json=originalTopologyAwareQuantityList,proto3" json:"original_topology_aware_quantity_list,omitempty"`
+	XXX_NoUnkeyedLiteral              struct{}                 `json:"-"`
+	XXX_sizecache                     int32                    `json:"-"`
+}
+
+func (m *TopologyAwareResource) Reset()      { *m = TopologyAwareResource{} }
+func (*TopologyAwareResource) ProtoMessage() {}
+func (*TopologyAwareResource) Descriptor() ([]byte, []int) {
+	return fileDescriptor_00212fb1f9d3bf1c, []int{8}
+}
+func (m *TopologyAwareResource) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *TopologyAwareResource) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_TopologyAwareResource.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *TopologyAwareResource) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TopologyAwareResource.Merge(m, src)
+}
+func (m *TopologyAwareResource) XXX_Size() int {
+	return m.Size()
+}
+func (m *TopologyAwareResource) XXX_DiscardUnknown() {
+	xxx_messageInfo_TopologyAwareResource.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TopologyAwareResource proto.InternalMessageInfo
+
+func (m *TopologyAwareResource) GetResourceName() string {
+	if m != nil {
+		return m.ResourceName
+	}
+	return ""
+}
+
+func (m *TopologyAwareResource) GetIsNodeResource() bool {
+	if m != nil {
+		return m.IsNodeResource
+	}
+	return false
+}
+
+func (m *TopologyAwareResource) GetIsScalarResource() bool {
+	if m != nil {
+		return m.IsScalarResource
+	}
+	return false
+}
+
+func (m *TopologyAwareResource) GetAggregatedQuantity() float64 {
+	if m != nil {
+		return m.AggregatedQuantity
+	}
+	return 0
+}
+
+func (m *TopologyAwareResource) GetOriginalAggregatedQuantity() float64 {
+	if m != nil {
+		return m.OriginalAggregatedQuantity
+	}
+	return 0
+}
+
+func (m *TopologyAwareResource) GetTopologyAwareQuantityList() []*TopologyAwareQuantity {
+	if m != nil {
+		return m.TopologyAwareQuantityList
+	}
+	return nil
+}
+
+func (m *TopologyAwareResource) GetOriginalTopologyAwareQuantityList() []*TopologyAwareQuantity {
+	if m != nil {
+		return m.OriginalTopologyAwareQuantityList
+	}
+	return nil
+}
+
+// AllocatableTopologyAwareResource contains information about the allocatable resource information in topology aware format
+type AllocatableTopologyAwareResource struct {
+	ResourceName                         string                   `protobuf:"bytes,1,opt,name=resource_name,json=resourceName,proto3" json:"resource_name,omitempty"`
+	IsNodeResource                       bool                     `protobuf:"varint,2,opt,name=is_node_resource,json=isNodeResource,proto3" json:"is_node_resource,omitempty"`
+	IsScalarResource                     bool                     `protobuf:"varint,3,opt,name=is_scalar_resource,json=isScalarResource,proto3" json:"is_scalar_resource,omitempty"`
+	AggregatedAllocatableQuantity        float64                  `protobuf:"fixed64,4,opt,name=aggregated_allocatable_quantity,json=aggregatedAllocatableQuantity,proto3" json:"aggregated_allocatable_quantity,omitempty"`
+	TopologyAwareAllocatableQuantityList []*TopologyAwareQuantity `protobuf:"bytes,5,rep,name=topology_aware_allocatable_quantity_list,json=topologyAwareAllocatableQuantityList,proto3" json:"topology_aware_allocatable_quantity_list,omitempty"`
+	AggregatedCapacityQuantity           float64                  `protobuf:"fixed64,6,opt,name=aggregated_capacity_quantity,json=aggregatedCapacityQuantity,proto3" json:"aggregated_capacity_quantity,omitempty"`
+	TopologyAwareCapacityQuantityList    []*TopologyAwareQuantity `protobuf:"bytes,7,rep,name=topology_aware_capacity_quantity_list,json=topologyAwareCapacityQuantityList,proto3" json:"topology_aware_capacity_quantity_list,omitempty"`
+	XXX_NoUnkeyedLiteral                 struct{}                 `json:"-"`
+	XXX_sizecache                        int32                    `json:"-"`
+}
+
+func (m *AllocatableTopologyAwareResource) Reset()      { *m = AllocatableTopologyAwareResource{} }
+func (*AllocatableTopologyAwareResource) ProtoMessage() {}
+func (*AllocatableTopologyAwareResource) Descriptor() ([]byte, []int) {
+	return fileDescriptor_00212fb1f9d3bf1c, []int{9}
+}
+func (m *AllocatableTopologyAwareResource) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *AllocatableTopologyAwareResource) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_AllocatableTopologyAwareResource.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *AllocatableTopologyAwareResource) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AllocatableTopologyAwareResource.Merge(m, src)
+}
+func (m *AllocatableTopologyAwareResource) XXX_Size() int {
+	return m.Size()
+}
+func (m *AllocatableTopologyAwareResource) XXX_DiscardUnknown() {
+	xxx_messageInfo_AllocatableTopologyAwareResource.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AllocatableTopologyAwareResource proto.InternalMessageInfo
+
+func (m *AllocatableTopologyAwareResource) GetResourceName() string {
+	if m != nil {
+		return m.ResourceName
+	}
+	return ""
+}
+
+func (m *AllocatableTopologyAwareResource) GetIsNodeResource() bool {
+	if m != nil {
+		return m.IsNodeResource
+	}
+	return false
+}
+
+func (m *AllocatableTopologyAwareResource) GetIsScalarResource() bool {
+	if m != nil {
+		return m.IsScalarResource
+	}
+	return false
+}
+
+func (m *AllocatableTopologyAwareResource) GetAggregatedAllocatableQuantity() float64 {
+	if m != nil {
+		return m.AggregatedAllocatableQuantity
+	}
+	return 0
+}
+
+func (m *AllocatableTopologyAwareResource) GetTopologyAwareAllocatableQuantityList() []*TopologyAwareQuantity {
+	if m != nil {
+		return m.TopologyAwareAllocatableQuantityList
+	}
+	return nil
+}
+
+func (m *AllocatableTopologyAwareResource) GetAggregatedCapacityQuantity() float64 {
+	if m != nil {
+		return m.AggregatedCapacityQuantity
+	}
+	return 0
+}
+
+func (m *AllocatableTopologyAwareResource) GetTopologyAwareCapacityQuantityList() []*TopologyAwareQuantity {
+	if m != nil {
+		return m.TopologyAwareCapacityQuantityList
+	}
+	return nil
+}
+
+type TopologyAwareQuantity struct {
+	ResourceValue        float64  `protobuf:"fixed64,1,opt,name=resource_value,json=resourceValue,proto3" json:"resource_value,omitempty"`
+	Node                 uint64   `protobuf:"varint,2,opt,name=node,proto3" json:"node,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *TopologyAwareQuantity) Reset()      { *m = TopologyAwareQuantity{} }
+func (*TopologyAwareQuantity) ProtoMessage() {}
+func (*TopologyAwareQuantity) Descriptor() ([]byte, []int) {
+	return fileDescriptor_00212fb1f9d3bf1c, []int{10}
+}
+func (m *TopologyAwareQuantity) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *TopologyAwareQuantity) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_TopologyAwareQuantity.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *TopologyAwareQuantity) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TopologyAwareQuantity.Merge(m, src)
+}
+func (m *TopologyAwareQuantity) XXX_Size() int {
+	return m.Size()
+}
+func (m *TopologyAwareQuantity) XXX_DiscardUnknown() {
+	xxx_messageInfo_TopologyAwareQuantity.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TopologyAwareQuantity proto.InternalMessageInfo
+
+func (m *TopologyAwareQuantity) GetResourceValue() float64 {
+	if m != nil {
+		return m.ResourceValue
+	}
+	return 0
+}
+
+func (m *TopologyAwareQuantity) GetNode() uint64 {
+	if m != nil {
+		return m.Node
+	}
+	return 0
+}
+
 // Topology describes hardware topology of the resource
 type TopologyInfo struct {
 	Nodes                []*NUMANode `protobuf:"bytes,1,rep,name=nodes,proto3" json:"nodes,omitempty"`
@@ -494,7 +785,7 @@ type TopologyInfo struct {
 func (m *TopologyInfo) Reset()      { *m = TopologyInfo{} }
 func (*TopologyInfo) ProtoMessage() {}
 func (*TopologyInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{8}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{11}
 }
 func (m *TopologyInfo) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -540,7 +831,7 @@ type NUMANode struct {
 func (m *NUMANode) Reset()      { *m = NUMANode{} }
 func (*NUMANode) ProtoMessage() {}
 func (*NUMANode) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{9}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{12}
 }
 func (m *NUMANode) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -582,9 +873,14 @@ func init() {
 	proto.RegisterType((*ListPodResourcesRequest)(nil), "v1.ListPodResourcesRequest")
 	proto.RegisterType((*ListPodResourcesResponse)(nil), "v1.ListPodResourcesResponse")
 	proto.RegisterType((*PodResources)(nil), "v1.PodResources")
+	proto.RegisterMapType((map[string]string)(nil), "v1.PodResources.AnnotationsEntry")
+	proto.RegisterMapType((map[string]string)(nil), "v1.PodResources.LabelsEntry")
 	proto.RegisterType((*ContainerResources)(nil), "v1.ContainerResources")
 	proto.RegisterType((*ContainerMemory)(nil), "v1.ContainerMemory")
 	proto.RegisterType((*ContainerDevices)(nil), "v1.ContainerDevices")
+	proto.RegisterType((*TopologyAwareResource)(nil), "v1.TopologyAwareResource")
+	proto.RegisterType((*AllocatableTopologyAwareResource)(nil), "v1.AllocatableTopologyAwareResource")
+	proto.RegisterType((*TopologyAwareQuantity)(nil), "v1.TopologyAwareQuantity")
 	proto.RegisterType((*TopologyInfo)(nil), "v1.TopologyInfo")
 	proto.RegisterType((*NUMANode)(nil), "v1.NUMANode")
 }
@@ -592,41 +888,67 @@ func init() {
 func init() { proto.RegisterFile("api.proto", fileDescriptor_00212fb1f9d3bf1c) }
 
 var fileDescriptor_00212fb1f9d3bf1c = []byte{
-	// 539 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x54, 0xc1, 0x6e, 0xd3, 0x40,
-	0x10, 0xed, 0xda, 0x21, 0x6d, 0xa6, 0x29, 0x54, 0x0b, 0x22, 0x26, 0x4d, 0xdd, 0xc8, 0x5c, 0x22,
-	0x01, 0xae, 0x1a, 0x04, 0xf7, 0xd2, 0x48, 0x28, 0x12, 0x8d, 0x60, 0x55, 0xae, 0x44, 0x8e, 0xbd,
-	0x0d, 0x96, 0x12, 0xef, 0xe2, 0x5d, 0x47, 0x84, 0x13, 0x07, 0x3e, 0x80, 0x03, 0x67, 0xfe, 0x83,
-	0x3f, 0xe8, 0x91, 0x23, 0x47, 0x1a, 0x7e, 0x04, 0xed, 0xda, 0x4e, 0x9d, 0x26, 0x01, 0xf5, 0xe4,
-	0xd9, 0x79, 0x33, 0xb3, 0x6f, 0xe6, 0x8d, 0x17, 0x2a, 0x1e, 0x0f, 0x5d, 0x1e, 0x33, 0xc9, 0xb0,
-	0x31, 0x39, 0xaa, 0x3f, 0x19, 0x86, 0xf2, 0x7d, 0x32, 0x70, 0x7d, 0x36, 0x3e, 0x1c, 0xb2, 0x21,
-	0x3b, 0xd4, 0xd0, 0x20, 0x39, 0xd7, 0x27, 0x7d, 0xd0, 0x56, 0x9a, 0xe2, 0xec, 0xc3, 0xde, 0xf1,
-	0x68, 0xc4, 0x7c, 0x4f, 0x7a, 0x83, 0x11, 0x25, 0x54, 0xb0, 0x24, 0xf6, 0xa9, 0x20, 0xf4, 0x43,
-	0x42, 0x85, 0x74, 0xbe, 0x21, 0x68, 0xac, 0xc6, 0x05, 0x67, 0x91, 0xa0, 0xd8, 0x85, 0xcd, 0x80,
-	0x4e, 0x42, 0x9f, 0x0a, 0x0b, 0x35, 0xcd, 0xd6, 0x76, 0xfb, 0x9e, 0x3b, 0x39, 0x72, 0x4f, 0x58,
-	0x24, 0xbd, 0x30, 0xa2, 0x71, 0x27, 0xc5, 0x48, 0x1e, 0x84, 0x6b, 0xb0, 0xe9, 0xf3, 0xa4, 0x1f,
-	0x06, 0xc2, 0x32, 0x9a, 0x66, 0xcb, 0x24, 0x65, 0x9f, 0x27, 0xdd, 0x40, 0xe0, 0x47, 0x50, 0x1e,
-	0xd3, 0x31, 0x8b, 0xa7, 0x96, 0xa9, 0xeb, 0xdc, 0x5d, 0xa8, 0x73, 0xaa, 0x21, 0x92, 0x85, 0x38,
-	0x0f, 0xa0, 0xf6, 0x2a, 0x14, 0xf2, 0x35, 0x0b, 0x96, 0x18, 0xbf, 0x01, 0x6b, 0x19, 0xca, 0xc8,
-	0x3e, 0x83, 0x1d, 0xce, 0x82, 0x7e, 0x9c, 0x03, 0x19, 0xe5, 0x5d, 0x75, 0xd5, 0x42, 0x42, 0x95,
-	0x17, 0x4e, 0xce, 0x47, 0xa8, 0x16, 0x51, 0x8c, 0xa1, 0x14, 0x79, 0x63, 0x6a, 0xa1, 0x26, 0x6a,
-	0x55, 0x88, 0xb6, 0x71, 0x03, 0x2a, 0xea, 0x2b, 0xb8, 0xe7, 0x53, 0xcb, 0xd0, 0xc0, 0x95, 0x03,
-	0x3f, 0x07, 0xf0, 0xf3, 0x56, 0x44, 0xd6, 0xe0, 0xfd, 0x85, 0x06, 0xaf, 0xee, 0x2e, 0x44, 0x3a,
-	0xdf, 0x11, 0xe0, 0xe5, 0x90, 0x95, 0x04, 0x0a, 0x42, 0x18, 0x37, 0x14, 0xc2, 0x5c, 0x23, 0x44,
-	0xe9, 0xff, 0x42, 0x48, 0xb8, 0x73, 0x0d, 0xc2, 0x07, 0xb0, 0x9d, 0x82, 0x7d, 0x39, 0xe5, 0x39,
-	0x47, 0x48, 0x5d, 0x67, 0x53, 0x4e, 0x15, 0x7b, 0x11, 0x7e, 0x4a, 0xa7, 0x54, 0x22, 0xda, 0xc6,
-	0x8f, 0x61, 0x4b, 0x32, 0xce, 0x46, 0x6c, 0xa8, 0xf4, 0x47, 0xb9, 0x28, 0x67, 0x99, 0xaf, 0x1b,
-	0x9d, 0x33, 0x32, 0x8f, 0x70, 0xbe, 0x20, 0xd8, 0xbd, 0xde, 0x19, 0x7e, 0x08, 0x3b, 0xb9, 0xb0,
-	0xfd, 0xc2, 0x74, 0xaa, 0xb9, 0xb3, 0xa7, 0xa6, 0xb4, 0x0f, 0x90, 0x0e, 0x60, 0xbe, 0x81, 0x15,
-	0x52, 0x49, 0x3d, 0xaa, 0xf7, 0x9b, 0xd1, 0x68, 0x43, 0xb5, 0x88, 0x60, 0x07, 0x6e, 0x45, 0x2c,
-	0x98, 0xaf, 0x55, 0x55, 0xa5, 0xf6, 0xde, 0x9e, 0x1e, 0xf7, 0x58, 0x40, 0x49, 0x0a, 0x39, 0x75,
-	0xd8, 0xca, 0x5d, 0xf8, 0x36, 0x18, 0xdd, 0x8e, 0xa6, 0x69, 0x12, 0xa3, 0xdb, 0x69, 0xff, 0x40,
-	0x80, 0x8b, 0x8b, 0xa6, 0xf6, 0x98, 0xc6, 0xf8, 0x04, 0x4a, 0xca, 0xc2, 0x7b, 0xaa, 0xde, 0x9a,
-	0xb5, 0xaf, 0x37, 0x56, 0x83, 0xe9, 0xe2, 0x3b, 0x1b, 0xf8, 0x1d, 0xd4, 0x5e, 0x52, 0xb9, 0xea,
-	0x57, 0xc6, 0x07, 0x2a, 0xf5, 0x1f, 0x8f, 0x40, 0xbd, 0xb9, 0x3e, 0x20, 0xaf, 0xff, 0xa2, 0x71,
-	0x71, 0x69, 0xa3, 0x5f, 0x97, 0xf6, 0xc6, 0xe7, 0x99, 0x8d, 0x2e, 0x66, 0x36, 0xfa, 0x39, 0xb3,
-	0xd1, 0xef, 0x99, 0x8d, 0xbe, 0xfe, 0xb1, 0x37, 0x06, 0x65, 0xfd, 0xd8, 0x3c, 0xfd, 0x1b, 0x00,
-	0x00, 0xff, 0xff, 0x43, 0x46, 0x5d, 0x7f, 0xac, 0x04, 0x00, 0x00,
+	// 950 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x56, 0xcd, 0x6e, 0xdb, 0x46,
+	0x10, 0x36, 0x45, 0xfd, 0x58, 0x63, 0xc5, 0x11, 0x36, 0x69, 0x4d, 0x2b, 0xb2, 0xac, 0xb0, 0x31,
+	0x20, 0xa0, 0xa9, 0x8c, 0xb8, 0xff, 0x3d, 0x14, 0x51, 0xec, 0xb6, 0x30, 0x90, 0x18, 0x0d, 0xeb,
+	0xf6, 0xd0, 0x43, 0x89, 0x15, 0xb9, 0x51, 0x09, 0xd3, 0x5c, 0x9a, 0xbb, 0x72, 0xa1, 0x9e, 0x7a,
+	0xe8, 0xa5, 0xb7, 0x3e, 0x44, 0x5f, 0xa2, 0x6f, 0x90, 0x63, 0x6e, 0xcd, 0xb1, 0x71, 0x5f, 0xa4,
+	0xd8, 0x5d, 0xf1, 0x47, 0x24, 0x55, 0xd9, 0xa7, 0x9e, 0xb4, 0x9c, 0xf9, 0x66, 0xe6, 0xdb, 0x6f,
+	0x66, 0x57, 0x0b, 0x4d, 0x1c, 0x7a, 0xc3, 0x30, 0xa2, 0x9c, 0xa2, 0xca, 0xe5, 0xa3, 0xce, 0x7b,
+	0x13, 0x8f, 0xff, 0x38, 0x1d, 0x0f, 0x1d, 0x7a, 0xbe, 0x3f, 0xa1, 0x13, 0xba, 0x2f, 0x5d, 0xe3,
+	0xe9, 0x0b, 0xf9, 0x25, 0x3f, 0xe4, 0x4a, 0x85, 0x98, 0x3b, 0x70, 0x6f, 0xe4, 0xfb, 0xd4, 0xc1,
+	0x1c, 0x8f, 0x7d, 0x62, 0x11, 0x46, 0xa7, 0x91, 0x43, 0x98, 0x45, 0x2e, 0xa6, 0x84, 0x71, 0xf3,
+	0xb5, 0x06, 0xdd, 0x72, 0x3f, 0x0b, 0x69, 0xc0, 0x08, 0x1a, 0x42, 0xc3, 0x25, 0x97, 0x9e, 0x43,
+	0x98, 0xa1, 0xf5, 0xf5, 0xc1, 0xc6, 0xc1, 0xdd, 0xe1, 0xe5, 0xa3, 0xe1, 0x21, 0x0d, 0x38, 0xf6,
+	0x02, 0x12, 0x1d, 0x29, 0x9f, 0x15, 0x83, 0xd0, 0x16, 0x34, 0x9c, 0x70, 0x6a, 0x7b, 0x2e, 0x33,
+	0x2a, 0x7d, 0x7d, 0xa0, 0x5b, 0x75, 0x27, 0x9c, 0x1e, 0xbb, 0x0c, 0xbd, 0x0b, 0xf5, 0x73, 0x72,
+	0x4e, 0xa3, 0x99, 0xa1, 0xcb, 0x3c, 0x77, 0x16, 0xf2, 0x3c, 0x93, 0x2e, 0x6b, 0x0e, 0x41, 0x4f,
+	0xa0, 0x19, 0xc5, 0x54, 0x8c, 0xdb, 0x12, 0xff, 0x40, 0xe0, 0x33, 0x54, 0x4f, 0x69, 0x48, 0x7d,
+	0x3a, 0x99, 0x8d, 0x7e, 0xc2, 0x51, 0xc2, 0xdb, 0x4a, 0xc3, 0xcc, 0x6d, 0xd8, 0x7a, 0xea, 0x31,
+	0xfe, 0x35, 0x75, 0x0b, 0xbb, 0x7e, 0x0e, 0x46, 0xd1, 0x35, 0xdf, 0xf0, 0x87, 0x70, 0x2b, 0xa4,
+	0xae, 0x9d, 0x96, 0x57, 0xdb, 0x6e, 0x8b, 0xf2, 0x0b, 0x01, 0xad, 0x30, 0xf3, 0x65, 0xfe, 0xa1,
+	0x43, 0x2b, 0xeb, 0x46, 0x08, 0xaa, 0x01, 0x3e, 0x27, 0x86, 0xd6, 0xd7, 0x06, 0x4d, 0x4b, 0xae,
+	0x51, 0x17, 0x9a, 0xe2, 0x97, 0x85, 0xd8, 0x21, 0x46, 0x45, 0x3a, 0x52, 0x03, 0xda, 0x86, 0x75,
+	0x59, 0x99, 0xfa, 0xc4, 0xd0, 0xa5, 0xb3, 0x21, 0x4a, 0x50, 0x3f, 0x71, 0xf1, 0x59, 0x48, 0x8c,
+	0x6a, 0xe2, 0x3a, 0x9d, 0x85, 0x04, 0x7d, 0x04, 0xe0, 0xc4, 0x2a, 0x32, 0xa3, 0x26, 0xc9, 0xbe,
+	0xbd, 0xa0, 0x6d, 0x4a, 0x39, 0x83, 0x44, 0x1f, 0x40, 0xdd, 0xc7, 0x63, 0xe2, 0x33, 0xa3, 0x2e,
+	0x63, 0xba, 0xf9, 0x0d, 0x0e, 0x9f, 0x4a, 0xf7, 0x17, 0x01, 0x17, 0x8d, 0x51, 0x58, 0x74, 0x08,
+	0x1b, 0x38, 0x08, 0x28, 0xc7, 0xdc, 0xa3, 0x01, 0x33, 0x1a, 0x32, 0xf4, 0x7e, 0x21, 0x74, 0x94,
+	0x62, 0x54, 0x7c, 0x36, 0xaa, 0xf3, 0x29, 0x6c, 0x64, 0x72, 0xa3, 0x36, 0xe8, 0x67, 0x64, 0x36,
+	0x17, 0x4a, 0x2c, 0xd1, 0x5d, 0xa8, 0x5d, 0x62, 0x7f, 0x1a, 0x6b, 0xa4, 0x3e, 0x3e, 0xab, 0x7c,
+	0xa2, 0x75, 0x3e, 0x87, 0x76, 0x3e, 0xf7, 0x4d, 0xe2, 0xcd, 0xbf, 0x34, 0x40, 0x45, 0x61, 0x4a,
+	0x9b, 0x95, 0x99, 0xfc, 0xca, 0x0d, 0x27, 0x5f, 0x5f, 0x32, 0xf9, 0xd5, 0xd5, 0x93, 0xff, 0x71,
+	0x71, 0xf2, 0xb7, 0x05, 0x7e, 0xe5, 0xb8, 0x73, 0xb8, 0x9d, 0xcb, 0x89, 0x76, 0x61, 0x43, 0x65,
+	0x55, 0x83, 0xa3, 0x36, 0x07, 0xca, 0x24, 0x67, 0x07, 0x41, 0x95, 0x79, 0x3f, 0x2b, 0x99, 0xaa,
+	0x96, 0x5c, 0xa3, 0x87, 0xb0, 0xce, 0xe7, 0xb5, 0xe4, 0x14, 0xce, 0x47, 0x3f, 0xae, 0x7f, 0x1c,
+	0xbc, 0xa0, 0x56, 0x82, 0x30, 0x7f, 0xd5, 0xa0, 0x9d, 0x97, 0x04, 0xbd, 0x03, 0xb7, 0x62, 0x5e,
+	0x76, 0x46, 0xd6, 0x56, 0x6c, 0x3c, 0x11, 0xf2, 0xee, 0x00, 0x28, 0xe5, 0x92, 0xbb, 0xa2, 0x69,
+	0x35, 0x95, 0x45, 0x88, 0x76, 0x33, 0x1a, 0xaf, 0x74, 0x78, 0xab, 0x54, 0xa1, 0xeb, 0x71, 0x19,
+	0x40, 0xdb, 0x63, 0x76, 0x40, 0x5d, 0x92, 0x9c, 0x7b, 0xa9, 0xc9, 0xba, 0xb5, 0xe9, 0xb1, 0x13,
+	0xea, 0xa6, 0xe9, 0x1e, 0x02, 0xf2, 0x98, 0xcd, 0x1c, 0xec, 0xe3, 0x28, 0xc5, 0xea, 0x12, 0xdb,
+	0xf6, 0xd8, 0x37, 0xd2, 0x91, 0xa0, 0xf7, 0xe1, 0x0e, 0x9e, 0x4c, 0x22, 0x32, 0xc1, 0x9c, 0xb8,
+	0xf6, 0xc5, 0x14, 0x07, 0xdc, 0xe3, 0x33, 0x79, 0x82, 0x35, 0x0b, 0xa5, 0xae, 0xe7, 0x73, 0x0f,
+	0x7a, 0x0c, 0x5d, 0x1a, 0x79, 0x13, 0x2f, 0xc0, 0xbe, 0x5d, 0x16, 0x59, 0x93, 0x91, 0x9d, 0x18,
+	0x33, 0x2a, 0x66, 0xf8, 0x1e, 0xba, 0xb1, 0x2a, 0x36, 0x16, 0x4a, 0x24, 0xc1, 0xb6, 0xef, 0x31,
+	0x3e, 0x3f, 0xec, 0xc5, 0x91, 0x8a, 0x13, 0x58, 0xdb, 0xbc, 0xcc, 0x2c, 0xae, 0x4b, 0x74, 0x06,
+	0x7b, 0x09, 0xbb, 0xff, 0x2c, 0xd2, 0x58, 0x55, 0xe4, 0x7e, 0x9c, 0xe7, 0x74, 0x59, 0x31, 0xf3,
+	0xb7, 0x2a, 0xf4, 0x57, 0x5d, 0xf7, 0xff, 0x6f, 0x77, 0xbf, 0x84, 0xdd, 0x4c, 0x8f, 0x70, 0xca,
+	0x35, 0xdf, 0xe9, 0x9d, 0x14, 0x96, 0xd9, 0x51, 0xd2, 0xb2, 0x0b, 0x18, 0xe4, 0xd4, 0x2c, 0xcb,
+	0xa5, 0x94, 0xad, 0xad, 0x52, 0xf6, 0xc1, 0x42, 0xfb, 0x4a, 0xca, 0xc9, 0x4e, 0x3e, 0x86, 0x6e,
+	0x86, 0xba, 0x83, 0x43, 0xec, 0x88, 0x12, 0x09, 0xef, 0xba, 0x9a, 0xb3, 0x14, 0x73, 0x38, 0x87,
+	0x24, 0xa4, 0xcf, 0x60, 0x2f, 0x47, 0xba, 0x90, 0xe5, 0xba, 0xb3, 0xb0, 0xc0, 0x38, 0x5f, 0x48,
+	0xce, 0x82, 0x95, 0x3b, 0xdd, 0x09, 0x8b, 0x3d, 0xd8, 0x4c, 0xfa, 0xaf, 0x6e, 0x7c, 0x4d, 0x32,
+	0x4f, 0xa6, 0xe2, 0x3b, 0x61, 0x94, 0xd7, 0x3b, 0x75, 0x93, 0x7b, 0x4e, 0xac, 0xcd, 0x03, 0x68,
+	0x65, 0x2f, 0x13, 0x64, 0x42, 0x4d, 0xd8, 0xe3, 0xff, 0xfb, 0x96, 0x20, 0x7c, 0xf2, 0xed, 0xb3,
+	0x91, 0x1c, 0x10, 0xe5, 0x32, 0x3b, 0xb0, 0x1e, 0x9b, 0xd0, 0x26, 0x54, 0x8e, 0x8f, 0x64, 0x39,
+	0xdd, 0xaa, 0x1c, 0x1f, 0x1d, 0xfc, 0xa9, 0x01, 0xca, 0xfe, 0x07, 0x0a, 0xe2, 0x24, 0x42, 0x87,
+	0x50, 0x95, 0x8a, 0xdf, 0x13, 0xf9, 0x96, 0xbc, 0x47, 0x3a, 0xdd, 0x72, 0xa7, 0x7a, 0x91, 0x98,
+	0x6b, 0xe8, 0x07, 0xd8, 0xfa, 0x8a, 0xf0, 0xb2, 0x77, 0x1a, 0xda, 0xcd, 0x3d, 0x8b, 0x0a, 0xb9,
+	0xfb, 0xcb, 0x01, 0x71, 0xfe, 0x27, 0xdd, 0x97, 0x6f, 0x7a, 0xda, 0xeb, 0x37, 0xbd, 0xb5, 0x5f,
+	0xae, 0x7a, 0xda, 0xcb, 0xab, 0x9e, 0xf6, 0xea, 0xaa, 0xa7, 0xfd, 0x7d, 0xd5, 0xd3, 0x7e, 0xff,
+	0xa7, 0xb7, 0x36, 0xae, 0xcb, 0x97, 0xe4, 0xfb, 0xff, 0x06, 0x00, 0x00, 0xff, 0xff, 0xfd, 0xa0,
+	0xcf, 0x23, 0x89, 0x0a, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -788,6 +1110,20 @@ func (m *AllocatableResourcesResponse) MarshalToSizedBuffer(dAtA []byte) (int, e
 	_ = i
 	var l int
 	_ = l
+	if len(m.Resources) > 0 {
+		for iNdEx := len(m.Resources) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Resources[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintApi(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x7a
+		}
+	}
 	if len(m.Memory) > 0 {
 		for iNdEx := len(m.Memory) - 1; iNdEx >= 0; iNdEx-- {
 			{
@@ -918,6 +1254,44 @@ func (m *PodResources) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.Annotations) > 0 {
+		for k := range m.Annotations {
+			v := m.Annotations[k]
+			baseI := i
+			i -= len(v)
+			copy(dAtA[i:], v)
+			i = encodeVarintApi(dAtA, i, uint64(len(v)))
+			i--
+			dAtA[i] = 0x12
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintApi(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintApi(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x3a
+		}
+	}
+	if len(m.Labels) > 0 {
+		for k := range m.Labels {
+			v := m.Labels[k]
+			baseI := i
+			i -= len(v)
+			copy(dAtA[i:], v)
+			i = encodeVarintApi(dAtA, i, uint64(len(v)))
+			i--
+			dAtA[i] = 0x12
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintApi(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintApi(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x32
+		}
+	}
 	if len(m.Containers) > 0 {
 		for iNdEx := len(m.Containers) - 1; iNdEx >= 0; iNdEx-- {
 			{
@@ -929,8 +1303,22 @@ func (m *PodResources) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 				i = encodeVarintApi(dAtA, i, uint64(size))
 			}
 			i--
-			dAtA[i] = 0x1a
+			dAtA[i] = 0x2a
 		}
+	}
+	if len(m.PodType) > 0 {
+		i -= len(m.PodType)
+		copy(dAtA[i:], m.PodType)
+		i = encodeVarintApi(dAtA, i, uint64(len(m.PodType)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.PodRole) > 0 {
+		i -= len(m.PodRole)
+		copy(dAtA[i:], m.PodRole)
+		i = encodeVarintApi(dAtA, i, uint64(len(m.PodRole)))
+		i--
+		dAtA[i] = 0x1a
 	}
 	if len(m.Namespace) > 0 {
 		i -= len(m.Namespace)
@@ -969,6 +1357,20 @@ func (m *ContainerResources) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.Resources) > 0 {
+		for iNdEx := len(m.Resources) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Resources[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintApi(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x7a
+		}
+	}
 	if len(m.Memory) > 0 {
 		for iNdEx := len(m.Memory) - 1; iNdEx >= 0; iNdEx-- {
 			{
@@ -1124,6 +1526,220 @@ func (m *ContainerDevices) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *TopologyAwareResource) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TopologyAwareResource) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TopologyAwareResource) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.OriginalTopologyAwareQuantityList) > 0 {
+		for iNdEx := len(m.OriginalTopologyAwareQuantityList) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.OriginalTopologyAwareQuantityList[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintApi(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x3a
+		}
+	}
+	if len(m.TopologyAwareQuantityList) > 0 {
+		for iNdEx := len(m.TopologyAwareQuantityList) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.TopologyAwareQuantityList[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintApi(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x32
+		}
+	}
+	if m.OriginalAggregatedQuantity != 0 {
+		i -= 8
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.OriginalAggregatedQuantity))))
+		i--
+		dAtA[i] = 0x29
+	}
+	if m.AggregatedQuantity != 0 {
+		i -= 8
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.AggregatedQuantity))))
+		i--
+		dAtA[i] = 0x21
+	}
+	if m.IsScalarResource {
+		i--
+		if m.IsScalarResource {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.IsNodeResource {
+		i--
+		if m.IsNodeResource {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.ResourceName) > 0 {
+		i -= len(m.ResourceName)
+		copy(dAtA[i:], m.ResourceName)
+		i = encodeVarintApi(dAtA, i, uint64(len(m.ResourceName)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *AllocatableTopologyAwareResource) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *AllocatableTopologyAwareResource) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *AllocatableTopologyAwareResource) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.TopologyAwareCapacityQuantityList) > 0 {
+		for iNdEx := len(m.TopologyAwareCapacityQuantityList) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.TopologyAwareCapacityQuantityList[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintApi(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x3a
+		}
+	}
+	if m.AggregatedCapacityQuantity != 0 {
+		i -= 8
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.AggregatedCapacityQuantity))))
+		i--
+		dAtA[i] = 0x31
+	}
+	if len(m.TopologyAwareAllocatableQuantityList) > 0 {
+		for iNdEx := len(m.TopologyAwareAllocatableQuantityList) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.TopologyAwareAllocatableQuantityList[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintApi(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x2a
+		}
+	}
+	if m.AggregatedAllocatableQuantity != 0 {
+		i -= 8
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.AggregatedAllocatableQuantity))))
+		i--
+		dAtA[i] = 0x21
+	}
+	if m.IsScalarResource {
+		i--
+		if m.IsScalarResource {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.IsNodeResource {
+		i--
+		if m.IsNodeResource {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.ResourceName) > 0 {
+		i -= len(m.ResourceName)
+		copy(dAtA[i:], m.ResourceName)
+		i = encodeVarintApi(dAtA, i, uint64(len(m.ResourceName)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *TopologyAwareQuantity) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TopologyAwareQuantity) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TopologyAwareQuantity) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Node != 0 {
+		i = encodeVarintApi(dAtA, i, uint64(m.Node))
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.ResourceValue != 0 {
+		i -= 8
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.ResourceValue))))
+		i--
+		dAtA[i] = 0x9
+	}
+	return len(dAtA) - i, nil
+}
+
 func (m *TopologyInfo) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -1234,6 +1850,12 @@ func (m *AllocatableResourcesResponse) Size() (n int) {
 			n += 1 + l + sovApi(uint64(l))
 		}
 	}
+	if len(m.Resources) > 0 {
+		for _, e := range m.Resources {
+			l = e.Size()
+			n += 1 + l + sovApi(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -1275,10 +1897,34 @@ func (m *PodResources) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovApi(uint64(l))
 	}
+	l = len(m.PodRole)
+	if l > 0 {
+		n += 1 + l + sovApi(uint64(l))
+	}
+	l = len(m.PodType)
+	if l > 0 {
+		n += 1 + l + sovApi(uint64(l))
+	}
 	if len(m.Containers) > 0 {
 		for _, e := range m.Containers {
 			l = e.Size()
 			n += 1 + l + sovApi(uint64(l))
+		}
+	}
+	if len(m.Labels) > 0 {
+		for k, v := range m.Labels {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovApi(uint64(len(k))) + 1 + len(v) + sovApi(uint64(len(v)))
+			n += mapEntrySize + 1 + sovApi(uint64(mapEntrySize))
+		}
+	}
+	if len(m.Annotations) > 0 {
+		for k, v := range m.Annotations {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovApi(uint64(len(k))) + 1 + len(v) + sovApi(uint64(len(v)))
+			n += mapEntrySize + 1 + sovApi(uint64(mapEntrySize))
 		}
 	}
 	return n
@@ -1309,6 +1955,12 @@ func (m *ContainerResources) Size() (n int) {
 	}
 	if len(m.Memory) > 0 {
 		for _, e := range m.Memory {
+			l = e.Size()
+			n += 1 + l + sovApi(uint64(l))
+		}
+	}
+	if len(m.Resources) > 0 {
+		for _, e := range m.Resources {
 			l = e.Size()
 			n += 1 + l + sovApi(uint64(l))
 		}
@@ -1355,6 +2007,95 @@ func (m *ContainerDevices) Size() (n int) {
 	if m.Topology != nil {
 		l = m.Topology.Size()
 		n += 1 + l + sovApi(uint64(l))
+	}
+	return n
+}
+
+func (m *TopologyAwareResource) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ResourceName)
+	if l > 0 {
+		n += 1 + l + sovApi(uint64(l))
+	}
+	if m.IsNodeResource {
+		n += 2
+	}
+	if m.IsScalarResource {
+		n += 2
+	}
+	if m.AggregatedQuantity != 0 {
+		n += 9
+	}
+	if m.OriginalAggregatedQuantity != 0 {
+		n += 9
+	}
+	if len(m.TopologyAwareQuantityList) > 0 {
+		for _, e := range m.TopologyAwareQuantityList {
+			l = e.Size()
+			n += 1 + l + sovApi(uint64(l))
+		}
+	}
+	if len(m.OriginalTopologyAwareQuantityList) > 0 {
+		for _, e := range m.OriginalTopologyAwareQuantityList {
+			l = e.Size()
+			n += 1 + l + sovApi(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *AllocatableTopologyAwareResource) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ResourceName)
+	if l > 0 {
+		n += 1 + l + sovApi(uint64(l))
+	}
+	if m.IsNodeResource {
+		n += 2
+	}
+	if m.IsScalarResource {
+		n += 2
+	}
+	if m.AggregatedAllocatableQuantity != 0 {
+		n += 9
+	}
+	if len(m.TopologyAwareAllocatableQuantityList) > 0 {
+		for _, e := range m.TopologyAwareAllocatableQuantityList {
+			l = e.Size()
+			n += 1 + l + sovApi(uint64(l))
+		}
+	}
+	if m.AggregatedCapacityQuantity != 0 {
+		n += 9
+	}
+	if len(m.TopologyAwareCapacityQuantityList) > 0 {
+		for _, e := range m.TopologyAwareCapacityQuantityList {
+			l = e.Size()
+			n += 1 + l + sovApi(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *TopologyAwareQuantity) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.ResourceValue != 0 {
+		n += 9
+	}
+	if m.Node != 0 {
+		n += 1 + sovApi(uint64(m.Node))
 	}
 	return n
 }
@@ -1415,10 +2156,16 @@ func (this *AllocatableResourcesResponse) String() string {
 		repeatedStringForMemory += strings.Replace(f.String(), "ContainerMemory", "ContainerMemory", 1) + ","
 	}
 	repeatedStringForMemory += "}"
+	repeatedStringForResources := "[]*AllocatableTopologyAwareResource{"
+	for _, f := range this.Resources {
+		repeatedStringForResources += strings.Replace(f.String(), "AllocatableTopologyAwareResource", "AllocatableTopologyAwareResource", 1) + ","
+	}
+	repeatedStringForResources += "}"
 	s := strings.Join([]string{`&AllocatableResourcesResponse{`,
 		`Devices:` + repeatedStringForDevices + `,`,
 		`CpuIds:` + fmt.Sprintf("%v", this.CpuIds) + `,`,
 		`Memory:` + repeatedStringForMemory + `,`,
+		`Resources:` + repeatedStringForResources + `,`,
 		`}`,
 	}, "")
 	return s
@@ -1456,10 +2203,34 @@ func (this *PodResources) String() string {
 		repeatedStringForContainers += strings.Replace(f.String(), "ContainerResources", "ContainerResources", 1) + ","
 	}
 	repeatedStringForContainers += "}"
+	keysForLabels := make([]string, 0, len(this.Labels))
+	for k := range this.Labels {
+		keysForLabels = append(keysForLabels, k)
+	}
+	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+	mapStringForLabels := "map[string]string{"
+	for _, k := range keysForLabels {
+		mapStringForLabels += fmt.Sprintf("%v: %v,", k, this.Labels[k])
+	}
+	mapStringForLabels += "}"
+	keysForAnnotations := make([]string, 0, len(this.Annotations))
+	for k := range this.Annotations {
+		keysForAnnotations = append(keysForAnnotations, k)
+	}
+	github_com_gogo_protobuf_sortkeys.Strings(keysForAnnotations)
+	mapStringForAnnotations := "map[string]string{"
+	for _, k := range keysForAnnotations {
+		mapStringForAnnotations += fmt.Sprintf("%v: %v,", k, this.Annotations[k])
+	}
+	mapStringForAnnotations += "}"
 	s := strings.Join([]string{`&PodResources{`,
 		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
 		`Namespace:` + fmt.Sprintf("%v", this.Namespace) + `,`,
+		`PodRole:` + fmt.Sprintf("%v", this.PodRole) + `,`,
+		`PodType:` + fmt.Sprintf("%v", this.PodType) + `,`,
 		`Containers:` + repeatedStringForContainers + `,`,
+		`Labels:` + mapStringForLabels + `,`,
+		`Annotations:` + mapStringForAnnotations + `,`,
 		`}`,
 	}, "")
 	return s
@@ -1478,11 +2249,17 @@ func (this *ContainerResources) String() string {
 		repeatedStringForMemory += strings.Replace(f.String(), "ContainerMemory", "ContainerMemory", 1) + ","
 	}
 	repeatedStringForMemory += "}"
+	repeatedStringForResources := "[]*TopologyAwareResource{"
+	for _, f := range this.Resources {
+		repeatedStringForResources += strings.Replace(f.String(), "TopologyAwareResource", "TopologyAwareResource", 1) + ","
+	}
+	repeatedStringForResources += "}"
 	s := strings.Join([]string{`&ContainerResources{`,
 		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
 		`Devices:` + repeatedStringForDevices + `,`,
 		`CpuIds:` + fmt.Sprintf("%v", this.CpuIds) + `,`,
 		`Memory:` + repeatedStringForMemory + `,`,
+		`Resources:` + repeatedStringForResources + `,`,
 		`}`,
 	}, "")
 	return s
@@ -1507,6 +2284,69 @@ func (this *ContainerDevices) String() string {
 		`ResourceName:` + fmt.Sprintf("%v", this.ResourceName) + `,`,
 		`DeviceIds:` + fmt.Sprintf("%v", this.DeviceIds) + `,`,
 		`Topology:` + strings.Replace(this.Topology.String(), "TopologyInfo", "TopologyInfo", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *TopologyAwareResource) String() string {
+	if this == nil {
+		return "nil"
+	}
+	repeatedStringForTopologyAwareQuantityList := "[]*TopologyAwareQuantity{"
+	for _, f := range this.TopologyAwareQuantityList {
+		repeatedStringForTopologyAwareQuantityList += strings.Replace(f.String(), "TopologyAwareQuantity", "TopologyAwareQuantity", 1) + ","
+	}
+	repeatedStringForTopologyAwareQuantityList += "}"
+	repeatedStringForOriginalTopologyAwareQuantityList := "[]*TopologyAwareQuantity{"
+	for _, f := range this.OriginalTopologyAwareQuantityList {
+		repeatedStringForOriginalTopologyAwareQuantityList += strings.Replace(f.String(), "TopologyAwareQuantity", "TopologyAwareQuantity", 1) + ","
+	}
+	repeatedStringForOriginalTopologyAwareQuantityList += "}"
+	s := strings.Join([]string{`&TopologyAwareResource{`,
+		`ResourceName:` + fmt.Sprintf("%v", this.ResourceName) + `,`,
+		`IsNodeResource:` + fmt.Sprintf("%v", this.IsNodeResource) + `,`,
+		`IsScalarResource:` + fmt.Sprintf("%v", this.IsScalarResource) + `,`,
+		`AggregatedQuantity:` + fmt.Sprintf("%v", this.AggregatedQuantity) + `,`,
+		`OriginalAggregatedQuantity:` + fmt.Sprintf("%v", this.OriginalAggregatedQuantity) + `,`,
+		`TopologyAwareQuantityList:` + repeatedStringForTopologyAwareQuantityList + `,`,
+		`OriginalTopologyAwareQuantityList:` + repeatedStringForOriginalTopologyAwareQuantityList + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *AllocatableTopologyAwareResource) String() string {
+	if this == nil {
+		return "nil"
+	}
+	repeatedStringForTopologyAwareAllocatableQuantityList := "[]*TopologyAwareQuantity{"
+	for _, f := range this.TopologyAwareAllocatableQuantityList {
+		repeatedStringForTopologyAwareAllocatableQuantityList += strings.Replace(f.String(), "TopologyAwareQuantity", "TopologyAwareQuantity", 1) + ","
+	}
+	repeatedStringForTopologyAwareAllocatableQuantityList += "}"
+	repeatedStringForTopologyAwareCapacityQuantityList := "[]*TopologyAwareQuantity{"
+	for _, f := range this.TopologyAwareCapacityQuantityList {
+		repeatedStringForTopologyAwareCapacityQuantityList += strings.Replace(f.String(), "TopologyAwareQuantity", "TopologyAwareQuantity", 1) + ","
+	}
+	repeatedStringForTopologyAwareCapacityQuantityList += "}"
+	s := strings.Join([]string{`&AllocatableTopologyAwareResource{`,
+		`ResourceName:` + fmt.Sprintf("%v", this.ResourceName) + `,`,
+		`IsNodeResource:` + fmt.Sprintf("%v", this.IsNodeResource) + `,`,
+		`IsScalarResource:` + fmt.Sprintf("%v", this.IsScalarResource) + `,`,
+		`AggregatedAllocatableQuantity:` + fmt.Sprintf("%v", this.AggregatedAllocatableQuantity) + `,`,
+		`TopologyAwareAllocatableQuantityList:` + repeatedStringForTopologyAwareAllocatableQuantityList + `,`,
+		`AggregatedCapacityQuantity:` + fmt.Sprintf("%v", this.AggregatedCapacityQuantity) + `,`,
+		`TopologyAwareCapacityQuantityList:` + repeatedStringForTopologyAwareCapacityQuantityList + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *TopologyAwareQuantity) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&TopologyAwareQuantity{`,
+		`ResourceValue:` + fmt.Sprintf("%v", this.ResourceValue) + `,`,
+		`Node:` + fmt.Sprintf("%v", this.Node) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -1767,6 +2607,40 @@ func (m *AllocatableResourcesResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 15:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Resources", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Resources = append(m.Resources, &AllocatableTopologyAwareResource{})
+			if err := m.Resources[len(m.Resources)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipApi(dAtA[iNdEx:])
@@ -2017,6 +2891,70 @@ func (m *PodResources) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PodRole", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.PodRole = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PodType", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.PodType = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Containers", wireType)
 			}
 			var msglen int
@@ -2048,6 +2986,260 @@ func (m *PodResources) Unmarshal(dAtA []byte) error {
 			if err := m.Containers[len(m.Containers)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Labels", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Labels == nil {
+				m.Labels = make(map[string]string)
+			}
+			var mapkey string
+			var mapvalue string
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowApi
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					wire |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					var stringLenmapkey uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowApi
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapkey |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapkey := int(stringLenmapkey)
+					if intStringLenmapkey < 0 {
+						return ErrInvalidLengthApi
+					}
+					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthApi
+					}
+					if postStringIndexmapkey > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
+					iNdEx = postStringIndexmapkey
+				} else if fieldNum == 2 {
+					var stringLenmapvalue uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowApi
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapvalue |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapvalue := int(stringLenmapvalue)
+					if intStringLenmapvalue < 0 {
+						return ErrInvalidLengthApi
+					}
+					postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+					if postStringIndexmapvalue < 0 {
+						return ErrInvalidLengthApi
+					}
+					if postStringIndexmapvalue > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapvalue = string(dAtA[iNdEx:postStringIndexmapvalue])
+					iNdEx = postStringIndexmapvalue
+				} else {
+					iNdEx = entryPreIndex
+					skippy, err := skipApi(dAtA[iNdEx:])
+					if err != nil {
+						return err
+					}
+					if (skippy < 0) || (iNdEx+skippy) < 0 {
+						return ErrInvalidLengthApi
+					}
+					if (iNdEx + skippy) > postIndex {
+						return io.ErrUnexpectedEOF
+					}
+					iNdEx += skippy
+				}
+			}
+			m.Labels[mapkey] = mapvalue
+			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Annotations", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Annotations == nil {
+				m.Annotations = make(map[string]string)
+			}
+			var mapkey string
+			var mapvalue string
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowApi
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					wire |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					var stringLenmapkey uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowApi
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapkey |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapkey := int(stringLenmapkey)
+					if intStringLenmapkey < 0 {
+						return ErrInvalidLengthApi
+					}
+					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthApi
+					}
+					if postStringIndexmapkey > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
+					iNdEx = postStringIndexmapkey
+				} else if fieldNum == 2 {
+					var stringLenmapvalue uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowApi
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapvalue |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapvalue := int(stringLenmapvalue)
+					if intStringLenmapvalue < 0 {
+						return ErrInvalidLengthApi
+					}
+					postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+					if postStringIndexmapvalue < 0 {
+						return ErrInvalidLengthApi
+					}
+					if postStringIndexmapvalue > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapvalue = string(dAtA[iNdEx:postStringIndexmapvalue])
+					iNdEx = postStringIndexmapvalue
+				} else {
+					iNdEx = entryPreIndex
+					skippy, err := skipApi(dAtA[iNdEx:])
+					if err != nil {
+						return err
+					}
+					if (skippy < 0) || (iNdEx+skippy) < 0 {
+						return ErrInvalidLengthApi
+					}
+					if (iNdEx + skippy) > postIndex {
+						return io.ErrUnexpectedEOF
+					}
+					iNdEx += skippy
+				}
+			}
+			m.Annotations[mapkey] = mapvalue
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -2272,6 +3464,40 @@ func (m *ContainerResources) Unmarshal(dAtA []byte) error {
 			}
 			m.Memory = append(m.Memory, &ContainerMemory{})
 			if err := m.Memory[len(m.Memory)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 15:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Resources", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Resources = append(m.Resources, &TopologyAwareResource{})
+			if err := m.Resources[len(m.Resources)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -2562,6 +3788,510 @@ func (m *ContainerDevices) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipApi(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthApi
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TopologyAwareResource) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowApi
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TopologyAwareResource: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TopologyAwareResource: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ResourceName", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ResourceName = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field IsNodeResource", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.IsNodeResource = bool(v != 0)
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field IsScalarResource", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.IsScalarResource = bool(v != 0)
+		case 4:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AggregatedQuantity", wireType)
+			}
+			var v uint64
+			if (iNdEx + 8) > l {
+				return io.ErrUnexpectedEOF
+			}
+			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+			iNdEx += 8
+			m.AggregatedQuantity = float64(math.Float64frombits(v))
+		case 5:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OriginalAggregatedQuantity", wireType)
+			}
+			var v uint64
+			if (iNdEx + 8) > l {
+				return io.ErrUnexpectedEOF
+			}
+			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+			iNdEx += 8
+			m.OriginalAggregatedQuantity = float64(math.Float64frombits(v))
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TopologyAwareQuantityList", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TopologyAwareQuantityList = append(m.TopologyAwareQuantityList, &TopologyAwareQuantity{})
+			if err := m.TopologyAwareQuantityList[len(m.TopologyAwareQuantityList)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OriginalTopologyAwareQuantityList", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.OriginalTopologyAwareQuantityList = append(m.OriginalTopologyAwareQuantityList, &TopologyAwareQuantity{})
+			if err := m.OriginalTopologyAwareQuantityList[len(m.OriginalTopologyAwareQuantityList)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipApi(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthApi
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *AllocatableTopologyAwareResource) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowApi
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: AllocatableTopologyAwareResource: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: AllocatableTopologyAwareResource: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ResourceName", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ResourceName = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field IsNodeResource", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.IsNodeResource = bool(v != 0)
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field IsScalarResource", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.IsScalarResource = bool(v != 0)
+		case 4:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AggregatedAllocatableQuantity", wireType)
+			}
+			var v uint64
+			if (iNdEx + 8) > l {
+				return io.ErrUnexpectedEOF
+			}
+			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+			iNdEx += 8
+			m.AggregatedAllocatableQuantity = float64(math.Float64frombits(v))
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TopologyAwareAllocatableQuantityList", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TopologyAwareAllocatableQuantityList = append(m.TopologyAwareAllocatableQuantityList, &TopologyAwareQuantity{})
+			if err := m.TopologyAwareAllocatableQuantityList[len(m.TopologyAwareAllocatableQuantityList)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 6:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AggregatedCapacityQuantity", wireType)
+			}
+			var v uint64
+			if (iNdEx + 8) > l {
+				return io.ErrUnexpectedEOF
+			}
+			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+			iNdEx += 8
+			m.AggregatedCapacityQuantity = float64(math.Float64frombits(v))
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TopologyAwareCapacityQuantityList", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TopologyAwareCapacityQuantityList = append(m.TopologyAwareCapacityQuantityList, &TopologyAwareQuantity{})
+			if err := m.TopologyAwareCapacityQuantityList[len(m.TopologyAwareCapacityQuantityList)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipApi(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthApi
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TopologyAwareQuantity) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowApi
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TopologyAwareQuantity: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TopologyAwareQuantity: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ResourceValue", wireType)
+			}
+			var v uint64
+			if (iNdEx + 8) > l {
+				return io.ErrUnexpectedEOF
+			}
+			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+			iNdEx += 8
+			m.ResourceValue = float64(math.Float64frombits(v))
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Node", wireType)
+			}
+			m.Node = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Node |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipApi(dAtA[iNdEx:])

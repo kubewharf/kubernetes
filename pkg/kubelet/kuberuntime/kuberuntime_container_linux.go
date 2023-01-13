@@ -20,6 +20,7 @@ limitations under the License.
 package kuberuntime
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -39,20 +40,67 @@ import (
 
 // applyPlatformSpecificContainerConfig applies platform specific configurations to runtimeapi.ContainerConfig.
 func (m *kubeGenericRuntimeManager) applyPlatformSpecificContainerConfig(config *runtimeapi.ContainerConfig, container *v1.Container, pod *v1.Pod, uid *int64, username string, nsTarget *kubecontainer.ContainerID) error {
+
+	if config == nil {
+		return fmt.Errorf("applyPlatformSpecificContainerConfig met nil input config")
+	}
+
+	if pod == nil || container == nil {
+		return fmt.Errorf("applyPlatformSpecificContainerConfig met nil pod or container")
+	}
+
 	enforceMemoryQoS := false
 	// Set memory.min and memory.high if MemoryQoS enabled with cgroups v2
 	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.MemoryQoS) &&
 		libcontainercgroups.IsCgroup2UnifiedMode() {
 		enforceMemoryQoS = true
 	}
-	config.Linux = m.generateLinuxContainerConfig(container, pod, uid, username, nsTarget, enforceMemoryQoS)
+
+	var opts *kubecontainer.ResourceRunContainerOptions
+	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.QoSResourceManager) {
+		var err error
+		opts, err = m.runtimeHelper.GenerateResourceRunContainerOptions(pod, container)
+
+		if err != nil {
+			klog.Errorf("[applyPlatformSpecificContainerConfig] pod: %s/%s, containerName: %s GenerateResourceRunContainerOptions failed with error: %v",
+				pod.Namespace, pod.Name, container.Name, err)
+			return fmt.Errorf("GenerateResourceRunContainerOptions failed with error: %v", err)
+		}
+
+		if config.Annotations == nil {
+			config.Annotations = make(map[string]string)
+		}
+
+		if opts != nil {
+			for _, anno := range opts.Annotations {
+				config.Annotations[anno.Name] = anno.Value
+			}
+
+			for _, env := range opts.Envs {
+				config.Envs = append(config.Envs, &runtimeapi.KeyValue{
+					Key:   env.Name,
+					Value: env.Value,
+				})
+			}
+		}
+	}
+
+	config.Linux = m.generateLinuxContainerConfig(container, pod, uid, username, nsTarget, enforceMemoryQoS, opts, config.Annotations)
 	return nil
 }
 
 // generateLinuxContainerConfig generates linux container config for kubelet runtime v1.
-func (m *kubeGenericRuntimeManager) generateLinuxContainerConfig(container *v1.Container, pod *v1.Pod, uid *int64, username string, nsTarget *kubecontainer.ContainerID, enforceMemoryQoS bool) *runtimeapi.LinuxContainerConfig {
+func (m *kubeGenericRuntimeManager) generateLinuxContainerConfig(container *v1.Container, pod *v1.Pod, uid *int64, username string, nsTarget *kubecontainer.ContainerID, enforceMemoryQoS bool, opts *kubecontainer.ResourceRunContainerOptions, configAnnotations map[string]string) *runtimeapi.LinuxContainerConfig {
+
+	resourceConfig := &runtimeapi.LinuxContainerResources{}
+
+	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.QoSResourceManager) && opts != nil && opts.Resources != nil {
+		resourceConfig = opts.Resources
+	}
+
+	// TODO(sunjianyu): consider if we should make results from qos resource manager override native action results?
 	lc := &runtimeapi.LinuxContainerConfig{
-		Resources:       &runtimeapi.LinuxContainerResources{},
+		Resources:       resourceConfig,
 		SecurityContext: m.determineEffectiveSecurityContext(pod, container, uid, username),
 	}
 
@@ -62,7 +110,7 @@ func (m *kubeGenericRuntimeManager) generateLinuxContainerConfig(container *v1.C
 	}
 
 	// set linux container resources
-	lc.Resources = m.calculateLinuxResources(container.Resources.Requests.Cpu(), container.Resources.Limits.Cpu(), container.Resources.Limits.Memory())
+	m.calculateLinuxResources(lc.Resources, container.Resources.Requests.Cpu(), container.Resources.Limits.Cpu(), container.Resources.Limits.Memory())
 
 	lc.Resources.OomScoreAdj = int64(qos.GetContainerOOMScoreAdjust(pod, container,
 		int64(m.machineInfo.MemoryCapacity)))
@@ -128,8 +176,7 @@ func (m *kubeGenericRuntimeManager) generateLinuxContainerConfig(container *v1.C
 }
 
 // calculateLinuxResources will create the linuxContainerResources type based on the provided CPU and memory resource requests, limits
-func (m *kubeGenericRuntimeManager) calculateLinuxResources(cpuRequest, cpuLimit, memoryLimit *resource.Quantity) *runtimeapi.LinuxContainerResources {
-	resources := runtimeapi.LinuxContainerResources{}
+func (m *kubeGenericRuntimeManager) calculateLinuxResources(resources *runtimeapi.LinuxContainerResources, cpuRequest, cpuLimit, memoryLimit *resource.Quantity) {
 	var cpuShares int64
 
 	memLimit := memoryLimit.Value()
@@ -160,8 +207,6 @@ func (m *kubeGenericRuntimeManager) calculateLinuxResources(cpuRequest, cpuLimit
 		resources.CpuQuota = cpuQuota
 		resources.CpuPeriod = cpuPeriod
 	}
-
-	return &resources
 }
 
 // GetHugepageLimitsFromResources returns limits of each hugepages from resources.

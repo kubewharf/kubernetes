@@ -33,15 +33,17 @@ func (m *kubeGenericRuntimeManager) convertOverheadToLinuxResources(pod *v1.Pod)
 
 		// For overhead, we do not differentiate between requests and limits. Treat this overhead
 		// as "guaranteed", with requests == limits
-		resources = m.calculateLinuxResources(cpu, cpu, memory)
+		m.calculateLinuxResources(resources, cpu, cpu, memory)
 	}
 
 	return resources
 }
 
 func (m *kubeGenericRuntimeManager) calculateSandboxResources(pod *v1.Pod) *runtimeapi.LinuxContainerResources {
+	resources := &runtimeapi.LinuxContainerResources{}
 	req, lim := resourcehelper.PodRequestsAndLimitsWithoutOverhead(pod)
-	return m.calculateLinuxResources(req.Cpu(), lim.Cpu(), lim.Memory())
+	m.calculateLinuxResources(resources, req.Cpu(), lim.Cpu(), lim.Memory())
+	return resources
 }
 
 func (m *kubeGenericRuntimeManager) applySandboxResources(pod *v1.Pod, config *runtimeapi.PodSandboxConfig) error {
