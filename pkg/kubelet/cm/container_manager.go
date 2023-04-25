@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2"
 	// TODO: Migrate kubelet to either use its own internal objects or client library.
 	v1 "k8s.io/api/core/v1"
 	internalapi "k8s.io/cri-api/pkg/apis"
@@ -39,6 +40,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/pluginmanager/cache"
 	"k8s.io/kubernetes/pkg/kubelet/status"
 	schedulerframework "k8s.io/kubernetes/pkg/scheduler/framework"
+	maputil "k8s.io/kubernetes/pkg/util/maps"
 )
 
 type ActivePodsFunc func() []*v1.Pod
@@ -274,11 +276,28 @@ func transformTopologyAwareQuantity(pluginAPITopologyAwareQuantityList []*resour
 			topologyAwareQuantityList = append(topologyAwareQuantityList, &podresourcesapi.TopologyAwareQuantity{
 				ResourceValue: topologyAwareQuantity.ResourceValue,
 				Node:          topologyAwareQuantity.Node,
+				Name:          topologyAwareQuantity.Name,
+				Type:          topologyAwareQuantity.Type,
+				TopologyLevel: transformTopologyLevel(topologyAwareQuantity.TopologyLevel),
+				Annotations:   maputil.CopySS(topologyAwareQuantity.Annotations),
 			})
 		}
 	}
 
 	return topologyAwareQuantityList
+}
+
+func transformTopologyLevel(pluginAPITopologyLevel resourcepluginapi.TopologyLevel) podresourcesapi.TopologyLevel {
+	switch pluginAPITopologyLevel {
+	case resourcepluginapi.TopologyLevel_NUMA:
+		return podresourcesapi.TopologyLevel_NUMA
+	case resourcepluginapi.TopologyLevel_SOCKET:
+		return podresourcesapi.TopologyLevel_SOCKET
+	}
+
+	klog.Warningf("[transformTopologyLevel] unrecognized pluginAPITopologyLevel %s:%v, set podResouresAPITopologyLevel to default value: %s:%v",
+		pluginAPITopologyLevel.String(), pluginAPITopologyLevel, podresourcesapi.TopologyLevel_NUMA.String(), podresourcesapi.TopologyLevel_NUMA)
+	return podresourcesapi.TopologyLevel_NUMA
 }
 
 func containerDevicesFromResourceDeviceInstances(devs devicemanager.ResourceDeviceInstances) []*podresourcesapi.ContainerDevices {

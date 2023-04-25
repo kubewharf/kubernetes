@@ -54,6 +54,11 @@ enum ContainerType {
     EPHEMERAL = 3;
 }
 
+enum TopologyLevel {
+    NUMA = 0;
+    SOCKET = 1;
+}
+
 message ResourceRequest {
 	string pod_uid = 1;
 	string pod_namespace = 2;
@@ -179,7 +184,18 @@ message TopologyAwareResource {
 
 message TopologyAwareQuantity {
     double resource_value = 1;
+    // node indicates the id of the machine topology level the resource affinitive to
     uint64 node = 2;
+    // name represents the name of the object providing the resource
+    // for example set name to eth0 for resource bandwidth
+    string name = 3;
+    // type represents resource kind
+	// for example, NIC, Disk and so on
+    string type = 4;
+    // topology_level indicates the resource affinitive to which level of machine topology
+    // for example, NUMA, SOCKET
+    TopologyLevel topology_level = 5;
+    map<string, string> annotations = 6;
 }
 
 message GetTopologyAwareAllocatableResourcesRequest {

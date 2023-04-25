@@ -13,6 +13,10 @@ option (gogoproto.sizer_all) = true;
 option (gogoproto.unmarshaler_all) = true;
 option (gogoproto.goproto_unrecognized_all) = false;
 
+enum TopologyLevel {
+    NUMA = 0;
+    SOCKET = 1;
+}
 
 // PodResourcesLister is a service provided by the kubelet that provides information about the
 // node resources consumed by pods and containers on the node
@@ -98,7 +102,18 @@ message AllocatableTopologyAwareResource {
 
 message TopologyAwareQuantity {
     double resource_value = 1;
+    // node indicates the id of the machine topology level the resource affinitive to
     uint64 node = 2;
+    // name represents the name of the object providing the resource
+    // for example set name to eth0 for resource bandwidth
+    string name = 3;
+    // type represents resource kind
+	// for example, NIC, Disk and so on
+    string type = 4;
+    // topology_level indicates the resource affinitive to which level of machine topology
+    // for example, NUMA, SOCKET
+    TopologyLevel topology_level = 5;
+    map<string, string> annotations = 6;
 }
 
 // Topology describes hardware topology of the resource
