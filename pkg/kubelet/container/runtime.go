@@ -424,6 +424,16 @@ type DeviceInfo struct {
 	Permissions string
 }
 
+// ResourceRunContainerOptions contains the combined container runtime settings to consume its allocated resources.
+type ResourceRunContainerOptions struct {
+	// The environment variables list.
+	Envs []EnvVar
+	// The Annotations for the container
+	Annotations []Annotation
+	// OCI Linux container resources to applied for containers
+	Resources *runtimeapi.LinuxContainerResources
+}
+
 // RunContainerOptions specify the options which are necessary for running containers
 type RunContainerOptions struct {
 	// The environment variables list.

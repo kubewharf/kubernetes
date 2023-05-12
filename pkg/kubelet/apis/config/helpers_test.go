@@ -282,5 +282,6 @@ var (
 		"ShutdownGracePeriod.Duration",
 		"ShutdownGracePeriodCriticalPods.Duration",
 		"MemoryThrottlingFactor",
+		"QoSResourceManagerReconcilePeriod.Duration",
 	)
 )

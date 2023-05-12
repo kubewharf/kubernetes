@@ -232,6 +232,7 @@ func MachineInfo(nodeName string,
 	machineInfoFunc func() (*cadvisorapiv1.MachineInfo, error), // typically Kubelet.GetCachedMachineInfo
 	capacityFunc func() v1.ResourceList, // typically Kubelet.containerManager.GetCapacity
 	devicePluginResourceCapacityFunc func() (v1.ResourceList, v1.ResourceList, []string), // typically Kubelet.containerManager.GetDevicePluginResourceCapacity
+	resourcePluginResourceCapacityFunc func() (v1.ResourceList, v1.ResourceList, []string), // typically Kubelet.containerManager.GetResourcePluginResourceCapacity
 	nodeAllocatableReservationFunc func() v1.ResourceList, // typically Kubelet.containerManager.GetNodeAllocatableReservation
 	recordEventFunc func(eventType, event, message string), // typically Kubelet.recordEvent
 ) Setter {
@@ -242,9 +243,9 @@ func MachineInfo(nodeName string,
 			node.Status.Capacity = v1.ResourceList{}
 		}
 
-		var devicePluginAllocatable v1.ResourceList
-		var devicePluginCapacity v1.ResourceList
-		var removedDevicePlugins []string
+		var devicePluginAllocatable, resourcePluginAllocatable v1.ResourceList
+		var devicePluginCapacity, resourcePluginCapacity v1.ResourceList
+		var removedDevicePlugins, removedResourcePlugins []string
 
 		// TODO: Post NotReady if we cannot get MachineInfo from cAdvisor. This needs to start
 		// cAdvisor locally, e.g. for test-cmd.sh, and in integration test.
@@ -292,6 +293,7 @@ func MachineInfo(nodeName string,
 				}
 			}
 
+			// Get allocatable, capacity and removed resources from device manager and set corresponding quantity in node status
 			devicePluginCapacity, devicePluginAllocatable, removedDevicePlugins = devicePluginResourceCapacityFunc()
 			for k, v := range devicePluginCapacity {
 				if old, ok := node.Status.Capacity[k]; !ok || old.Value() != v.Value() {
@@ -308,6 +310,30 @@ func MachineInfo(nodeName string,
 				// registered before.
 				//
 				// This is required to differentiate the device plugin managed
+				// resources and the cluster-level resources, which are absent in
+				// node status.
+				node.Status.Capacity[v1.ResourceName(removedResource)] = *resource.NewQuantity(int64(0), resource.DecimalSI)
+			}
+
+			// Get allocatable, capacity and removed resources from qos resource manager and set corresponding quantity in node status
+			resourcePluginCapacity, resourcePluginAllocatable, removedResourcePlugins = resourcePluginResourceCapacityFunc()
+			if resourcePluginCapacity != nil {
+				for k, v := range resourcePluginCapacity {
+					if old, ok := node.Status.Capacity[k]; !ok || old.Value() != v.Value() {
+						klog.V(2).Infof("Update capacity for %s to %d", k, v.Value())
+					}
+					node.Status.Capacity[k] = v
+				}
+			}
+
+			for _, removedResource := range removedResourcePlugins {
+				klog.V(2).Infof("Set capacity for %s to 0 on resource removal", removedResource)
+				// Set the capacity of the removed resource to 0 instead of
+				// removing the resource from the node status. This is to indicate
+				// that the resource is managed by resource plugin and had been
+				// registered before.
+				//
+				// This is required to differentiate the resource plugin managed
 				// resources and the cluster-level resources, which are absent in
 				// node status.
 				node.Status.Capacity[v1.ResourceName(removedResource)] = *resource.NewQuantity(int64(0), resource.DecimalSI)
@@ -345,6 +371,16 @@ func MachineInfo(nodeName string,
 			}
 			node.Status.Allocatable[k] = v
 		}
+
+		if resourcePluginAllocatable != nil {
+			for k, v := range resourcePluginAllocatable {
+				if old, ok := node.Status.Allocatable[k]; !ok || old.Value() != v.Value() {
+					klog.V(2).Infof("Update allocatable for %s to %d", k, v.Value())
+				}
+				node.Status.Allocatable[k] = v
+			}
+		}
+
 		// for every huge page reservation, we need to remove it from allocatable memory
 		for k, v := range node.Status.Capacity {
 			if v1helper.IsHugePageResourceName(k) {
