@@ -23,10 +23,12 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2"
 	// TODO: Migrate kubelet to either use its own internal objects or client library.
 	v1 "k8s.io/api/core/v1"
 	internalapi "k8s.io/cri-api/pkg/apis"
 	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"
+	resourcepluginapi "k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1"
 	kubeletconfig "k8s.io/kubernetes/pkg/kubelet/apis/config"
 	"k8s.io/kubernetes/pkg/kubelet/apis/podresources"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
@@ -38,6 +40,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/pluginmanager/cache"
 	"k8s.io/kubernetes/pkg/kubelet/status"
 	schedulerframework "k8s.io/kubernetes/pkg/scheduler/framework"
+	maputil "k8s.io/kubernetes/pkg/util/maps"
 )
 
 type ActivePodsFunc func() []*v1.Pod
@@ -75,6 +78,12 @@ type ContainerManager interface {
 	// GetCapacity returns the amount of compute resources tracked by container manager available on the node.
 	GetCapacity() v1.ResourceList
 
+	// GetResourcePluginResourceCapacity returns the node capacity (amount of total resource plugin resources),
+	// node allocatable (amount of total healthy resources reported by resource plugin),
+	// and inactive resource plugin resources previously registered on the node.
+	// notice: only resources with IsNodeResource: True and IsScalarResource: True will be reported by this function.
+	GetResourcePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string)
+
 	// GetDevicePluginResourceCapacity returns the node capacity (amount of total device plugin resources),
 	// node allocatable (amount of total healthy resources reported by device plugin),
 	// and inactive device plugin resources previously registered on the node.
@@ -103,7 +112,7 @@ type ContainerManager interface {
 	// GetPluginRegistrationHandler returns a plugin registration handler
 	// The pluginwatcher's Handlers allow to have a single module for handling
 	// registration.
-	GetPluginRegistrationHandler() cache.PluginHandler
+	GetPluginRegistrationHandler() map[string]cache.PluginHandler
 
 	// ShouldResetExtendedResourceCapacity returns whether or not the extended resources should be zeroed,
 	// due to node recreation.
@@ -115,10 +124,15 @@ type ContainerManager interface {
 	// GetNodeAllocatableAbsolute returns the absolute value of Node Allocatable which is primarily useful for enforcement.
 	GetNodeAllocatableAbsolute() v1.ResourceList
 
+	// GetResources returns ResourceRunContainerOptions with OCI resources config, annotations and envs fields populated for
+	// resources are managed by qos resource manager and required by container.
+	GetResourceRunContainerOptions(pod *v1.Pod, container *v1.Container) (*kubecontainer.ResourceRunContainerOptions, error)
+
 	// Implements the podresources Provider API for CPUs, Memory and Devices
 	podresources.CPUsProvider
 	podresources.DevicesProvider
 	podresources.MemoryProvider
+	podresources.ResourcesProvider
 }
 
 type NodeConfig struct {
@@ -133,17 +147,19 @@ type NodeConfig struct {
 	KubeletRootDir        string
 	ProtectKernelDefaults bool
 	NodeAllocatableConfig
-	QOSReserved                             map[v1.ResourceName]int64
-	ExperimentalCPUManagerPolicy            string
-	ExperimentalCPUManagerPolicyOptions     map[string]string
-	ExperimentalTopologyManagerScope        string
-	ExperimentalCPUManagerReconcilePeriod   time.Duration
-	ExperimentalMemoryManagerPolicy         string
-	ExperimentalMemoryManagerReservedMemory []kubeletconfig.MemoryReservation
-	ExperimentalPodPidsLimit                int64
-	EnforceCPULimits                        bool
-	CPUCFSQuotaPeriod                       time.Duration
-	ExperimentalTopologyManagerPolicy       string
+	QOSReserved                                   map[v1.ResourceName]int64
+	ExperimentalCPUManagerPolicy                  string
+	ExperimentalCPUManagerPolicyOptions           map[string]string
+	ExperimentalTopologyManagerScope              string
+	ExperimentalCPUManagerReconcilePeriod         time.Duration
+	ExperimentalMemoryManagerPolicy               string
+	ExperimentalMemoryManagerReservedMemory       []kubeletconfig.MemoryReservation
+	ExperimentalQoSResourceManagerReconcilePeriod time.Duration
+	QoSResourceManagerResourceNamesMap            map[string]string
+	ExperimentalPodPidsLimit                      int64
+	EnforceCPULimits                              bool
+	CPUCFSQuotaPeriod                             time.Duration
+	ExperimentalTopologyManagerPolicy             string
 }
 
 type NodeAllocatableConfig struct {
@@ -193,6 +209,95 @@ func ParseQOSReserved(m map[string]string) (*map[v1.ResourceName]int64, error) {
 		}
 	}
 	return &reservations, nil
+}
+
+func containerResourcesFromResourceManagerAllocatableResponse(res *resourcepluginapi.GetTopologyAwareAllocatableResourcesResponse) []*podresourcesapi.AllocatableTopologyAwareResource {
+	if res == nil {
+		return nil
+	}
+
+	result := make([]*podresourcesapi.AllocatableTopologyAwareResource, 0, len(res.AllocatableResources))
+
+	for resourceName, resource := range res.AllocatableResources {
+		if resource == nil {
+			continue
+		}
+
+		result = append(result, &podresourcesapi.AllocatableTopologyAwareResource{
+			ResourceName:                         resourceName,
+			IsNodeResource:                       resource.IsNodeResource,
+			IsScalarResource:                     resource.IsScalarResource,
+			AggregatedAllocatableQuantity:        resource.AggregatedAllocatableQuantity,
+			TopologyAwareAllocatableQuantityList: transformTopologyAwareQuantity(resource.TopologyAwareAllocatableQuantityList),
+			AggregatedCapacityQuantity:           resource.AggregatedCapacityQuantity,
+			TopologyAwareCapacityQuantityList:    transformTopologyAwareQuantity(resource.TopologyAwareCapacityQuantityList),
+		})
+	}
+
+	return result
+}
+
+func containerResourcesFromResourceManagerResponse(res *resourcepluginapi.GetTopologyAwareResourcesResponse) []*podresourcesapi.TopologyAwareResource {
+	if res == nil ||
+		res.ContainerTopologyAwareResources == nil {
+		return nil
+	}
+
+	result := make([]*podresourcesapi.TopologyAwareResource, 0, len(res.ContainerTopologyAwareResources.AllocatedResources))
+
+	for resourceName, resource := range res.ContainerTopologyAwareResources.AllocatedResources {
+		if resource == nil {
+			continue
+		}
+
+		result = append(result, &podresourcesapi.TopologyAwareResource{
+			ResourceName:                      resourceName,
+			IsNodeResource:                    resource.IsNodeResource,
+			IsScalarResource:                  resource.IsScalarResource,
+			AggregatedQuantity:                resource.AggregatedQuantity,
+			OriginalAggregatedQuantity:        resource.OriginalAggregatedQuantity,
+			TopologyAwareQuantityList:         transformTopologyAwareQuantity(resource.TopologyAwareQuantityList),
+			OriginalTopologyAwareQuantityList: transformTopologyAwareQuantity(resource.OriginalTopologyAwareQuantityList),
+		})
+	}
+
+	return result
+}
+
+func transformTopologyAwareQuantity(pluginAPITopologyAwareQuantityList []*resourcepluginapi.TopologyAwareQuantity) []*podresourcesapi.TopologyAwareQuantity {
+	if pluginAPITopologyAwareQuantityList == nil {
+		return nil
+	}
+
+	topologyAwareQuantityList := make([]*podresourcesapi.TopologyAwareQuantity, 0, len(pluginAPITopologyAwareQuantityList))
+
+	for _, topologyAwareQuantity := range pluginAPITopologyAwareQuantityList {
+		if topologyAwareQuantity != nil {
+			topologyAwareQuantityList = append(topologyAwareQuantityList, &podresourcesapi.TopologyAwareQuantity{
+				ResourceValue: topologyAwareQuantity.ResourceValue,
+				Node:          topologyAwareQuantity.Node,
+				Name:          topologyAwareQuantity.Name,
+				Type:          topologyAwareQuantity.Type,
+				TopologyLevel: transformTopologyLevel(topologyAwareQuantity.TopologyLevel),
+				Annotations:   maputil.CopySS(topologyAwareQuantity.Annotations),
+			})
+		}
+	}
+
+	return topologyAwareQuantityList
+}
+
+func transformTopologyLevel(pluginAPITopologyLevel resourcepluginapi.TopologyLevel) podresourcesapi.TopologyLevel {
+	switch pluginAPITopologyLevel {
+	case resourcepluginapi.TopologyLevel_NUMA:
+		return podresourcesapi.TopologyLevel_NUMA
+	case resourcepluginapi.TopologyLevel_SOCKET:
+		return podresourcesapi.TopologyLevel_SOCKET
+	}
+
+	klog.Warningf("[transformTopologyLevel] unrecognized pluginAPITopologyLevel %s:%v, set podResouresAPITopologyLevel to default value: %s:%v",
+		pluginAPITopologyLevel.String(), pluginAPITopologyLevel, podresourcesapi.TopologyLevel_NUMA.String(), podresourcesapi.TopologyLevel_NUMA)
+	return podresourcesapi.TopologyLevel_NUMA
 }
 
 func containerDevicesFromResourceDeviceInstances(devs devicemanager.ResourceDeviceInstances) []*podresourcesapi.ContainerDevices {
