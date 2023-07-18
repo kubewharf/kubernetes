@@ -73,6 +73,7 @@ message ResourceRequest {
     map<string,double> resource_requests = 11;
     map<string, string> labels = 12;
     map<string, string> annotations = 13;
+    string native_qos_class = 14;
 }
 
 message ResourceHintsResponse {
@@ -88,6 +89,7 @@ message ResourceHintsResponse {
     map<string,ListOfTopologyHints> resource_hints = 10;
     map<string, string> labels = 11;
     map<string, string> annotations = 12;
+    string native_qos_class = 13;
 }
 
 message ResourceAllocationResponse {
@@ -103,6 +105,7 @@ message ResourceAllocationResponse {
     ResourceAllocation allocation_result = 10;
     map<string, string> labels = 11;
     map<string, string> annotations = 12;
+    string native_qos_class = 13;
 }
 
 message ListOfTopologyHints {
