@@ -163,6 +163,9 @@ func SetDefaults_KubeletConfiguration(obj *kubeletconfigv1beta1.KubeletConfigura
 	if obj.MemoryManagerPolicy == "" {
 		obj.MemoryManagerPolicy = kubeletconfigv1beta1.NoneMemoryManagerPolicy
 	}
+	if obj.QoSResourceManagerReconcilePeriod == zeroDuration {
+		obj.QoSResourceManagerReconcilePeriod = metav1.Duration{Duration: 3 * time.Second}
+	}
 	if obj.TopologyManagerPolicy == "" {
 		obj.TopologyManagerPolicy = kubeletconfigv1beta1.NoneTopologyManagerPolicy
 	}
@@ -242,6 +245,9 @@ func SetDefaults_KubeletConfiguration(obj *kubeletconfigv1beta1.KubeletConfigura
 	}
 	if obj.EnforceNodeAllocatable == nil {
 		obj.EnforceNodeAllocatable = DefaultNodeAllocatableEnforcement
+	}
+	if obj.NumericTopologyAlignResources == nil {
+		obj.NumericTopologyAlignResources = []string{"cpu", "memory"}
 	}
 	if obj.VolumePluginDir == "" {
 		obj.VolumePluginDir = DefaultVolumePluginDir

@@ -68,6 +68,9 @@ const (
 	// SingleNumaNodeTopologyManagerPolicy is a mode in which kubelet only allows
 	// pods with a single NUMA alignment of CPU and device resources.
 	SingleNumaNodeTopologyManagerPolicy = "single-numa-node"
+	// NumericTopologyManagerPolicy is a mode in which kubelet align resource
+	// with widest NUMAs
+	NumericTopologyManagerPolicy = "numeric"
 	// ContainerTopologyManagerScope represents that
 	// topology policy is applied on a per-container basis.
 	ContainerTopologyManagerScope = "container"
@@ -372,6 +375,13 @@ type KubeletConfiguration struct {
 	// Default: "none"
 	// +optional
 	TopologyManagerPolicy string `json:"topologyManagerPolicy,omitempty"`
+	// QoS Resource Manager reconciliation period.
+	// Requires the QoSResourceManager feature gate to be enabled.
+	// Dynamic Kubelet Config (beta): If dynamically updating this field, consider that
+	// shortening the period may carry a performance impact.
+	// Default: "3s"
+	// +optional
+	QoSResourceManagerReconcilePeriod metav1.Duration `json:"qosResourceManagerReconcilePeriod,omitempty"`
 	// topologyManagerScope represents the scope of topology hint generation
 	// that topology manager requests and hint providers generate. Valid values include:
 	//
@@ -382,6 +392,11 @@ type KubeletConfiguration struct {
 	// Default: "container"
 	// +optional
 	TopologyManagerScope string `json:"topologyManagerScope,omitempty"`
+	// Map of resource name "A" to resource name "B" during QoS Resource Manager allocation period.
+	// It's useful for the same kind resource with different types. (eg. maps best-effort-cpu to cpu)
+	// Default: nil
+	// +optional
+	QoSResourceManagerResourceNamesMap map[string]string `json:"qosResourceManagerResourceNamesMap,omitempty"`
 	// qosReserved is a set of resource name to percentage pairs that specify
 	// the minimum percentage of a resource reserved for exclusive use by the
 	// guaranteed QoS tier.
@@ -590,6 +605,11 @@ type KubeletConfiguration struct {
 	// Default: "Watch"
 	// +optional
 	ConfigMapAndSecretChangeDetectionStrategy ResourceChangeDetectionStrategy `json:"configMapAndSecretChangeDetectionStrategy,omitempty"`
+	// NumericTopologyAlignResources is a list of resources which need to be aligned numa affinity
+	// in numeric topology policy.
+	// Default: [cpu, memory]
+	// +optional
+	NumericTopologyAlignResources []string `json:"numericTopologyAlignResources,omitempty"`
 
 	/* the following fields are meant for Node Allocatable */
 

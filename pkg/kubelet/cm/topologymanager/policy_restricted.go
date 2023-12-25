@@ -38,9 +38,9 @@ func (p *restrictedPolicy) canAdmitPodResult(hint *TopologyHint) bool {
 	return hint.Preferred
 }
 
-func (p *restrictedPolicy) Merge(providersHints []map[string][]TopologyHint) (TopologyHint, bool) {
-	filteredHints := filterProvidersHints(providersHints)
+func (p *restrictedPolicy) Merge(providersHints []map[string][]TopologyHint) (map[string]TopologyHint, bool) {
+	filteredHints, resourceNames := filterProvidersHints(providersHints)
 	hint := mergeFilteredHints(p.numaNodes, filteredHints)
 	admit := p.canAdmitPodResult(&hint)
-	return hint, admit
+	return generateResourceHints(resourceNames, hint), admit
 }

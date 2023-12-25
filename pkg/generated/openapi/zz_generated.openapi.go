@@ -52942,11 +52942,33 @@ func schema_k8sio_kubelet_config_v1beta1_KubeletConfiguration(ref common.Referen
 							Format:      "",
 						},
 					},
+					"qosResourceManagerReconcilePeriod": {
+						SchemaProps: spec.SchemaProps{
+							Description: "QoS Resource Manager reconciliation period. Requires the QoSResourceManager feature gate to be enabled. Dynamic Kubelet Config (beta): If dynamically updating this field, consider that shortening the period may carry a performance impact. Default: \"3s\"",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
 					"topologyManagerScope": {
 						SchemaProps: spec.SchemaProps{
 							Description: "topologyManagerScope represents the scope of topology hint generation that topology manager requests and hint providers generate. Valid values include:\n\n- `container`: topology policy is applied on a per-container basis. - `pod`: topology policy is applied on a per-pod basis.\n\n\"pod\" scope requires the TopologyManager feature gate to be enabled. Default: \"container\"",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"qosResourceManagerResourceNamesMap": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Map of resource name \"A\" to resource name \"B\" during QoS Resource Manager allocation period. It's useful for the same kind resource with different types. (eg. maps best-effort-cpu to cpu) Default: nil",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 					"qosReserved": {
@@ -53238,6 +53260,21 @@ func schema_k8sio_kubelet_config_v1beta1_KubeletConfiguration(ref common.Referen
 							Format:      "",
 						},
 					},
+					"numericTopologyAlignResources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NumericTopologyAlignResources is a list of resources which need to be aligned numa affinity in numeric topology policy. Default: [cpu, memory]",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 					"systemReserved": {
 						SchemaProps: spec.SchemaProps{
 							Description: "systemReserved is a set of ResourceName=ResourceQuantity (e.g. cpu=200m,memory=150G) pairs that describe resources reserved for non-kubernetes components. Currently only cpu and memory are supported. See http://kubernetes.io/docs/user-guide/compute-resources for more detail. Default: nil",
@@ -53454,7 +53491,7 @@ func schema_k8sio_kubelet_config_v1beta1_KubeletConfiguration(ref common.Referen
 					},
 					"hostPortRange": {
 						SchemaProps: spec.SchemaProps{
-							Description: "HostPortRange specifies the port range reserved for port assignment of autoport pod.",
+							Description: "HostPortRange specifies the port range reserved for port assignment of autoport pod. Default: 9200-9500",
 							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/util/net.PortRange"),
 						},

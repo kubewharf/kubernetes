@@ -66,7 +66,7 @@ func TestNewManager(t *testing.T) {
 	}
 
 	for _, tc := range tcases {
-		mngr, err := NewManager(nil, tc.policyName, "container")
+		mngr, err := NewManager(nil, tc.policyName, "container", defaultAlignResourceNames)
 
 		if tc.expectedError != nil {
 			if !strings.Contains(err.Error(), tc.expectedError.Error()) {
@@ -107,7 +107,7 @@ func TestManagerScope(t *testing.T) {
 	}
 
 	for _, tc := range tcases {
-		mngr, err := NewManager(nil, "best-effort", tc.scopeName)
+		mngr, err := NewManager(nil, "best-effort", tc.scopeName, nil)
 
 		if tc.expectedError != nil {
 			if !strings.Contains(err.Error(), tc.expectedError.Error()) {
@@ -147,9 +147,9 @@ type mockPolicy struct {
 	ph []map[string][]TopologyHint
 }
 
-func (p *mockPolicy) Merge(providersHints []map[string][]TopologyHint) (TopologyHint, bool) {
+func (p *mockPolicy) Merge(providersHints []map[string][]TopologyHint) (map[string]TopologyHint, bool) {
 	p.ph = providersHints
-	return TopologyHint{}, true
+	return generateResourceHints([]string{defaultResourceKey}, TopologyHint{}), true
 }
 
 func TestAddHintProvider(t *testing.T) {

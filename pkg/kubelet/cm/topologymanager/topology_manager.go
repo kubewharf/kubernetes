@@ -38,6 +38,9 @@ const (
 	maxAllowableNUMANodes = 8
 	// ErrorTopologyAffinity represents the type for a TopologyAffinityError
 	ErrorTopologyAffinity = "TopologyAffinityError"
+	// defaultResourceKey is the key to store the default hint for those resourceNames
+	// which don't specify hint.
+	defaultResourceKey = "*"
 )
 
 // TopologyAffinityError represents an resource alignment error
@@ -94,7 +97,7 @@ type HintProvider interface {
 
 //Store interface is to allow Hint Providers to retrieve pod affinity
 type Store interface {
-	GetAffinity(podUID string, containerName string) TopologyHint
+	GetAffinity(podUID string, containerName string, resourceName string) TopologyHint
 }
 
 // TopologyHint is a struct containing the NUMANodeAffinity for a Container
@@ -126,10 +129,21 @@ func (th *TopologyHint) LessThan(other TopologyHint) bool {
 	return th.NUMANodeAffinity.IsNarrowerThan(other.NUMANodeAffinity)
 }
 
+// DeepCopyTopologyHints returns deep copied hints of source hints
+func DeepCopyTopologyHints(srcHints []TopologyHint) []TopologyHint {
+	if srcHints == nil {
+		return nil
+	}
+
+	dstHints := make([]TopologyHint, 0, len(srcHints))
+
+	return append(dstHints, srcHints...)
+}
+
 var _ Manager = &manager{}
 
 // NewManager creates a new TopologyManager based on provided policy and scope
-func NewManager(topology []cadvisorapi.Node, topologyPolicyName string, topologyScopeName string) (Manager, error) {
+func NewManager(topology []cadvisorapi.Node, topologyPolicyName string, topologyScopeName string, numericAlignResources []string) (Manager, error) {
 	klog.InfoS("Creating topology manager with policy per scope", "topologyPolicyName", topologyPolicyName, "topologyScopeName", topologyScopeName)
 
 	var numaNodes []int
@@ -156,6 +170,9 @@ func NewManager(topology []cadvisorapi.Node, topologyPolicyName string, topology
 	case PolicySingleNumaNode:
 		policy = NewSingleNumaNodePolicy(numaNodes)
 
+	case PolicyNumeric:
+		policy = NewNumericPolicy(numericAlignResources)
+
 	default:
 		return nil, fmt.Errorf("unknown policy: \"%s\"", topologyPolicyName)
 	}
@@ -180,8 +197,8 @@ func NewManager(topology []cadvisorapi.Node, topologyPolicyName string, topology
 	return manager, nil
 }
 
-func (m *manager) GetAffinity(podUID string, containerName string) TopologyHint {
-	return m.scope.GetAffinity(podUID, containerName)
+func (m *manager) GetAffinity(podUID string, containerName string, resourceName string) TopologyHint {
+	return m.scope.GetAffinity(podUID, containerName, resourceName)
 }
 
 func (m *manager) AddHintProvider(h HintProvider) {

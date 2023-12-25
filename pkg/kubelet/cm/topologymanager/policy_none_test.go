@@ -70,13 +70,13 @@ func TestPolicyNoneMerge(t *testing.T) {
 	tcases := []struct {
 		name           string
 		providersHints []map[string][]TopologyHint
-		expectedHint   TopologyHint
+		expectedHint   map[string]TopologyHint
 		expectedAdmit  bool
 	}{
 		{
 			name:           "merged empty providers hints",
 			providersHints: []map[string][]TopologyHint{},
-			expectedHint:   TopologyHint{},
+			expectedHint:   map[string]TopologyHint{},
 			expectedAdmit:  true,
 		},
 		{
@@ -86,7 +86,7 @@ func TestPolicyNoneMerge(t *testing.T) {
 					"resource": {{NUMANodeAffinity: NewTestBitMask(0, 1), Preferred: true}},
 				},
 			},
-			expectedHint:  TopologyHint{},
+			expectedHint:  map[string]TopologyHint{},
 			expectedAdmit: true,
 		},
 		{
@@ -96,7 +96,7 @@ func TestPolicyNoneMerge(t *testing.T) {
 					"resource": {{NUMANodeAffinity: NewTestBitMask(0, 1), Preferred: false}},
 				},
 			},
-			expectedHint:  TopologyHint{},
+			expectedHint:  map[string]TopologyHint{},
 			expectedAdmit: true,
 		},
 	}
@@ -104,7 +104,13 @@ func TestPolicyNoneMerge(t *testing.T) {
 	for _, tc := range tcases {
 		policy := NewNonePolicy()
 		result, admit := policy.Merge(tc.providersHints)
-		if !result.IsEqual(tc.expectedHint) || admit != tc.expectedAdmit {
+		for resource, hint := range result {
+			expected := tc.expectedHint[resource]
+			if !hint.IsEqual(expected) {
+				t.Errorf("Test Case: %s: Expected merge hint to be %v, got %v", tc.name, tc.expectedHint, result)
+			}
+		}
+		if admit != tc.expectedAdmit {
 			t.Errorf("Test Case: %s: Expected merge hint to be %v, got %v", tc.name, tc.expectedHint, result)
 		}
 	}

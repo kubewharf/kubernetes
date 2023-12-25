@@ -210,6 +210,14 @@ func (in *KubeletConfiguration) DeepCopyInto(out *KubeletConfiguration) {
 		}
 	}
 	out.CPUManagerReconcilePeriod = in.CPUManagerReconcilePeriod
+	out.QoSResourceManagerReconcilePeriod = in.QoSResourceManagerReconcilePeriod
+	if in.QoSResourceManagerResourceNamesMap != nil {
+		in, out := &in.QoSResourceManagerResourceNamesMap, &out.QoSResourceManagerResourceNamesMap
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.QOSReserved != nil {
 		in, out := &in.QOSReserved, &out.QOSReserved
 		*out = make(map[string]string, len(*in))
@@ -258,6 +266,11 @@ func (in *KubeletConfiguration) DeepCopyInto(out *KubeletConfiguration) {
 	out.MemorySwap = in.MemorySwap
 	if in.AllowedUnsafeSysctls != nil {
 		in, out := &in.AllowedUnsafeSysctls, &out.AllowedUnsafeSysctls
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.NumericTopologyAlignResources != nil {
+		in, out := &in.NumericTopologyAlignResources, &out.NumericTopologyAlignResources
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

@@ -95,6 +95,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/stats/pidlimit"
 	utilfs "k8s.io/kubernetes/pkg/util/filesystem"
 	"k8s.io/kubernetes/pkg/util/flock"
+	maputil "k8s.io/kubernetes/pkg/util/maps"
 	nodeutil "k8s.io/kubernetes/pkg/util/node"
 	"k8s.io/kubernetes/pkg/util/oom"
 	"k8s.io/kubernetes/pkg/util/rlimit"
@@ -725,21 +726,24 @@ func run(ctx context.Context, s *options.KubeletServer, kubeDeps *kubelet.Depend
 					ReservedSystemCPUs:       reservedSystemCPUs,
 					HardEvictionThresholds:   hardEvictionThresholds,
 				},
-				QOSReserved:                             *experimentalQOSReserved,
-				ExperimentalCPUManagerPolicy:            s.CPUManagerPolicy,
-				ExperimentalCPUManagerPolicyOptions:     cpuManagerPolicyOptions,
-				ExperimentalCPUManagerReconcilePeriod:   s.CPUManagerReconcilePeriod.Duration,
-				ExperimentalMemoryManagerPolicy:         s.MemoryManagerPolicy,
-				ExperimentalMemoryManagerReservedMemory: s.ReservedMemory,
-				ExperimentalPodPidsLimit:                s.PodPidsLimit,
-				EnforceCPULimits:                        s.CPUCFSQuota,
-				CPUCFSQuotaPeriod:                       s.CPUCFSQuotaPeriod.Duration,
-				ExperimentalTopologyManagerPolicy:       s.TopologyManagerPolicy,
-				ExperimentalTopologyManagerScope:        s.TopologyManagerScope,
+				QOSReserved:                                   *experimentalQOSReserved,
+				ExperimentalCPUManagerPolicy:                  s.CPUManagerPolicy,
+				ExperimentalCPUManagerPolicyOptions:           cpuManagerPolicyOptions,
+				ExperimentalCPUManagerReconcilePeriod:         s.CPUManagerReconcilePeriod.Duration,
+				ExperimentalMemoryManagerPolicy:               s.MemoryManagerPolicy,
+				ExperimentalMemoryManagerReservedMemory:       s.ReservedMemory,
+				ExperimentalQoSResourceManagerReconcilePeriod: s.QoSResourceManagerReconcilePeriod.Duration,
+				QoSResourceManagerResourceNamesMap:            maputil.CopySS(s.QoSResourceManagerResourceNamesMap),
+				ExperimentalPodPidsLimit:                      s.PodPidsLimit,
+				EnforceCPULimits:                              s.CPUCFSQuota,
+				CPUCFSQuotaPeriod:                             s.CPUCFSQuotaPeriod.Duration,
+				ExperimentalTopologyManagerPolicy:             s.TopologyManagerPolicy,
+				ExperimentalTopologyManagerScope:              s.TopologyManagerScope,
 			},
 			s.FailSwapOn,
 			devicePluginEnabled,
-			kubeDeps.Recorder)
+			kubeDeps.Recorder,
+			s.NumericTopologyAlignResources)
 
 		if err != nil {
 			return err

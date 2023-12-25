@@ -40,7 +40,7 @@ func TestGetAffinity(t *testing.T) {
 	}
 	for _, tc := range tcases {
 		scope := scope{}
-		actual := scope.GetAffinity(tc.podUID, tc.containerName)
+		actual := scope.GetAffinity(tc.podUID, tc.containerName, v1.ResourceCPU.String())
 		if !reflect.DeepEqual(actual, tc.expected) {
 			t.Errorf("Expected Affinity in result to be %v, got %v", tc.expected, actual)
 		}
@@ -103,11 +103,13 @@ func TestRemoveContainer(t *testing.T) {
 	var lenHints1, lenHints2 int
 	scope := scope{}
 	scope.podMap = containermap.NewContainerMap()
-	scope.podTopologyHints = podTopologyHints{}
+	scope.podTopologyHints = map[string]podTopologyHints{}
 	for _, tc := range testCases {
 		scope.podMap.Add(string(tc.podUID), tc.name, tc.containerID)
-		scope.podTopologyHints[string(tc.podUID)] = make(map[string]TopologyHint)
-		scope.podTopologyHints[string(tc.podUID)][tc.name] = TopologyHint{}
+		scope.podTopologyHints[string(tc.podUID)] = podTopologyHints{}
+		scope.podTopologyHints[string(tc.podUID)][tc.name] = map[string]TopologyHint{
+			defaultResourceKey: {},
+		}
 		len1 = len(scope.podMap)
 		lenHints1 = len(scope.podTopologyHints)
 		err := scope.RemoveContainer(tc.containerID)

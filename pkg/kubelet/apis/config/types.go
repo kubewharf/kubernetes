@@ -68,6 +68,9 @@ const (
 	// SingleNumaNodeTopologyManagerPolicy is a mode in which kubelet only allows
 	// pods with a single NUMA alignment of CPU and device resources.
 	SingleNumaNodeTopologyManagerPolicy = "single-numa-node"
+	// NumericTopologyManagerPolicy is a mode in which kubelet align resource
+	// with widest NUMAs
+	NumericTopologyManagerPolicy = "numeric"
 	// ContainerTopologyManagerScope represents that
 	// topology policy is applied on a per-container basis.
 	ContainerTopologyManagerScope = "container"
@@ -232,6 +235,12 @@ type KubeletConfiguration struct {
 	// MemoryManagerPolicy is the name of the policy to use.
 	// Requires the MemoryManager feature gate to be enabled.
 	MemoryManagerPolicy string
+	// QoS Resource Manager reconciliation period.
+	// Requires the QoSResourceManager feature gate to be enabled.
+	QoSResourceManagerReconcilePeriod metav1.Duration
+	// Map of resource name "A" to resource name "B" during QoS Resource Manager allocation period.
+	// It's useful for the same kind resource with different types. (eg. maps best-effort-cpu to cpu)
+	QoSResourceManagerResourceNamesMap map[string]string
 	// TopologyManagerPolicy is the name of the policy to use.
 	// Policies other than "none" require the TopologyManager feature gate to be enabled.
 	TopologyManagerPolicy string
@@ -350,6 +359,10 @@ type KubeletConfiguration struct {
 	// kernelMemcgNotification if enabled, the kubelet will integrate with the kernel memcg
 	// notification to determine if memory eviction thresholds are crossed rather than polling.
 	KernelMemcgNotification bool
+	// NumericTopologyAlignResources is a list of resources which need to be aligned numa affinity
+	// in numeric topology policy.
+	// +optional
+	NumericTopologyAlignResources []string
 
 	/* the following fields are meant for Node Allocatable */
 

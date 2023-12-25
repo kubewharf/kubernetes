@@ -27,7 +27,7 @@ import (
 type policyMergeTestCase struct {
 	name     string
 	hp       []HintProvider
-	expected TopologyHint
+	expected map[string]TopologyHint
 }
 
 func commonPolicyMergeTestCases(numaNodes []int) []policyMergeTestCase {
@@ -56,9 +56,15 @@ func commonPolicyMergeTestCases(numaNodes []int) []policyMergeTestCase {
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(0),
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(0),
+					Preferred:        true,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(0),
+					Preferred:        true,
+				},
 			},
 		},
 		{
@@ -85,9 +91,15 @@ func commonPolicyMergeTestCases(numaNodes []int) []policyMergeTestCase {
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(1),
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(1),
+					Preferred:        true,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(1),
+					Preferred:        true,
+				},
 			},
 		},
 		{
@@ -105,9 +117,15 @@ func commonPolicyMergeTestCases(numaNodes []int) []policyMergeTestCase {
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(0),
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				defaultResourceKey: {
+					NUMANodeAffinity: NewTestBitMask(0),
+					Preferred:        true,
+				},
+				"resource": {
+					NUMANodeAffinity: NewTestBitMask(0),
+					Preferred:        true,
+				},
 			},
 		},
 		{
@@ -125,9 +143,15 @@ func commonPolicyMergeTestCases(numaNodes []int) []policyMergeTestCase {
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(1),
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				defaultResourceKey: {
+					NUMANodeAffinity: NewTestBitMask(1),
+					Preferred:        true,
+				},
+				"resource": {
+					NUMANodeAffinity: NewTestBitMask(1),
+					Preferred:        true,
+				},
 			},
 		},
 		{
@@ -158,9 +182,15 @@ func commonPolicyMergeTestCases(numaNodes []int) []policyMergeTestCase {
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(0),
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(0),
+					Preferred:        true,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(0),
+					Preferred:        true,
+				},
 			},
 		},
 		{
@@ -191,9 +221,15 @@ func commonPolicyMergeTestCases(numaNodes []int) []policyMergeTestCase {
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(1),
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(1),
+					Preferred:        true,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(1),
+					Preferred:        true,
+				},
 			},
 		},
 		{
@@ -228,9 +264,15 @@ func commonPolicyMergeTestCases(numaNodes []int) []policyMergeTestCase {
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(0),
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(0),
+					Preferred:        true,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(0),
+					Preferred:        true,
+				},
 			},
 		},
 		{
@@ -269,9 +311,15 @@ func commonPolicyMergeTestCases(numaNodes []int) []policyMergeTestCase {
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(1),
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(1),
+					Preferred:        true,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(1),
+					Preferred:        true,
+				},
 			},
 		},
 		{
@@ -306,9 +354,15 @@ func commonPolicyMergeTestCases(numaNodes []int) []policyMergeTestCase {
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(1),
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(1),
+					Preferred:        true,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(1),
+					Preferred:        true,
+				},
 			},
 		},
 	}
@@ -348,17 +402,25 @@ func (p *bestEffortPolicy) mergeTestCases(numaNodes []int) []policyMergeTestCase
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(0, 1),
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(0, 1),
+					Preferred:        true,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(0, 1),
+					Preferred:        true,
+				},
 			},
 		},
 		{
 			name: "TopologyHint not set",
 			hp:   []HintProvider{},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(numaNodes...),
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				defaultResourceKey: {
+					NUMANodeAffinity: NewTestBitMask(numaNodes...),
+					Preferred:        true,
+				},
 			},
 		},
 		{
@@ -368,9 +430,11 @@ func (p *bestEffortPolicy) mergeTestCases(numaNodes []int) []policyMergeTestCase
 					map[string][]TopologyHint{},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(numaNodes...),
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				defaultResourceKey: {
+					NUMANodeAffinity: NewTestBitMask(numaNodes...),
+					Preferred:        true,
+				},
 			},
 		},
 		{
@@ -382,9 +446,11 @@ func (p *bestEffortPolicy) mergeTestCases(numaNodes []int) []policyMergeTestCase
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(numaNodes...),
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				"resource": {
+					NUMANodeAffinity: NewTestBitMask(numaNodes...),
+					Preferred:        true,
+				},
 			},
 		},
 		{
@@ -395,9 +461,11 @@ func (p *bestEffortPolicy) mergeTestCases(numaNodes []int) []policyMergeTestCase
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(numaNodes...),
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource": {
+					NUMANodeAffinity: NewTestBitMask(numaNodes...),
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -414,9 +482,11 @@ func (p *bestEffortPolicy) mergeTestCases(numaNodes []int) []policyMergeTestCase
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(numaNodes...),
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				"resource": {
+					NUMANodeAffinity: NewTestBitMask(numaNodes...),
+					Preferred:        true,
+				},
 			},
 		},
 		{
@@ -433,9 +503,11 @@ func (p *bestEffortPolicy) mergeTestCases(numaNodes []int) []policyMergeTestCase
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(numaNodes...),
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource": {
+					NUMANodeAffinity: NewTestBitMask(numaNodes...),
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -462,9 +534,15 @@ func (p *bestEffortPolicy) mergeTestCases(numaNodes []int) []policyMergeTestCase
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(numaNodes...),
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(numaNodes...),
+					Preferred:        false,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(numaNodes...),
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -491,9 +569,15 @@ func (p *bestEffortPolicy) mergeTestCases(numaNodes []int) []policyMergeTestCase
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(0),
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(0),
+					Preferred:        false,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(0),
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -520,9 +604,15 @@ func (p *bestEffortPolicy) mergeTestCases(numaNodes []int) []policyMergeTestCase
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(1),
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(1),
+					Preferred:        false,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(1),
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -549,9 +639,15 @@ func (p *bestEffortPolicy) mergeTestCases(numaNodes []int) []policyMergeTestCase
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(0),
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(0),
+					Preferred:        false,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(0),
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -582,9 +678,15 @@ func (p *bestEffortPolicy) mergeTestCases(numaNodes []int) []policyMergeTestCase
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(0),
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(0),
+					Preferred:        false,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(0),
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -611,9 +713,15 @@ func (p *bestEffortPolicy) mergeTestCases(numaNodes []int) []policyMergeTestCase
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(1),
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(1),
+					Preferred:        false,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(1),
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -644,9 +752,15 @@ func (p *bestEffortPolicy) mergeTestCases(numaNodes []int) []policyMergeTestCase
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(0, 1),
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(0, 1),
+					Preferred:        false,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(0, 1),
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -677,9 +791,15 @@ func (p *bestEffortPolicy) mergeTestCases(numaNodes []int) []policyMergeTestCase
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(0, 3),
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(0, 3),
+					Preferred:        false,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(0, 3),
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -710,9 +830,15 @@ func (p *bestEffortPolicy) mergeTestCases(numaNodes []int) []policyMergeTestCase
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(1, 2),
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(1, 2),
+					Preferred:        false,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(1, 2),
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -743,9 +869,15 @@ func (p *bestEffortPolicy) mergeTestCases(numaNodes []int) []policyMergeTestCase
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(2, 3),
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(2, 3),
+					Preferred:        false,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(2, 3),
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -780,9 +912,15 @@ func (p *bestEffortPolicy) mergeTestCases(numaNodes []int) []policyMergeTestCase
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(1, 2),
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(1, 2),
+					Preferred:        false,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(1, 2),
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -825,9 +963,15 @@ func (p *bestEffortPolicy) mergeTestCases(numaNodes []int) []policyMergeTestCase
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(1, 2),
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(1, 2),
+					Preferred:        false,
+				},
+				"resource2": {
+					NUMANodeAffinity: NewTestBitMask(1, 2),
+					Preferred:        false,
+				},
 			},
 		},
 	}
@@ -838,9 +982,11 @@ func (p *singleNumaNodePolicy) mergeTestCases(numaNodes []int) []policyMergeTest
 		{
 			name: "TopologyHint not set",
 			hp:   []HintProvider{},
-			expected: TopologyHint{
-				NUMANodeAffinity: nil,
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				defaultResourceKey: {
+					NUMANodeAffinity: nil,
+					Preferred:        true,
+				},
 			},
 		},
 		{
@@ -850,9 +996,11 @@ func (p *singleNumaNodePolicy) mergeTestCases(numaNodes []int) []policyMergeTest
 					map[string][]TopologyHint{},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: nil,
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				defaultResourceKey: {
+					NUMANodeAffinity: nil,
+					Preferred:        true,
+				},
 			},
 		},
 		{
@@ -864,9 +1012,11 @@ func (p *singleNumaNodePolicy) mergeTestCases(numaNodes []int) []policyMergeTest
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: nil,
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				"resource": {
+					NUMANodeAffinity: nil,
+					Preferred:        true,
+				},
 			},
 		},
 		{
@@ -877,9 +1027,11 @@ func (p *singleNumaNodePolicy) mergeTestCases(numaNodes []int) []policyMergeTest
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: nil,
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource": {
+					NUMANodeAffinity: nil,
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -896,9 +1048,11 @@ func (p *singleNumaNodePolicy) mergeTestCases(numaNodes []int) []policyMergeTest
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: nil,
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				"resource": {
+					NUMANodeAffinity: nil,
+					Preferred:        true,
+				},
 			},
 		},
 		{
@@ -915,9 +1069,11 @@ func (p *singleNumaNodePolicy) mergeTestCases(numaNodes []int) []policyMergeTest
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: nil,
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource": {
+					NUMANodeAffinity: nil,
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -944,9 +1100,15 @@ func (p *singleNumaNodePolicy) mergeTestCases(numaNodes []int) []policyMergeTest
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: nil,
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: nil,
+					Preferred:        false,
+				},
+				"resource2": {
+					NUMANodeAffinity: nil,
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -973,9 +1135,15 @@ func (p *singleNumaNodePolicy) mergeTestCases(numaNodes []int) []policyMergeTest
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: nil,
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: nil,
+					Preferred:        false,
+				},
+				"resource2": {
+					NUMANodeAffinity: nil,
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -1002,9 +1170,15 @@ func (p *singleNumaNodePolicy) mergeTestCases(numaNodes []int) []policyMergeTest
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: nil,
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: nil,
+					Preferred:        false,
+				},
+				"resource2": {
+					NUMANodeAffinity: nil,
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -1035,9 +1209,15 @@ func (p *singleNumaNodePolicy) mergeTestCases(numaNodes []int) []policyMergeTest
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: nil,
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: nil,
+					Preferred:        false,
+				},
+				"resource2": {
+					NUMANodeAffinity: nil,
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -1068,9 +1248,15 @@ func (p *singleNumaNodePolicy) mergeTestCases(numaNodes []int) []policyMergeTest
 					},
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: nil,
-				Preferred:        false,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: nil,
+					Preferred:        false,
+				},
+				"resource2": {
+					NUMANodeAffinity: nil,
+					Preferred:        false,
+				},
 			},
 		},
 		{
@@ -1098,9 +1284,15 @@ func (p *singleNumaNodePolicy) mergeTestCases(numaNodes []int) []policyMergeTest
 					nil,
 				},
 			},
-			expected: TopologyHint{
-				NUMANodeAffinity: NewTestBitMask(0),
-				Preferred:        true,
+			expected: map[string]TopologyHint{
+				"resource1": {
+					NUMANodeAffinity: NewTestBitMask(0),
+					Preferred:        true,
+				},
+				defaultResourceKey: {
+					NUMANodeAffinity: NewTestBitMask(0),
+					Preferred:        true,
+				},
 			},
 		},
 	}
