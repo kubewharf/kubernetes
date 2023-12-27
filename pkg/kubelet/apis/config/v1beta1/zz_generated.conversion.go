@@ -509,6 +509,7 @@ func autoConvert_v1beta1_KubeletConfiguration_To_config_KubeletConfiguration(in 
 	if err := v1.Convert_Pointer_bool_To_bool(&in.RegisterNode, &out.RegisterNode, s); err != nil {
 		return err
 	}
+	out.HostPortRange = in.HostPortRange
 	return nil
 }
 
@@ -685,6 +686,7 @@ func autoConvert_config_KubeletConfiguration_To_v1beta1_KubeletConfiguration(in 
 	if err := v1.Convert_bool_To_Pointer_bool(&in.RegisterNode, &out.RegisterNode, s); err != nil {
 		return err
 	}
+	out.HostPortRange = in.HostPortRange
 	return nil
 }
 

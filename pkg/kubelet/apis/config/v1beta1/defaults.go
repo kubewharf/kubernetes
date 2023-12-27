@@ -21,6 +21,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kruntime "k8s.io/apimachinery/pkg/runtime"
+	utilnet "k8s.io/apimachinery/pkg/util/net"
 	componentbaseconfigv1alpha1 "k8s.io/component-base/config/v1alpha1"
 	kubeletconfigv1beta1 "k8s.io/kubelet/config/v1beta1"
 
@@ -42,7 +43,8 @@ const (
 )
 
 var (
-	zeroDuration = metav1.Duration{}
+	zeroDuration  = metav1.Duration{}
+	zeroPortRange = utilnet.PortRange{}
 	// TODO: Move these constants to k8s.io/kubelet/config/v1beta1 instead?
 	// Refer to [Node Allocatable](https://git.k8s.io/community/contributors/design-proposals/node/node-allocatable.md) doc for more information.
 	DefaultNodeAllocatableEnforcement = []string{"pods"}
@@ -263,5 +265,8 @@ func SetDefaults_KubeletConfiguration(obj *kubeletconfigv1beta1.KubeletConfigura
 	}
 	if obj.RegisterNode == nil {
 		obj.RegisterNode = utilpointer.BoolPtr(true)
+	}
+	if obj.HostPortRange == zeroPortRange {
+		obj.HostPortRange = utilnet.PortRange{Base: 9200, Size: 301}
 	}
 }

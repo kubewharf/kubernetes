@@ -504,6 +504,7 @@ func AddKubeletConfigFlags(mainfs *pflag.FlagSet, c *kubeletconfig.KubeletConfig
 
 	// Graduated experimental flags, kept for backward compatibility
 	fs.BoolVar(&c.KernelMemcgNotification, "experimental-kernel-memcg-notification", c.KernelMemcgNotification, "Use kernelMemcgNotification configuration, this flag will be removed in 1.24 or later.")
+	fs.Var(&c.HostPortRange, "host-port-range", "A port range to reserve for dynamic host port, inclusive at both ends of the range. [default='9200-9500']")
 
 	// Memory Manager Flags
 	fs.StringVar(&c.MemoryManagerPolicy, "memory-manager-policy", c.MemoryManagerPolicy, "Memory Manager policy to use. Possible values: 'None', 'Static'.")

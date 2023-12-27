@@ -19,6 +19,7 @@ package v1beta1
 import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilnet "k8s.io/apimachinery/pkg/util/net"
 	componentbaseconfigv1alpha1 "k8s.io/component-base/config/v1alpha1"
 )
 
@@ -780,6 +781,10 @@ type KubeletConfiguration struct {
 	// Default: true
 	// +optional
 	RegisterNode *bool `json:"registerNode,omitempty"`
+	// HostPortRange specifies the port range reserved for port assignment of autoport pod.
+	// Default: 9200-9500
+	// +optional
+	HostPortRange utilnet.PortRange `json:"hostPortRange,omitempty"`
 }
 
 type KubeletAuthorizationMode string

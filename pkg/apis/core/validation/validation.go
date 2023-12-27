@@ -44,8 +44,8 @@ import (
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	schedulinghelper "k8s.io/component-helpers/scheduling/corev1"
 	apiservice "k8s.io/kubernetes/pkg/api/service"
+	utilpod "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/pkg/apis/core"
-	api "k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/apis/core/helper"
 	podshelper "k8s.io/kubernetes/pkg/apis/core/pods"
 	corev1 "k8s.io/kubernetes/pkg/apis/core/v1"
@@ -2266,7 +2266,7 @@ func ValidatePersistentVolumeClaimStatusUpdate(newPvc, oldPvc *core.PersistentVo
 
 var supportedPortProtocols = sets.NewString(string(core.ProtocolTCP), string(core.ProtocolUDP), string(core.ProtocolSCTP))
 
-func validateContainerPorts(ports []core.ContainerPort, fldPath *field.Path) field.ErrorList {
+func validateContainerPorts(isAutoport bool, isHostNetwork bool, ports []core.ContainerPort, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	allNames := sets.String{}
@@ -2284,7 +2284,11 @@ func validateContainerPorts(ports []core.ContainerPort, fldPath *field.Path) fie
 			}
 		}
 		if port.ContainerPort == 0 {
-			allErrs = append(allErrs, field.Required(idxPath.Child("containerPort"), ""))
+			// this is only allowed when autoport is enabled with host network (autoport will assign both container port and host port)
+			// container port == hostport is validated in validateHostNetwork function
+			if !isHostNetwork || !isAutoport {
+				allErrs = append(allErrs, field.Required(idxPath.Child("containerPort"), ""))
+			}
 		} else {
 			for _, msg := range validation.IsValidPortNum(int(port.ContainerPort)) {
 				allErrs = append(allErrs, field.Invalid(idxPath.Child("containerPort"), port.ContainerPort, msg))
@@ -2905,7 +2909,7 @@ func validatePullPolicy(policy core.PullPolicy, fldPath *field.Path) field.Error
 	return allErrors
 }
 
-func validateEphemeralContainers(ephemeralContainers []core.EphemeralContainer, containers, initContainers []core.Container, volumes map[string]core.VolumeSource, fldPath *field.Path, opts PodValidationOptions) field.ErrorList {
+func validateEphemeralContainers(isHostNetwork bool, ephemeralContainers []core.EphemeralContainer, containers, initContainers []core.Container, volumes map[string]core.VolumeSource, fldPath *field.Path, opts PodValidationOptions) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	if len(ephemeralContainers) == 0 {
@@ -2937,7 +2941,8 @@ func validateEphemeralContainers(ephemeralContainers []core.EphemeralContainer, 
 		// of ephemeralContainers[0].spec.name)
 		// TODO(verb): factor a validateContainer() out of validateContainers() to be used here
 		c := core.Container(ec.EphemeralContainerCommon)
-		allErrs = append(allErrs, validateContainers([]core.Container{c}, false, volumes, idxPath, opts)...)
+		// autoport does not support ephemeral containers, so we simply pass isAutoport = false
+		allErrs = append(allErrs, validateContainers(false, isHostNetwork, []core.Container{c}, false, volumes, idxPath, opts)...)
 		// EphemeralContainers don't require the backwards-compatibility distinction between pod/podTemplate validation
 		allErrs = append(allErrs, validateContainersOnlyForPod([]core.Container{c}, idxPath)...)
 
@@ -2991,10 +2996,11 @@ func validateFieldAllowList(value interface{}, allowedFields map[string]bool, er
 	return allErrs
 }
 
-func validateInitContainers(containers []core.Container, otherContainers []core.Container, deviceVolumes map[string]core.VolumeSource, fldPath *field.Path, opts PodValidationOptions) field.ErrorList {
+func validateInitContainers(isHostNetwork bool, containers []core.Container, otherContainers []core.Container, deviceVolumes map[string]core.VolumeSource, fldPath *field.Path, opts PodValidationOptions) field.ErrorList {
 	var allErrs field.ErrorList
 	if len(containers) > 0 {
-		allErrs = append(allErrs, validateContainers(containers, true, deviceVolumes, fldPath, opts)...)
+		// autoport does not support init containers, so we simply pass isAutoport = false
+		allErrs = append(allErrs, validateContainers(false, isHostNetwork, containers, true, deviceVolumes, fldPath, opts)...)
 	}
 
 	allNames := sets.String{}
@@ -3025,7 +3031,7 @@ func validateInitContainers(containers []core.Container, otherContainers []core.
 	return allErrs
 }
 
-func validateContainers(containers []core.Container, isInitContainers bool, volumes map[string]core.VolumeSource, fldPath *field.Path, opts PodValidationOptions) field.ErrorList {
+func validateContainers(isAutoPort bool, isHostNetwork bool, containers []core.Container, isInitContainers bool, volumes map[string]core.VolumeSource, fldPath *field.Path, opts PodValidationOptions) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	if len(containers) == 0 {
@@ -3083,7 +3089,7 @@ func validateContainers(containers []core.Container, isInitContainers bool, volu
 		}
 
 		allErrs = append(allErrs, validateProbe(ctr.ReadinessProbe, idxPath.Child("readinessProbe"))...)
-		allErrs = append(allErrs, validateContainerPorts(ctr.Ports, idxPath.Child("ports"))...)
+		allErrs = append(allErrs, validateContainerPorts(isAutoPort, isHostNetwork, ctr.Ports, idxPath.Child("ports"))...)
 		allErrs = append(allErrs, ValidateEnv(ctr.Env, idxPath.Child("env"), opts)...)
 		allErrs = append(allErrs, ValidateEnvFrom(ctr.EnvFrom, idxPath.Child("envFrom"))...)
 		allErrs = append(allErrs, ValidateVolumeMounts(ctr.VolumeMounts, volDevices, volumes, &ctr, idxPath.Child("volumeMounts"))...)
@@ -3503,13 +3509,22 @@ func validatePodIPs(pod *core.Pod) field.ErrorList {
 // The pod metadata is needed to validate generic ephemeral volumes. It is optional
 // and should be left empty unless the spec is from a real pod object.
 func ValidatePodSpec(spec *core.PodSpec, podMeta *metav1.ObjectMeta, fldPath *field.Path, opts PodValidationOptions) field.ErrorList {
+	isHostNetwork := false
+	if spec.SecurityContext != nil {
+		isHostNetwork = spec.SecurityContext.HostNetwork
+	}
+	isAutoport := false
+	if podMeta != nil && podMeta.Annotations != nil {
+		_, isAutoport = podMeta.Annotations[utilpod.PodAutoPortAnnotation]
+	}
+
 	allErrs := field.ErrorList{}
 
 	vols, vErrs := ValidateVolumes(spec.Volumes, podMeta, fldPath.Child("volumes"), opts)
 	allErrs = append(allErrs, vErrs...)
-	allErrs = append(allErrs, validateContainers(spec.Containers, false, vols, fldPath.Child("containers"), opts)...)
-	allErrs = append(allErrs, validateInitContainers(spec.InitContainers, spec.Containers, vols, fldPath.Child("initContainers"), opts)...)
-	allErrs = append(allErrs, validateEphemeralContainers(spec.EphemeralContainers, spec.Containers, spec.InitContainers, vols, fldPath.Child("ephemeralContainers"), opts)...)
+	allErrs = append(allErrs, validateContainers(isAutoport, isHostNetwork, spec.Containers, false, vols, fldPath.Child("containers"), opts)...)
+	allErrs = append(allErrs, validateInitContainers(isHostNetwork, spec.InitContainers, spec.Containers, vols, fldPath.Child("initContainers"), opts)...)
+	allErrs = append(allErrs, validateEphemeralContainers(isHostNetwork, spec.EphemeralContainers, spec.Containers, spec.InitContainers, vols, fldPath.Child("ephemeralContainers"), opts)...)
 	allErrs = append(allErrs, validateRestartPolicy(&spec.RestartPolicy, fldPath.Child("restartPolicy"))...)
 	allErrs = append(allErrs, validateDNSPolicy(&spec.DNSPolicy, fldPath.Child("dnsPolicy"))...)
 	allErrs = append(allErrs, unversionedvalidation.ValidateLabels(spec.NodeSelector, fldPath.Child("nodeSelector"))...)
@@ -4288,6 +4303,13 @@ func ValidatePodUpdate(newPod, oldPod *core.Pod, opts PodValidationOptions) fiel
 	// 2.  spec.initContainers[*].image
 	// 3.  spec.activeDeadlineSeconds
 	// 4.  spec.terminationGracePeriodSeconds
+	// if autoport is enabled:
+	// 1. spec.containers[*].ports[*].hostport (if previous value was 0)
+	// 2. spec.containers[*].env (we can add PORT, PORT0... env values)
+	// if autoport and hostnetwork is enabled:
+	// 1. spec.containers[*].ports[*].hostport (if previous value was 0)
+	// 2. spec.containers[*].ports[*].containerport (if previous value was 0)
+	// 3. spec.containers[*].env (we can add PORT, PORT0... env values)
 
 	containerErrs, stop := ValidateContainerUpdates(newPod.Spec.Containers, oldPod.Spec.Containers, specPath.Child("containers"))
 	allErrs = append(allErrs, containerErrs...)
@@ -4323,6 +4345,24 @@ func ValidatePodUpdate(newPod, oldPod *core.Pod, opts PodValidationOptions) fiel
 	// Allow only additions to tolerations updates.
 	allErrs = append(allErrs, validateOnlyAddedTolerations(newPod.Spec.Tolerations, oldPod.Spec.Tolerations, specPath.Child("tolerations"))...)
 
+	isAutoport := false
+	if newPod.ObjectMeta.Annotations != nil {
+		_, isAutoport = newPod.ObjectMeta.Annotations[utilpod.PodAutoPortAnnotation]
+	}
+
+	if isAutoport {
+		isHostNetwork := false
+		if newPod.Spec.SecurityContext != nil {
+			isHostNetwork = newPod.Spec.SecurityContext.HostNetwork
+		}
+
+		errs := ValidateContainerUpdatesForAutoport(isHostNetwork, newPod.Spec.Containers, oldPod.Spec.Containers, specPath.Child("containers"))
+		allErrs = append(allErrs, errs...)
+		if len(allErrs) > 0 {
+			return allErrs
+		}
+	}
+
 	// the last thing to check is pod spec equality.  If the pod specs are equal, then we can simply return the errors we have
 	// so far and save the cost of a deep copy.
 	if apiequality.Semantic.DeepEqual(newPod.Spec, oldPod.Spec) {
@@ -4332,9 +4372,14 @@ func ValidatePodUpdate(newPod, oldPod *core.Pod, opts PodValidationOptions) fiel
 	// handle updateable fields by munging those fields prior to deep equal comparison.
 	mungedPodSpec := *newPod.Spec.DeepCopy()
 	// munge spec.containers[*].image
+	// munge spec.containers[*].ports and spec.containers[*].env if autoport is enabled
 	var newContainers []core.Container
 	for ix, container := range mungedPodSpec.Containers {
 		container.Image = oldPod.Spec.Containers[ix].Image // +k8s:verify-mutation:reason=clone
+		if isAutoport {
+			container.Ports = oldPod.Spec.Containers[ix].Ports
+			container.Env = oldPod.Spec.Containers[ix].Env
+		}
 		newContainers = append(newContainers, container)
 	}
 	mungedPodSpec.Containers = newContainers
@@ -4364,7 +4409,11 @@ func ValidatePodUpdate(newPod, oldPod *core.Pod, opts PodValidationOptions) fiel
 		// This diff isn't perfect, but it's a helluva lot better an "I'm not going to tell you what the difference is".
 		//TODO: Pinpoint the specific field that causes the invalid error after we have strategic merge diff
 		specDiff := cmp.Diff(oldPod.Spec, mungedPodSpec)
-		allErrs = append(allErrs, field.Forbidden(specPath, fmt.Sprintf("pod updates may not change fields other than `spec.containers[*].image`, `spec.initContainers[*].image`, `spec.activeDeadlineSeconds`, `spec.tolerations` (only additions to existing tolerations) or `spec.terminationGracePeriodSeconds` (allow it to be set to 1 if it was previously negative)\n%v", specDiff)))
+		if isAutoport {
+			allErrs = append(allErrs, field.Forbidden(specPath, fmt.Sprintf("pod updates may not change fields other than `spec.containers[*].image`, `spec.initContainers[*].image`, `spec.activeDeadlineSeconds`, `spec.tolerations` (only additions to existing tolerations), `spec.terminationGracePeriodSeconds` (allow it to be set to 1 if it was previously negative), `spec.containers[*].ports` (if it was not previously assigned) or `spec.containers[*].env` (if autoport is updated)\n%v", specDiff)))
+		} else {
+			allErrs = append(allErrs, field.Forbidden(specPath, fmt.Sprintf("pod updates may not change fields other than `spec.containers[*].image`, `spec.initContainers[*].image`, `spec.activeDeadlineSeconds`, `spec.tolerations` (only additions to existing tolerations) or `spec.terminationGracePeriodSeconds` (allow it to be set to 1 if it was previously negative)\n%v", specDiff)))
+		}
 	}
 
 	return allErrs
@@ -4736,7 +4785,7 @@ func validateServicePort(sp *core.ServicePort, requireName, isHeadlessService bo
 	return allErrs
 }
 
-func needsExternalTrafficPolicy(svc *api.Service) bool {
+func needsExternalTrafficPolicy(svc *core.Service) bool {
 	return svc.Spec.Type == core.ServiceTypeLoadBalancer || svc.Spec.Type == core.ServiceTypeNodePort
 }
 
@@ -4781,7 +4830,7 @@ func validateServiceExternalTrafficPolicy(service *core.Service) field.ErrorList
 	return allErrs
 }
 
-func validateServiceExternalTrafficFieldsUpdate(before, after *api.Service) field.ErrorList {
+func validateServiceExternalTrafficFieldsUpdate(before, after *core.Service) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	if apiservice.NeedsHealthCheck(before) && apiservice.NeedsHealthCheck(after) {
@@ -6866,4 +6915,111 @@ func sameLoadBalancerClass(oldService, service *core.Service) bool {
 		return false
 	}
 	return *oldService.Spec.LoadBalancerClass == *service.Spec.LoadBalancerClass
+}
+
+func ValidateContainerUpdatesForAutoport(isHostNetwork bool, newContainers, oldContainers []core.Container, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+
+	for ix, newC := range newContainers {
+		oldC := oldContainers[ix]
+		chldPath := fldPath.Child("containers").Index(ix)
+		assignedPorts := 0
+
+		// check ports
+		if len(newC.Ports) != len(oldC.Ports) {
+			allErrs = append(allErrs, field.Invalid(chldPath.Child("ports"), newC.Ports, "(autoport) must not add or remove ports"))
+			continue
+		}
+
+		var containerErrs field.ErrorList
+		for iy, newP := range newC.Ports {
+			oldP := oldC.Ports[iy]
+
+			// name, protocol, host ip should not be changed
+			if newP.Name != oldP.Name {
+				containerErrs = append(allErrs, field.Invalid(chldPath.Child("ports").Index(iy), newP, "(autoport) must not update name"))
+			}
+			if newP.Protocol != oldP.Protocol {
+				containerErrs = append(allErrs, field.Invalid(chldPath.Child("ports").Index(iy), newP, "(autoport) must not update protocol"))
+			}
+			if newP.HostIP != oldP.HostIP {
+				containerErrs = append(allErrs, field.Invalid(chldPath.Child("ports").Index(iy), newP, "(autoport) must not update host ip"))
+			}
+
+			// container port can be changed only if ishostnetwork and unassigned
+			if !isHostNetwork && newP.ContainerPort != oldP.ContainerPort {
+				containerErrs = append(allErrs, field.Invalid(chldPath.Child("ports").Index(iy).Child("containerPort"), newP.ContainerPort, "(autoport) must not update container port if hostnetwork is not set"))
+			} else if isHostNetwork && oldP.ContainerPort != 0 && newP.ContainerPort != oldP.ContainerPort {
+				containerErrs = append(allErrs, field.Invalid(chldPath.Child("ports").Index(iy).Child("containerPort"), newP.ContainerPort, "(autoport) must not update container port if already assigned"))
+			}
+
+			// host port can be changed only if unassigned
+			if oldP.HostPort != 0 && newP.HostPort != oldP.HostPort {
+				containerErrs = append(allErrs, field.Invalid(chldPath.Child("ports").Index(iy).Child("hostPort"), newP.HostPort, "(autoport) must not update host port if already assigned"))
+			} else if newP.HostPort != oldP.HostPort {
+				assignedPorts++
+			}
+		}
+		if len(containerErrs) > 0 {
+			allErrs = append(allErrs, containerErrs...)
+			continue
+		}
+
+		// check env
+		if assignedPorts == 0 {
+			if !apiequality.Semantic.DeepEqual(newC.Env, oldC.Env) {
+				allErrs = append(allErrs, field.Invalid(chldPath.Child("env"), newC.Env, "(autoport) must not modify EnvVars if no ports were assigned"))
+			}
+			continue
+		}
+
+		replacedEnvs, newEnvs := diffEnv(oldC.Env, newC.Env)
+		if len(replacedEnvs) > 0 {
+			allErrs = append(allErrs, field.Invalid(chldPath.Child("env"), newC.Env, "(autoport) must not delete or update old EnvVars"))
+			continue
+		}
+
+		valid := sets.NewString()
+		valid.Insert("PORT")
+		for i := 0; i < assignedPorts; i++ {
+			valid.Insert(fmt.Sprintf("PORT%d", i))
+		}
+		added := sets.NewString()
+		for _, e := range newEnvs {
+			added.Insert(e.Name)
+		}
+		if !valid.Equal(added) {
+			allErrs = append(allErrs, field.Invalid(chldPath.Child("env"), newC.Env, fmt.Sprintf("(autoport) new envs are invalid, expected %v but got %v", valid.List(), added.List())))
+		}
+	}
+
+	return allErrs
+}
+
+// diffEnv returns 2 slices, containing elements in oldEnv but not in newEnv and elements in newEnv but not in oldEnv respectively
+func diffEnv(oldEnv, newEnv []core.EnvVar) ([]core.EnvVar, []core.EnvVar) {
+	oldEnvMap := make(map[core.EnvVar]interface{}, len(oldEnv))
+	for _, e := range oldEnv {
+		oldEnvMap[e] = nil
+	}
+	newEnvMap := make(map[core.EnvVar]interface{}, len(newEnv))
+	for _, e := range newEnv {
+		newEnvMap[e] = nil
+	}
+
+	replacedEnvs := []core.EnvVar{}
+	addedEnvs := []core.EnvVar{}
+
+	for _, e := range oldEnv {
+		if _, ok := newEnvMap[e]; !ok {
+			replacedEnvs = append(replacedEnvs, e)
+		}
+	}
+	for _, e := range newEnv {
+		if _, ok := oldEnvMap[e]; !ok {
+			addedEnvs = append(addedEnvs, e)
+		}
+	}
+
+	return replacedEnvs, addedEnvs
 }

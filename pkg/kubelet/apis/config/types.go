@@ -19,6 +19,7 @@ package config
 import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	netutil "k8s.io/apimachinery/pkg/util/net"
 	componentbaseconfig "k8s.io/component-base/config"
 )
 
@@ -445,6 +446,11 @@ type KubeletConfiguration struct {
 	// registerNode enables automatic registration with the apiserver.
 	// +optional
 	RegisterNode bool
+
+	// HostPortRange spcifies the port range reserved for port assignment of autoport pod
+	// Default: 9200-9500
+	// +optional
+	HostPortRange netutil.PortRange
 }
 
 // KubeletAuthorizationMode denotes the authorization mode for the kubelet

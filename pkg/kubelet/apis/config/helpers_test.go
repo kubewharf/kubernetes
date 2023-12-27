@@ -206,6 +206,8 @@ var (
 		"FileCheckFrequency.Duration",
 		"HTTPCheckFrequency.Duration",
 		"HairpinMode",
+		"HostPortRange.Base",
+		"HostPortRange.Size",
 		"HealthzBindAddress",
 		"HealthzPort",
 		"Logging.FlushFrequency",

@@ -27,6 +27,10 @@ import (
 	"k8s.io/kubernetes/pkg/features"
 )
 
+const (
+	PodAutoPortAnnotation = "pod.kubewharf.kubernetes.io/autoport"
+)
+
 // FindPort locates the container port for the given pod and portName.  If the
 // targetPort is a number, use that.  If the targetPort is a string, look that
 // string up in all named ports in all containers in the target pod.  If no

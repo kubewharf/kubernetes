@@ -40,6 +40,7 @@ import (
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/component-base/featuregate"
 	featuregatetesting "k8s.io/component-base/featuregate/testing"
+	utilpod "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/capabilities"
 	"k8s.io/kubernetes/pkg/features"
@@ -5198,14 +5199,14 @@ func TestValidatePorts(t *testing.T) {
 		{Name: "do-re-me", ContainerPort: 84, Protocol: "SCTP"},
 		{ContainerPort: 85, Protocol: "TCP"},
 	}
-	if errs := validateContainerPorts(successCase, field.NewPath("field")); len(errs) != 0 {
+	if errs := validateContainerPorts(false, false, successCase, field.NewPath("field")); len(errs) != 0 {
 		t.Errorf("expected success: %v", errs)
 	}
 
 	nonCanonicalCase := []core.ContainerPort{
 		{ContainerPort: 80, Protocol: "TCP"},
 	}
-	if errs := validateContainerPorts(nonCanonicalCase, field.NewPath("field")); len(errs) != 0 {
+	if errs := validateContainerPorts(false, false, nonCanonicalCase, field.NewPath("field")); len(errs) != 0 {
 		t.Errorf("expected success: %v", errs)
 	}
 
@@ -5270,7 +5271,7 @@ func TestValidatePorts(t *testing.T) {
 		},
 	}
 	for k, v := range errorCases {
-		errs := validateContainerPorts(v.P, field.NewPath("field"))
+		errs := validateContainerPorts(false, false, v.P, field.NewPath("field"))
 		if len(errs) == 0 {
 			t.Errorf("expected failure for %s", k)
 		}
@@ -6622,7 +6623,7 @@ func TestValidateEphemeralContainers(t *testing.T) {
 			},
 		},
 	} {
-		if errs := validateEphemeralContainers(ephemeralContainers, containers, initContainers, vols, field.NewPath("ephemeralContainers"), PodValidationOptions{}); len(errs) != 0 {
+		if errs := validateEphemeralContainers(false, ephemeralContainers, containers, initContainers, vols, field.NewPath("ephemeralContainers"), PodValidationOptions{}); len(errs) != 0 {
 			t.Errorf("expected success for '%s' but got errors: %v", title, errs)
 		}
 	}
@@ -6822,7 +6823,7 @@ func TestValidateEphemeralContainers(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		errs := validateEphemeralContainers(tc.ephemeralContainers, containers, initContainers, vols, field.NewPath("ephemeralContainers"), PodValidationOptions{})
+		errs := validateEphemeralContainers(false, tc.ephemeralContainers, containers, initContainers, vols, field.NewPath("ephemeralContainers"), PodValidationOptions{})
 
 		if len(errs) == 0 {
 			t.Errorf("for test %q, expected error but received none", tc.title)
@@ -7109,7 +7110,7 @@ func TestValidateContainers(t *testing.T) {
 		},
 		{Name: "abc-1234", Image: "image", ImagePullPolicy: "IfNotPresent", TerminationMessagePolicy: "File", SecurityContext: fakeValidSecurityContext(true)},
 	}
-	if errs := validateContainers(successCase, false, volumeDevices, field.NewPath("field"), PodValidationOptions{}); len(errs) != 0 {
+	if errs := validateContainers(false, false, successCase, false, volumeDevices, field.NewPath("field"), PodValidationOptions{}); len(errs) != 0 {
 		t.Errorf("expected success: %v", errs)
 	}
 
@@ -7363,7 +7364,7 @@ func TestValidateContainers(t *testing.T) {
 		},
 	}
 	for k, v := range errorCases {
-		if errs := validateContainers(v, false, volumeDevices, field.NewPath("field"), PodValidationOptions{}); len(errs) == 0 {
+		if errs := validateContainers(false, false, v, false, volumeDevices, field.NewPath("field"), PodValidationOptions{}); len(errs) == 0 {
 			t.Errorf("expected failure for %s", k)
 		}
 	}
@@ -7397,7 +7398,7 @@ func TestValidateInitContainers(t *testing.T) {
 			TerminationMessagePolicy: "File",
 		},
 	}
-	if errs := validateContainers(successCase, true, volumeDevices, field.NewPath("field"), PodValidationOptions{}); len(errs) != 0 {
+	if errs := validateContainers(false, false, successCase, true, volumeDevices, field.NewPath("field"), PodValidationOptions{}); len(errs) != 0 {
 		t.Errorf("expected success: %v", errs)
 	}
 
@@ -7423,7 +7424,7 @@ func TestValidateInitContainers(t *testing.T) {
 		},
 	}
 	for k, v := range errorCases {
-		if errs := validateContainers(v, true, volumeDevices, field.NewPath("field"), PodValidationOptions{}); len(errs) == 0 {
+		if errs := validateContainers(false, false, v, true, volumeDevices, field.NewPath("field"), PodValidationOptions{}); len(errs) == 0 {
 			t.Errorf("expected failure for %s", k)
 		}
 	}
@@ -20453,5 +20454,273 @@ func TestValidateAppArmorProfileFormat(t *testing.T) {
 		} else {
 			assert.Error(t, err, fmt.Sprintf("Profile %s should not be valid", test.profile))
 		}
+	}
+}
+
+func TestValidatePodCreateForAutoport(t *testing.T) {
+	testCases := []struct {
+		name        string
+		expectError bool
+		pod         *core.Pod
+	}{
+		{
+			name:        "host network, container port 0, host port 0",
+			expectError: false,
+			pod: &core.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "123", Namespace: "ns", Annotations: map[string]string{utilpod.PodAutoPortAnnotation: "1"}},
+				Spec: core.PodSpec{
+					RestartPolicy:   core.RestartPolicyAlways,
+					DNSPolicy:       core.DNSClusterFirst,
+					SecurityContext: &core.PodSecurityContext{HostNetwork: true},
+					Containers: []core.Container{
+						{
+							Name:                     "ctr",
+							Image:                    "image",
+							ImagePullPolicy:          "IfNotPresent",
+							TerminationMessagePolicy: "File",
+							Ports: []core.ContainerPort{
+								{
+									Name:          "port",
+									ContainerPort: 0,
+									HostPort:      0,
+									Protocol:      core.ProtocolTCP,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:        "host network, container port 0, host port not 0",
+			expectError: true,
+			pod: &core.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "123", Namespace: "ns", Annotations: map[string]string{utilpod.PodAutoPortAnnotation: "1"}},
+				Spec: core.PodSpec{
+					RestartPolicy:   core.RestartPolicyAlways,
+					DNSPolicy:       core.DNSClusterFirst,
+					SecurityContext: &core.PodSecurityContext{HostNetwork: true},
+					Containers: []core.Container{
+						{
+							Name:                     "ctr",
+							Image:                    "image",
+							ImagePullPolicy:          "IfNotPresent",
+							TerminationMessagePolicy: "File",
+							Ports: []core.ContainerPort{
+								{
+									Name:          "port",
+									ContainerPort: 0,
+									HostPort:      8080,
+									Protocol:      core.ProtocolTCP,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:        "host network, container port not 0, host port 0",
+			expectError: true,
+			pod: &core.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "123", Namespace: "ns", Annotations: map[string]string{utilpod.PodAutoPortAnnotation: "1"}},
+				Spec: core.PodSpec{
+					RestartPolicy:   core.RestartPolicyAlways,
+					DNSPolicy:       core.DNSClusterFirst,
+					SecurityContext: &core.PodSecurityContext{HostNetwork: true},
+					Containers: []core.Container{
+						{
+							Name:                     "ctr",
+							Image:                    "image",
+							ImagePullPolicy:          "IfNotPresent",
+							TerminationMessagePolicy: "File",
+							Ports: []core.ContainerPort{
+								{
+									Name:          "port",
+									ContainerPort: 8080,
+									HostPort:      0,
+									Protocol:      core.ProtocolTCP,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:        "host network, container port not 0, host port not 0, container port = host port",
+			expectError: false,
+			pod: &core.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "123", Namespace: "ns", Annotations: map[string]string{utilpod.PodAutoPortAnnotation: "1"}},
+				Spec: core.PodSpec{
+					RestartPolicy:   core.RestartPolicyAlways,
+					DNSPolicy:       core.DNSClusterFirst,
+					SecurityContext: &core.PodSecurityContext{HostNetwork: true},
+					Containers: []core.Container{
+						{
+							Name:                     "ctr",
+							Image:                    "image",
+							ImagePullPolicy:          "IfNotPresent",
+							TerminationMessagePolicy: "File",
+							Ports: []core.ContainerPort{
+								{
+									Name:          "port",
+									ContainerPort: 8080,
+									HostPort:      8080,
+									Protocol:      core.ProtocolTCP,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:        "host network, container port not 0, host port not 0, container port != host port",
+			expectError: true,
+			pod: &core.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "123", Namespace: "ns", Annotations: map[string]string{utilpod.PodAutoPortAnnotation: "1"}},
+				Spec: core.PodSpec{
+					RestartPolicy:   core.RestartPolicyAlways,
+					DNSPolicy:       core.DNSClusterFirst,
+					SecurityContext: &core.PodSecurityContext{HostNetwork: true},
+					Containers: []core.Container{
+						{
+							Name:                     "ctr",
+							Image:                    "image",
+							ImagePullPolicy:          "IfNotPresent",
+							TerminationMessagePolicy: "File",
+							Ports: []core.ContainerPort{
+								{
+									Name:          "port",
+									ContainerPort: 8080,
+									HostPort:      8081,
+									Protocol:      core.ProtocolTCP,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:        "no host network, container port 0, host port 0",
+			expectError: true,
+			pod: &core.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "123", Namespace: "ns", Annotations: map[string]string{utilpod.PodAutoPortAnnotation: "1"}},
+				Spec: core.PodSpec{
+					RestartPolicy: core.RestartPolicyAlways,
+					DNSPolicy:     core.DNSClusterFirst,
+					Containers: []core.Container{
+						{
+							Name:                     "ctr",
+							Image:                    "image",
+							ImagePullPolicy:          "IfNotPresent",
+							TerminationMessagePolicy: "File",
+							Ports: []core.ContainerPort{
+								{
+									Name:          "port",
+									ContainerPort: 0,
+									HostPort:      0,
+									Protocol:      core.ProtocolTCP,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:        "no host network, container port 0, host port not 0",
+			expectError: true,
+			pod: &core.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "123", Namespace: "ns", Annotations: map[string]string{utilpod.PodAutoPortAnnotation: "1"}},
+				Spec: core.PodSpec{
+					RestartPolicy: core.RestartPolicyAlways,
+					DNSPolicy:     core.DNSClusterFirst,
+					Containers: []core.Container{
+						{
+							Name:                     "ctr",
+							Image:                    "image",
+							ImagePullPolicy:          "IfNotPresent",
+							TerminationMessagePolicy: "File",
+							Ports: []core.ContainerPort{
+								{
+									Name:          "port",
+									ContainerPort: 0,
+									HostPort:      8080,
+									Protocol:      core.ProtocolTCP,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:        "no host network, container port not 0, host port 0",
+			expectError: false,
+			pod: &core.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "123", Namespace: "ns", Annotations: map[string]string{utilpod.PodAutoPortAnnotation: "1"}},
+				Spec: core.PodSpec{
+					RestartPolicy: core.RestartPolicyAlways,
+					DNSPolicy:     core.DNSClusterFirst,
+					Containers: []core.Container{
+						{
+							Name:                     "ctr",
+							Image:                    "image",
+							ImagePullPolicy:          "IfNotPresent",
+							TerminationMessagePolicy: "File",
+							Ports: []core.ContainerPort{
+								{
+									Name:          "port",
+									ContainerPort: 8080,
+									HostPort:      0,
+									Protocol:      core.ProtocolTCP,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:        "no host network, container port not 0, host port not 0",
+			expectError: false,
+			pod: &core.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "123", Namespace: "ns", Annotations: map[string]string{utilpod.PodAutoPortAnnotation: "1"}},
+				Spec: core.PodSpec{
+					RestartPolicy: core.RestartPolicyAlways,
+					DNSPolicy:     core.DNSClusterFirst,
+					Containers: []core.Container{
+						{
+							Name:                     "ctr",
+							Image:                    "image",
+							ImagePullPolicy:          "IfNotPresent",
+							TerminationMessagePolicy: "File",
+							Ports: []core.ContainerPort{
+								{
+									Name:          "port",
+									ContainerPort: 8081,
+									HostPort:      8080,
+									Protocol:      core.ProtocolTCP,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			errs := ValidatePodCreate(testCase.pod, PodValidationOptions{})
+			if testCase.expectError && len(errs) == 0 {
+				t.Errorf("Unexpected success")
+			}
+			if !testCase.expectError && len(errs) != 0 {
+				t.Errorf("Unexpected error(s): %v", errs)
+			}
+		})
 	}
 }

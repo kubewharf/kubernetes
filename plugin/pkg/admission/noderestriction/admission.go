@@ -175,7 +175,7 @@ func (p *Plugin) admitPod(nodeName string, a admission.Attributes) error {
 	case admission.Create:
 		return p.admitPodCreate(nodeName, a)
 
-	case admission.Delete:
+	case admission.Delete, admission.Update:
 		// get the existing pod
 		existingPod, err := p.podsGetter.Pods(a.GetNamespace()).Get(a.GetName())
 		if errors.IsNotFound(err) {

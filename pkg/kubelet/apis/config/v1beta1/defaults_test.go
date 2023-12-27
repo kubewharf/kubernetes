@@ -24,6 +24,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilnet "k8s.io/apimachinery/pkg/util/net"
 	componentbaseconfigv1alpha1 "k8s.io/component-base/config/v1alpha1"
 	"k8s.io/kubelet/config/v1beta1"
 	"k8s.io/kubernetes/pkg/cluster/ports"
@@ -121,6 +122,7 @@ func TestSetDefaultsKubeletConfiguration(t *testing.T) {
 				SeccompDefault:          utilpointer.BoolPtr(false),
 				MemoryThrottlingFactor:  utilpointer.Float64Ptr(DefaultMemoryThrottlingFactor),
 				RegisterNode:            utilpointer.BoolPtr(true),
+				HostPortRange:           utilnet.PortRange{Base: 9200, Size: 301},
 			},
 		},
 		{
@@ -340,6 +342,7 @@ func TestSetDefaultsKubeletConfiguration(t *testing.T) {
 				SeccompDefault:          utilpointer.Bool(false),
 				MemoryThrottlingFactor:  utilpointer.Float64(0),
 				RegisterNode:            utilpointer.BoolPtr(false),
+				HostPortRange:           utilnet.PortRange{Base: 9200, Size: 301},
 			},
 		},
 		{
@@ -629,6 +632,7 @@ func TestSetDefaultsKubeletConfiguration(t *testing.T) {
 				SeccompDefault:          utilpointer.Bool(true),
 				MemoryThrottlingFactor:  utilpointer.Float64(1),
 				RegisterNode:            utilpointer.BoolPtr(true),
+				HostPortRange:           utilnet.PortRange{Base: 9200, Size: 301},
 			},
 		},
 		{
@@ -715,6 +719,7 @@ func TestSetDefaultsKubeletConfiguration(t *testing.T) {
 				SeccompDefault:          utilpointer.BoolPtr(false),
 				MemoryThrottlingFactor:  utilpointer.Float64Ptr(DefaultMemoryThrottlingFactor),
 				RegisterNode:            utilpointer.BoolPtr(true),
+				HostPortRange:           utilnet.PortRange{Base: 9200, Size: 301},
 			},
 		},
 	}

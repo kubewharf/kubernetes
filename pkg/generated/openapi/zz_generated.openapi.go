@@ -53452,11 +53452,18 @@ func schema_k8sio_kubelet_config_v1beta1_KubeletConfiguration(ref common.Referen
 							Format:      "",
 						},
 					},
+					"hostPortRange": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HostPortRange specifies the port range reserved for port assignment of autoport pod.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/apimachinery/pkg/util/net.PortRange"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.Taint", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration", "k8s.io/component-base/config/v1alpha1.LoggingConfiguration", "k8s.io/kubelet/config/v1beta1.KubeletAuthentication", "k8s.io/kubelet/config/v1beta1.KubeletAuthorization", "k8s.io/kubelet/config/v1beta1.MemoryReservation", "k8s.io/kubelet/config/v1beta1.MemorySwapConfiguration", "k8s.io/kubelet/config/v1beta1.ShutdownGracePeriodByPodPriority"},
+			"k8s.io/api/core/v1.Taint", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration", "k8s.io/apimachinery/pkg/util/net.PortRange", "k8s.io/component-base/config/v1alpha1.LoggingConfiguration", "k8s.io/kubelet/config/v1beta1.KubeletAuthentication", "k8s.io/kubelet/config/v1beta1.KubeletAuthorization", "k8s.io/kubelet/config/v1beta1.MemoryReservation", "k8s.io/kubelet/config/v1beta1.MemorySwapConfiguration", "k8s.io/kubelet/config/v1beta1.ShutdownGracePeriodByPodPriority"},
 	}
 }
 

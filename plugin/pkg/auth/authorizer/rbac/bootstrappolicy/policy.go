@@ -124,8 +124,9 @@ func NodeRules() []rbacv1.PolicyRule {
 		rbacv1helpers.NewRule(Read...).Groups(legacyGroup).Resources("pods").RuleOrDie(),
 
 		// Needed for the node to create/delete mirror pods.
+		// Needed for the node to update the pod spec when using the autoport feature.
 		// Use the NodeRestriction admission plugin to limit a node to creating/deleting mirror pods bound to itself.
-		rbacv1helpers.NewRule("create", "delete").Groups(legacyGroup).Resources("pods").RuleOrDie(),
+		rbacv1helpers.NewRule("create", "delete", "update").Groups(legacyGroup).Resources("pods").RuleOrDie(),
 		// Needed for the node to report status of pods it is running.
 		// Use the NodeRestriction admission plugin to limit a node to updating status of pods bound to itself.
 		rbacv1helpers.NewRule("update", "patch").Groups(legacyGroup).Resources("pods/status").RuleOrDie(),

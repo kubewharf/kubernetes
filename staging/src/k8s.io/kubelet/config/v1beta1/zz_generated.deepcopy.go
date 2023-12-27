@@ -446,6 +446,7 @@ func (in *KubeletConfiguration) DeepCopyInto(out *KubeletConfiguration) {
 		*out = new(bool)
 		**out = **in
 	}
+	out.HostPortRange = in.HostPortRange
 	return
 }
 
