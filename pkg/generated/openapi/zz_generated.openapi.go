@@ -52942,6 +52942,12 @@ func schema_k8sio_kubelet_config_v1beta1_KubeletConfiguration(ref common.Referen
 							Format:      "",
 						},
 					},
+					"qosResourceManagerReconcilePeriod": {
+						SchemaProps: spec.SchemaProps{
+							Description: "QoS Resource Manager reconciliation period. Requires the QoSResourceManager feature gate to be enabled. Dynamic Kubelet Config (beta): If dynamically updating this field, consider that shortening the period may carry a performance impact. Default: \"3s\"",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
 					"topologyManagerScope": {
 						SchemaProps: spec.SchemaProps{
 							Description: "topologyManagerScope represents the scope of topology hint generation that topology manager requests and hint providers generate. Valid values include:\n\n- `container`: topology policy is applied on a per-container basis. - `pod`: topology policy is applied on a per-pod basis.\n\n\"pod\" scope requires the TopologyManager feature gate to be enabled. Default: \"container\"",
