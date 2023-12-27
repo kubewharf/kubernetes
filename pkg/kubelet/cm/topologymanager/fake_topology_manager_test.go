@@ -49,7 +49,7 @@ func TestFakeGetAffinity(t *testing.T) {
 	}
 	for _, tc := range tcases {
 		fm := fakeManager{}
-		actual := fm.GetAffinity(tc.podUID, tc.containerName)
+		actual := fm.GetAffinity(tc.podUID, tc.containerName, defaultResourceKey)
 		if !reflect.DeepEqual(actual, tc.expected) {
 			t.Errorf("Expected Affinity in result to be %v, got %v", tc.expected, actual)
 		}

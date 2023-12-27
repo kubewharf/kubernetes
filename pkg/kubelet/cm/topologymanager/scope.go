@@ -55,7 +55,7 @@ type scope struct {
 	name  string
 	// Mapping of a Pods mapping of Containers and their TopologyHints
 	// Indexed by PodUID to ContainerName
-	podTopologyHints podTopologyHints
+	podTopologyHints map[string]podTopologyHints
 	// The list of components registered with the Manager
 	hintProviders []HintProvider
 	// Topology Manager Policy
@@ -68,24 +68,29 @@ func (s *scope) Name() string {
 	return s.name
 }
 
-func (s *scope) getTopologyHints(podUID string, containerName string) TopologyHint {
+// getTopologyHints param [resourceName] is optional
+func (s *scope) getTopologyHints(podUID string, containerName string, resourceName string) TopologyHint {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	return s.podTopologyHints[podUID][containerName]
+	hint, ok := s.podTopologyHints[podUID][containerName][resourceName]
+	if ok {
+		return hint
+	}
+	return s.podTopologyHints[podUID][containerName][defaultResourceKey]
 }
 
-func (s *scope) setTopologyHints(podUID string, containerName string, th TopologyHint) {
+func (s *scope) setTopologyHints(podUID string, containerName string, th map[string]TopologyHint) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	if s.podTopologyHints[podUID] == nil {
-		s.podTopologyHints[podUID] = make(map[string]TopologyHint)
+		s.podTopologyHints[podUID] = make(map[string]map[string]TopologyHint)
 	}
 	s.podTopologyHints[podUID][containerName] = th
 }
 
-func (s *scope) GetAffinity(podUID string, containerName string) TopologyHint {
-	return s.getTopologyHints(podUID, containerName)
+func (s *scope) GetAffinity(podUID string, containerName string, resourceName string) TopologyHint {
+	return s.getTopologyHints(podUID, containerName, resourceName)
 }
 
 func (s *scope) AddHintProvider(h HintProvider) {

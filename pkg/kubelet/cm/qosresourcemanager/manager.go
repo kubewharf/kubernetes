@@ -495,7 +495,7 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 		}
 
 		if m.resourceHasTopologyAlignment(resource) {
-			hint := m.topologyAffinityStore.GetAffinity(podUID, contName)
+			hint := m.topologyAffinityStore.GetAffinity(podUID, contName, resource)
 
 			if hint.NUMANodeAffinity == nil {
 				klog.Warningf("[qosresourcemanager] pod: %s/%s; container: %s allocate resouce: %s without numa nodes affinity",

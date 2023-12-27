@@ -27,7 +27,7 @@ type Policy interface {
 	Name() string
 	// Returns a merged TopologyHint based on input from hint providers
 	// and a Pod Admit Handler Response based on hints and policy type
-	Merge(providersHints []map[string][]TopologyHint) (TopologyHint, bool)
+	Merge(providersHints []map[string][]TopologyHint) (map[string]TopologyHint, bool)
 }
 
 // Merge a TopologyHints permutation to a single hint by performing a bitwise-AND
@@ -61,21 +61,28 @@ func mergePermutation(numaNodes []int, permutation []TopologyHint) TopologyHint 
 	return TopologyHint{mergedAffinity, preferred}
 }
 
-func filterProvidersHints(providersHints []map[string][]TopologyHint) [][]TopologyHint {
+func filterProvidersHints(providersHints []map[string][]TopologyHint) ([][]TopologyHint, []string) {
 	// Loop through all hint providers and save an accumulated list of the
 	// hints returned by each hint provider. If no hints are provided, assume
 	// that provider has no preference for topology-aware allocation.
-	var allProviderHints [][]TopologyHint
+	var (
+		allProviderHints [][]TopologyHint
+		resourceNames    []string
+	)
 	for _, hints := range providersHints {
 		// If hints is nil, insert a single, preferred any-numa hint into allProviderHints.
 		if len(hints) == 0 {
 			klog.InfoS("Hint Provider has no preference for NUMA affinity with any resource")
 			allProviderHints = append(allProviderHints, []TopologyHint{{nil, true}})
+			// Here, we add a defaultResourceKey to resourceNames because we don't know
+			// which resource this hint is for.
+			resourceNames = append(resourceNames, defaultResourceKey)
 			continue
 		}
 
 		// Otherwise, accumulate the hints for each resource type into allProviderHints.
 		for resource := range hints {
+			resourceNames = append(resourceNames, resource)
 			if hints[resource] == nil {
 				klog.InfoS("Hint Provider has no preference for NUMA affinity with resource", "resource", resource)
 				allProviderHints = append(allProviderHints, []TopologyHint{{nil, true}})
@@ -91,7 +98,7 @@ func filterProvidersHints(providersHints []map[string][]TopologyHint) [][]Topolo
 			allProviderHints = append(allProviderHints, hints[resource])
 		}
 	}
-	return allProviderHints
+	return allProviderHints, resourceNames
 }
 
 func narrowestHint(hints []TopologyHint) *TopologyHint {
@@ -322,4 +329,19 @@ func iterateAllProviderTopologyHints(allProviderHints [][]TopologyHint, callback
 		}
 	}
 	iterate(0, []TopologyHint{})
+}
+
+// generateResourceHints generates the map from resourceName to given hint.
+// all providers get a same bestHint under native policy(None,best_effort,restricted,single_numa_node),
+// we just map resources to the bestHint
+func generateResourceHints(resourceNames []string, hint TopologyHint) map[string]TopologyHint {
+	result := make(map[string]TopologyHint)
+	for _, resource := range resourceNames {
+		result[resource] = hint
+	}
+	// If non resourceNames are provided, we add defaultResourceKey here.
+	if len(resourceNames) == 0 {
+		result[defaultResourceKey] = hint
+	}
+	return result
 }
