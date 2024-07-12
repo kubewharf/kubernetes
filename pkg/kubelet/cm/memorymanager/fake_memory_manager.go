@@ -46,6 +46,11 @@ func (m *fakeManager) Allocate(pod *v1.Pod, container *v1.Container) error {
 	return nil
 }
 
+func (m *fakeManager) AllocateForPod(pod *v1.Pod) error {
+	klog.Infof("AllocateForPod pod: %s", pod.Name)
+	return nil
+}
+
 func (m *fakeManager) AddContainer(pod *v1.Pod, container *v1.Container, containerID string) {
 	klog.InfoS("Add container", "pod", klog.KObj(pod), "containerName", container.Name, "containerID", containerID)
 }

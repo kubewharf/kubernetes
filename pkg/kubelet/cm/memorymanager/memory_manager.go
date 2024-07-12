@@ -64,6 +64,9 @@ type Manager interface {
 	// This must be called at some point prior to the AddContainer() call for a container, e.g. at pod admission time.
 	Allocate(pod *v1.Pod, container *v1.Container) error
 
+	// Called to trigger the allocation of memory to pod.
+	AllocateForPod(pod *v1.Pod) error
+
 	// RemoveContainer is called after Kubelet decides to kill or delete a
 	// container. After this call, any memory allocated to the container is freed.
 	RemoveContainer(containerID string) error
@@ -250,6 +253,12 @@ func (m *manager) Allocate(pod *v1.Pod, container *v1.Container) error {
 	}
 	return nil
 }
+
+// AllocateForPod
+func (m *manager) AllocateForPod(pod *v1.Pod) error {
+	return nil
+}
+
 
 // RemoveContainer removes the container from the state
 func (m *manager) RemoveContainer(containerID string) error {

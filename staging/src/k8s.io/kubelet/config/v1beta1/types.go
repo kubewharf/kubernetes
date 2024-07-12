@@ -372,6 +372,13 @@ type KubeletConfiguration struct {
 	// Default: "none"
 	// +optional
 	TopologyManagerPolicy string `json:"topologyManagerPolicy,omitempty"`
+	// QoS Resource Manager reconciliation period.
+	// Requires the QoSResourceManager feature gate to be enabled.
+	// Dynamic Kubelet Config (beta): If dynamically updating this field, consider that
+	// shortening the period may carry a performance impact.
+	// Default: "3s"
+	// +optional
+	QoSResourceManagerReconcilePeriod metav1.Duration `json:"qosResourceManagerReconcilePeriod,omitempty"`
 	// topologyManagerScope represents the scope of topology hint generation
 	// that topology manager requests and hint providers generate. Valid values include:
 	//
@@ -382,6 +389,11 @@ type KubeletConfiguration struct {
 	// Default: "container"
 	// +optional
 	TopologyManagerScope string `json:"topologyManagerScope,omitempty"`
+	// Map of resource name "A" to resource name "B" during QoS Resource Manager allocation period.
+	// It's useful for the same kind resource with different types. (eg. maps best-effort-cpu to cpu)
+	// Default: nil
+	// +optional
+	QoSResourceManagerResourceNamesMap map[string]string `json:"qosResourceManagerResourceNamesMap,omitempty"`
 	// qosReserved is a set of resource name to percentage pairs that specify
 	// the minimum percentage of a resource reserved for exclusive use by the
 	// guaranteed QoS tier.

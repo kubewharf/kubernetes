@@ -404,6 +404,11 @@ func (m *ManagerImpl) Allocate(pod *v1.Pod, container *v1.Container) error {
 	return nil
 }
 
+func (m *ManagerImpl) AllocateForPod(pod *v1.Pod) error {
+	// todo(gaohuatao): implement AllocateForPod for device manager
+	return nil
+}
+
 // UpdatePluginResources updates node resources based on devices already allocated to pods.
 func (m *ManagerImpl) UpdatePluginResources(node *schedulerframework.NodeInfo, attrs *lifecycle.PodAdmitAttributes) error {
 	pod := attrs.Pod
