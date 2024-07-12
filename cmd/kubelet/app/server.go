@@ -742,7 +742,8 @@ func run(ctx context.Context, s *options.KubeletServer, kubeDeps *kubelet.Depend
 			},
 			s.FailSwapOn,
 			devicePluginEnabled,
-			kubeDeps.Recorder)
+			kubeDeps.Recorder,
+			s.NumericTopologyAlignResources)
 
 		if err != nil {
 			return err

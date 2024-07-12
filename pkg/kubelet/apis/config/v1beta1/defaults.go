@@ -246,6 +246,9 @@ func SetDefaults_KubeletConfiguration(obj *kubeletconfigv1beta1.KubeletConfigura
 	if obj.EnforceNodeAllocatable == nil {
 		obj.EnforceNodeAllocatable = DefaultNodeAllocatableEnforcement
 	}
+	if obj.NumericTopologyAlignResources == nil {
+		obj.NumericTopologyAlignResources = []string{"cpu", "memory"}
+	}
 	if obj.VolumePluginDir == "" {
 		obj.VolumePluginDir = DefaultVolumePluginDir
 	}

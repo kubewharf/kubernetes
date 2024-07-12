@@ -378,6 +378,11 @@ func (in *KubeletConfiguration) DeepCopyInto(out *KubeletConfiguration) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.NumericTopologyAlignResources != nil {
+		in, out := &in.NumericTopologyAlignResources, &out.NumericTopologyAlignResources
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.SystemReserved != nil {
 		in, out := &in.SystemReserved, &out.SystemReserved
 		*out = make(map[string]string, len(*in))

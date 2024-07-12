@@ -515,4 +515,6 @@ func AddKubeletConfigFlags(mainfs *pflag.FlagSet, c *kubeletconfig.KubeletConfig
 	fs.BoolVar(&c.RegisterNode, "register-node", c.RegisterNode, "Register the node with the apiserver. If --kubeconfig is not provided, this flag is irrelevant, as the Kubelet won't have an apiserver to register with.")
 
 	fs.Var(&utilflag.RegisterWithTaintsVar{Value: &c.RegisterWithTaints}, "register-with-taints", "Register the node with the given list of taints (comma separated \"<key>=<value>:<effect>\"). No-op if register-node is false.")
+
+	fs.StringSliceVar(&c.NumericTopologyAlignResources, "numeric-topology-align-resources", c.NumericTopologyAlignResources, "A list of resources need to be aligned in numeric topology policy. [default='cpu,memory']")
 }
