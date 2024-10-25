@@ -36,7 +36,7 @@ func NewContainerScope(policy Policy) Scope {
 	return &containerScope{
 		scope{
 			name:             containerTopologyScope,
-			podTopologyHints: podTopologyHints{},
+			podTopologyHints: map[string]podTopologyHints{},
 			policy:           policy,
 			podMap:           containermap.NewContainerMap(),
 		},
@@ -79,7 +79,7 @@ func (s *containerScope) accumulateProvidersHints(pod *v1.Pod, container *v1.Con
 	return providersHints
 }
 
-func (s *containerScope) calculateAffinity(pod *v1.Pod, container *v1.Container) (TopologyHint, bool) {
+func (s *containerScope) calculateAffinity(pod *v1.Pod, container *v1.Container) (map[string]TopologyHint, bool) {
 	providersHints := s.accumulateProvidersHints(pod, container)
 	bestHint, admit := s.policy.Merge(providersHints)
 	klog.InfoS("ContainerTopologyHint", "bestHint", bestHint)

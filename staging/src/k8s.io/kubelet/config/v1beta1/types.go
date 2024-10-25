@@ -68,6 +68,9 @@ const (
 	// SingleNumaNodeTopologyManagerPolicy is a mode in which kubelet only allows
 	// pods with a single NUMA alignment of CPU and device resources.
 	SingleNumaNodeTopologyManagerPolicy = "single-numa-node"
+	// NumericTopologyManagerPolicy is a mode in which kubelet align resource
+	// with widest NUMAs
+	NumericTopologyManagerPolicy = "numeric"
 	// ContainerTopologyManagerScope represents that
 	// topology policy is applied on a per-container basis.
 	ContainerTopologyManagerScope = "container"
@@ -602,6 +605,11 @@ type KubeletConfiguration struct {
 	// Default: "Watch"
 	// +optional
 	ConfigMapAndSecretChangeDetectionStrategy ResourceChangeDetectionStrategy `json:"configMapAndSecretChangeDetectionStrategy,omitempty"`
+	// NumericTopologyAlignResources is a list of resources which need to be aligned numa affinity
+	// in numeric topology policy.
+	// Default: [cpu, memory]
+	// +optional
+	NumericTopologyAlignResources []string `json:"numericTopologyAlignResources,omitempty"`
 
 	/* the following fields are meant for Node Allocatable */
 

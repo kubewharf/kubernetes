@@ -805,7 +805,7 @@ func (m *ManagerImpl) devicesToAllocate(podUID, contName, resource string, requi
 
 func (m *ManagerImpl) filterByAffinity(podUID, contName, resource string, available sets.String) (sets.String, sets.String, sets.String) {
 	// If alignment information is not available, just pass the available list back.
-	hint := m.topologyAffinityStore.GetAffinity(podUID, contName)
+	hint := m.topologyAffinityStore.GetAffinity(podUID, contName, resource)
 	if !m.deviceHasTopologyAlignment(resource) || hint.NUMANodeAffinity == nil {
 		return sets.NewString(), sets.NewString(), available
 	}

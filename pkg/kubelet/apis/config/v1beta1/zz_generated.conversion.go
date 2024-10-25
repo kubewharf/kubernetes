@@ -412,8 +412,8 @@ func autoConvert_v1beta1_KubeletConfiguration_To_config_KubeletConfiguration(in 
 	out.MemoryManagerPolicy = in.MemoryManagerPolicy
 	out.TopologyManagerPolicy = in.TopologyManagerPolicy
 	out.QoSResourceManagerReconcilePeriod = in.QoSResourceManagerReconcilePeriod
-	out.QoSResourceManagerResourceNamesMap = *(*map[string]string)(unsafe.Pointer(&in.QoSResourceManagerResourceNamesMap))
 	out.TopologyManagerScope = in.TopologyManagerScope
+	out.QoSResourceManagerResourceNamesMap = *(*map[string]string)(unsafe.Pointer(&in.QoSResourceManagerResourceNamesMap))
 	out.QOSReserved = *(*map[string]string)(unsafe.Pointer(&in.QOSReserved))
 	out.RuntimeRequestTimeout = in.RuntimeRequestTimeout
 	out.HairpinMode = in.HairpinMode
@@ -476,6 +476,7 @@ func autoConvert_v1beta1_KubeletConfiguration_To_config_KubeletConfiguration(in 
 		return err
 	}
 	out.ConfigMapAndSecretChangeDetectionStrategy = config.ResourceChangeDetectionStrategy(in.ConfigMapAndSecretChangeDetectionStrategy)
+	out.NumericTopologyAlignResources = *(*[]string)(unsafe.Pointer(&in.NumericTopologyAlignResources))
 	out.SystemReserved = *(*map[string]string)(unsafe.Pointer(&in.SystemReserved))
 	out.KubeReserved = *(*map[string]string)(unsafe.Pointer(&in.KubeReserved))
 	out.ReservedSystemCPUs = in.ReservedSystemCPUs
@@ -659,6 +660,7 @@ func autoConvert_config_KubeletConfiguration_To_v1beta1_KubeletConfiguration(in 
 	out.ConfigMapAndSecretChangeDetectionStrategy = v1beta1.ResourceChangeDetectionStrategy(in.ConfigMapAndSecretChangeDetectionStrategy)
 	out.AllowedUnsafeSysctls = *(*[]string)(unsafe.Pointer(&in.AllowedUnsafeSysctls))
 	out.KernelMemcgNotification = in.KernelMemcgNotification
+	out.NumericTopologyAlignResources = *(*[]string)(unsafe.Pointer(&in.NumericTopologyAlignResources))
 	out.SystemReserved = *(*map[string]string)(unsafe.Pointer(&in.SystemReserved))
 	out.KubeReserved = *(*map[string]string)(unsafe.Pointer(&in.KubeReserved))
 	out.SystemReservedCgroup = in.SystemReservedCgroup

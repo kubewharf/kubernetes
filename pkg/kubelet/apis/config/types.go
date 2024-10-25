@@ -68,6 +68,9 @@ const (
 	// SingleNumaNodeTopologyManagerPolicy is a mode in which kubelet only allows
 	// pods with a single NUMA alignment of CPU and device resources.
 	SingleNumaNodeTopologyManagerPolicy = "single-numa-node"
+	// NumericTopologyManagerPolicy is a mode in which kubelet align resource
+	// with widest NUMAs
+	NumericTopologyManagerPolicy = "numeric"
 	// ContainerTopologyManagerScope represents that
 	// topology policy is applied on a per-container basis.
 	ContainerTopologyManagerScope = "container"
@@ -356,6 +359,10 @@ type KubeletConfiguration struct {
 	// kernelMemcgNotification if enabled, the kubelet will integrate with the kernel memcg
 	// notification to determine if memory eviction thresholds are crossed rather than polling.
 	KernelMemcgNotification bool
+	// NumericTopologyAlignResources is a list of resources which need to be aligned numa affinity
+	// in numeric topology policy.
+	// +optional
+	NumericTopologyAlignResources []string
 
 	/* the following fields are meant for Node Allocatable */
 
