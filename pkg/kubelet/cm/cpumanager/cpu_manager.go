@@ -60,6 +60,9 @@ type Manager interface {
 	// e.g. at pod admission time.
 	Allocate(pod *v1.Pod, container *v1.Container) error
 
+	// Called to trigger the allocation of CPUs to pod.
+	AllocateForPod(pod *v1.Pod) error
+
 	// AddContainer adds the mapping between container ID to pod UID and the container name
 	// The mapping used to remove the CPU allocation during the container removal
 	AddContainer(p *v1.Pod, c *v1.Container, containerID string)
@@ -260,6 +263,10 @@ func (m *manager) Allocate(p *v1.Pod, c *v1.Container) error {
 		return err
 	}
 
+	return nil
+}
+
+func (m *manager) AllocateForPod(pod *v1.Pod) error {
 	return nil
 }
 

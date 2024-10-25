@@ -17,6 +17,7 @@ limitations under the License.
 package topologymanager
 
 import (
+	"fmt"
 	"sync"
 
 	"k8s.io/api/core/v1"
@@ -138,6 +139,13 @@ func (s *scope) admitPolicyNone(pod *v1.Pod) lifecycle.PodAdmitResult {
 	return admission.GetPodAdmitResult(nil)
 }
 
+func (s *scope) admitPolicyNoneForPod(pod *v1.Pod) lifecycle.PodAdmitResult {
+	if err := s.allocateAlignedResourcesForPod(pod); err != nil {
+		return unexpectedAdmissionError(err)
+	}
+	return admitPod()
+}
+
 // It would be better to implement this function in topologymanager instead of scope
 // but topologymanager do not track providers anymore
 func (s *scope) allocateAlignedResources(pod *v1.Pod, container *v1.Container) error {
@@ -148,4 +156,34 @@ func (s *scope) allocateAlignedResources(pod *v1.Pod, container *v1.Container) e
 		}
 	}
 	return nil
+}
+
+func (s *scope) allocateAlignedResourcesForPod(pod *v1.Pod) error {
+	for _, provider := range s.hintProviders {
+		err := provider.AllocateForPod(pod)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func topologyAffinityError() lifecycle.PodAdmitResult {
+	return lifecycle.PodAdmitResult{
+		Message: "Resources cannot be allocated with Topology locality",
+		Reason:  "TopologyAffinityError",
+		Admit:   false,
+	}
+}
+
+func unexpectedAdmissionError(err error) lifecycle.PodAdmitResult {
+	return lifecycle.PodAdmitResult{
+		Message: fmt.Sprintf("Allocate failed due to %v, which is unexpected", err),
+		Reason:  "UnexpectedAdmissionError",
+		Admit:   false,
+	}
+}
+
+func admitPod() lifecycle.PodAdmitResult {
+	return lifecycle.PodAdmitResult{Admit: true}
 }

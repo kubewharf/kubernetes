@@ -46,7 +46,7 @@ func NewPodScope(policy Policy) Scope {
 func (s *podScope) Admit(pod *v1.Pod) lifecycle.PodAdmitResult {
 	// Exception - Policy : none
 	if s.policy.Name() == PolicyNone {
-		return s.admitPolicyNone(pod)
+		return s.admitPolicyNoneForPod(pod)
 	}
 
 	bestHint, admit := s.calculateAffinity(pod)
@@ -55,14 +55,10 @@ func (s *podScope) Admit(pod *v1.Pod) lifecycle.PodAdmitResult {
 		return admission.GetPodAdmitResult(&TopologyAffinityError{})
 	}
 
-	for _, container := range append(pod.Spec.InitContainers, pod.Spec.Containers...) {
-		klog.InfoS("Topology Affinity", "bestHint", bestHint, "pod", klog.KObj(pod), "containerName", container.Name)
-		s.setTopologyHints(string(pod.UID), container.Name, bestHint)
-
-		err := s.allocateAlignedResources(pod, &container)
-		if err != nil {
-			return admission.GetPodAdmitResult(err)
-		}
+	klog.Infof("[topologymanager] Topology Affinity for (pod: %v): %v", klog.KObj(pod), bestHint)
+	s.setTopologyHints(string(pod.UID), string(pod.UID), bestHint)
+	if err := s.allocateAlignedResourcesForPod(pod); err != nil {
+		return unexpectedAdmissionError(err)
 	}
 	return admission.GetPodAdmitResult(nil)
 }

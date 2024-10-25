@@ -1,0 +1,314 @@
+// To regenerate api.pb.go run hack/update-generated-resource-plugin.sh
+syntax = 'proto3';
+
+package resourceplugin.v1alpha1;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+option (gogoproto.goproto_stringer_all) = false;
+option (gogoproto.stringer_all) =  true;
+option (gogoproto.goproto_getters_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.goproto_unrecognized_all) = false;
+
+option go_package = "v1alpha1";
+
+
+// Registration is the service advertised by the Kubelet
+// Only when Kubelet answers with a success code to a Register Request
+// may Resource Plugins start their service
+// Registration may fail when resource plugin version is not supported by
+// Kubelet or the registered resourceName is already taken by another
+// active resource plugin. Resource plugin is expected to terminate upon registration failure
+service Registration {
+	rpc Register(RegisterRequest) returns (Empty) {}
+}
+
+message ResourcePluginOptions {
+	// Indicates if PreStartContainer call is required before each container start
+	bool pre_start_required = 1;
+	// Indicates if the resource this plugin managed needs topology alignment
+	bool with_topology_alignment = 2;
+	// Indicates if the resource needs reconciling allocation result
+	bool need_reconcile = 3;
+}
+
+message RegisterRequest {
+	// Version of the API the Resource Plugin was built against
+	string version = 1;
+	// Name of the unix socket the resource plugin is listening on
+	// PATH = path.Join(ResourcePluginPath, endpoint)
+	string endpoint = 2;
+	// Schedulable resource name. As of now it's expected to be a DNS Label
+	string resource_name = 3;
+	// Options to be communicated with Resource Manager
+	ResourcePluginOptions options = 4;
+}
+
+enum ContainerType {
+    INIT = 0;
+    MAIN = 1;
+    SIDECAR = 2;
+    EPHEMERAL = 3;
+}
+
+enum TopologyLevel {
+    NUMA = 0;
+    SOCKET = 1;
+}
+
+message ResourceRequest {
+	string pod_uid = 1;
+	string pod_namespace = 2;
+	string pod_name = 3;
+	string container_name = 4;
+	ContainerType container_type = 5;
+	uint64 container_index = 6;
+	string pod_role = 7;
+    string pod_type = 8;
+    string resource_name = 9;
+    TopologyHint hint = 10;
+    map<string,double> resource_requests = 11;
+    map<string, string> labels = 12;
+    map<string, string> annotations = 13;
+    string native_qos_class = 14;
+}
+
+message PodResourceRequest {
+  string pod_uid = 1;
+  string pod_namespace = 2;
+  string pod_name = 3;
+  string pod_role = 4;
+  string pod_type = 5;
+  string resource_name = 6;
+  TopologyHint hint = 7;
+  map<string,double> resource_requests = 8;
+  map<string, string> labels = 9;
+  map<string, string> annotations = 10;
+}
+
+message PodResourceHintsResponse {
+  string pod_uid = 1;
+  string pod_namespace = 2;
+  string pod_name = 3;
+  string pod_role = 4;
+  string pod_type = 5;
+  string resource_name = 6;
+  map<string,ListOfTopologyHints> resource_hints = 7;
+  map<string, string> labels = 8;
+  map<string, string> annotations = 9;
+}
+
+message ResourceHintsResponse {
+	string pod_uid = 1;
+	string pod_namespace = 2;
+	string pod_name = 3;
+	string container_name = 4;
+	ContainerType container_type = 5;
+	uint64 container_index = 6;
+	string pod_role = 7;
+    string pod_type = 8;
+    string resource_name = 9;
+    map<string,ListOfTopologyHints> resource_hints = 10;
+    map<string, string> labels = 11;
+    map<string, string> annotations = 12;
+    string native_qos_class = 13;
+}
+
+message ResourceAllocationResponse {
+	string pod_uid = 1;
+	string pod_namespace = 2;
+	string pod_name = 3;
+	string container_name = 4;
+	ContainerType container_type = 5;
+	uint64 container_index = 6;
+	string pod_role = 7;
+    string pod_type = 8;
+    string resource_name = 9;
+    ResourceAllocation allocation_result = 10;
+    map<string, string> labels = 11;
+    map<string, string> annotations = 12;
+    string native_qos_class = 13;
+}
+
+message PodResourceAllocationResponse {
+  string pod_uid = 1;
+  string pod_namespace = 2;
+  string pod_name = 3;
+  string pod_role = 4;
+  string pod_type = 5;
+  string resource_name = 6;
+  ResourceAllocation allocation_result = 7;
+  map<string, string> labels = 8;
+  map<string, string> annotations = 9;
+}
+
+message ListOfTopologyHints {
+    repeated TopologyHint hints = 1;
+}
+
+message TopologyHint {
+    repeated uint64 nodes = 1;
+    bool preferred = 2;
+}
+
+message Empty {
+}
+
+message RemovePodRequest {
+	string pod_uid = 1;
+}
+
+message RemovePodResponse {
+}
+
+message GetResourcesAllocationRequest {
+}
+
+message GetResourcesAllocationResponse {
+    map<string,ContainerResources> pod_resources = 1;
+}
+
+message ContainerResources {
+    map<string,ResourceAllocation> container_resources = 1; 
+}
+
+message ResourceAllocation {
+    map<string,ResourceAllocationInfo> resource_allocation = 1;
+}
+
+message ResourceAllocationInfo {
+  string oci_property_name = 1;
+  bool is_node_resource = 2;
+  bool is_scalar_resource = 3;
+  // only for exclusive resources
+  double allocated_quantity = 4;
+  string allocation_result = 5;
+  map<string,string> envs = 6;
+  map<string,string> annotations = 7;
+  // topology hints corresponds to allocation information.
+  // we need it when kubelet restarts and resurces had been allocated.
+  // - why don't we use GetTopologyAwareResources of qrm to generate hints?
+  // - for those resources with accompanying resources,
+  //   we can't generate hints of its accompanying resource by its allocation_result.
+  ListOfTopologyHints resource_hints = 8;
+  // keyed by numa node id, value is assignment for the pod in corresponding NUMA node
+  map<uint64, uint64> topology_assignments = 9;
+}
+
+message GetTopologyAwareResourcesRequest {
+	string pod_uid = 1;
+	string container_name = 2;
+}
+
+message GetTopologyAwareResourcesResponse {
+    string pod_uid = 1;
+    string pod_name = 2;
+    string pod_namespace = 3;
+    ContainerTopologyAwareResources container_topology_aware_resources = 4;
+}
+
+message ContainerTopologyAwareResources {
+    string container_name = 1;
+    map<string, TopologyAwareResource> allocated_resources = 2;
+}
+
+message TopologyAwareResource {
+    bool is_node_resource = 1;
+    bool is_scalar_resource = 2;
+    double aggregated_quantity = 3; 
+    double original_aggregated_quantity = 4; 
+    repeated TopologyAwareQuantity topology_aware_quantity_list = 5;
+    repeated TopologyAwareQuantity original_topology_aware_quantity_list = 6;
+}
+
+message TopologyAwareQuantity {
+    double resource_value = 1;
+    // node indicates the id of the machine topology level the resource affinitive to
+    uint64 node = 2;
+    // name represents the name of the object providing the resource
+    // for example set name to eth0 for resource bandwidth
+    string name = 3;
+    // type represents resource kind
+	// for example, NIC, Disk and so on
+    string type = 4;
+    // topology_level indicates the resource affinitive to which level of machine topology
+    // for example, NUMA, SOCKET
+    TopologyLevel topology_level = 5;
+    map<string, string> annotations = 6;
+}
+
+message GetTopologyAwareAllocatableResourcesRequest {
+}
+
+
+message GetTopologyAwareAllocatableResourcesResponse {
+    map<string, AllocatableTopologyAwareResource> allocatable_resources = 1;
+}
+
+message AllocatableTopologyAwareResource {
+    bool is_node_resource = 1;
+    bool is_scalar_resource = 2;
+    double aggregated_allocatable_quantity = 3;
+    repeated TopologyAwareQuantity topology_aware_allocatable_quantity_list = 4;
+    double aggregated_capacity_quantity = 5;
+    repeated TopologyAwareQuantity topology_aware_capacity_quantity_list = 6;
+}
+
+// - PreStartContainer is expected to be called before each container start if indicated by plugin during registration phase.
+// - PreStartContainer allows kubelet to pass reinitialized resources to containers.
+// - PreStartContainer allows Resource Plugin to run resource specific operations on
+//   the resources requested
+message PreStartContainerRequest {
+	string pod_uid = 1;
+	string pod_namespace = 2;
+	string pod_name = 3;
+	string container_name = 4;
+}
+
+// PreStartContainerResponse will be send by plugin in response to PreStartContainerRequest
+message PreStartContainerResponse {
+}
+
+// ResourcePlugin is the service advertised by Resource Plugins
+service ResourcePlugin {
+	// GetTopologyHints returns hints of corresponding resources
+    rpc GetTopologyHints(ResourceRequest) returns (ResourceHintsResponse) {}
+
+  // GetPodTopologyHints returns hints of corresponding resources for pod
+    rpc GetPodTopologyHints(PodResourceRequest) returns (PodResourceHintsResponse) {}
+
+	// Notify the resource plugin that the pod has beed deleted,
+    // and the plugin should do some clear-up work.
+    rpc RemovePod(RemovePodRequest) returns (RemovePodResponse) {}
+
+    // GetResourcesAllocation returns allocation results of corresponding resources
+    rpc GetResourcesAllocation(GetResourcesAllocationRequest) returns (GetResourcesAllocationResponse) {}
+
+    // GetTopologyAwareResources returns allocation results of corresponding resources as topology aware format
+    rpc GetTopologyAwareResources(GetTopologyAwareResourcesRequest) returns (GetTopologyAwareResourcesResponse) {}
+
+    // GetTopologyAwareResources returns corresponding allocatable resources as topology aware format
+    rpc GetTopologyAwareAllocatableResources(GetTopologyAwareAllocatableResourcesRequest) returns (GetTopologyAwareAllocatableResourcesResponse) {}
+
+	// GetResourcePluginOptions returns options to be communicated with Resource
+	// Manager
+	rpc GetResourcePluginOptions(Empty) returns (ResourcePluginOptions) {}
+
+	// Allocate is called during pod admit so that the resource
+	// plugin can allocate corresponding resource for the container 
+    // according to resource request
+    rpc Allocate(ResourceRequest) returns (ResourceAllocationResponse) {}
+
+  // AllocateForPod is called during pod admit so that the resource
+  // plugin can allocate corresponding resource for the pod
+  // according to resource request
+  rpc AllocateForPod(PodResourceRequest) returns (PodResourceAllocationResponse) {}
+
+	// PreStartContainer is called, if indicated by resource plugin during registeration phase,
+	// before each container start. Resource plugin can run resource specific operations
+	// such as resetting the resource before making resources available to the container
+	rpc PreStartContainer(PreStartContainerRequest) returns (PreStartContainerResponse) {}
+}

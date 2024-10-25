@@ -21,4 +21,6 @@ const (
 	CSIPlugin = "CSIPlugin"
 	// DevicePlugin identifier for registered device plugins
 	DevicePlugin = "DevicePlugin"
+	// ResourcePlugin identifier for registered resource plugins
+	ResourcePlugin = "ResourcePlugin"
 )

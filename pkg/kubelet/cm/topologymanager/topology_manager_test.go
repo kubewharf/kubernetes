@@ -142,6 +142,10 @@ func (m *mockHintProvider) Allocate(pod *v1.Pod, container *v1.Container) error 
 	return nil
 }
 
+func (m *mockHintProvider) AllocateForPod(pod *v1.Pod) error {
+	return nil
+}
+
 type mockPolicy struct {
 	nonePolicy
 	ph []map[string][]TopologyHint

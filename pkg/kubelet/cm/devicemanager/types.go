@@ -40,6 +40,9 @@ type Manager interface {
 	// (environment variables, mount points and device files).
 	Allocate(pod *v1.Pod, container *v1.Container) error
 
+	// AllocateForPod configures and assigns devices to a pod.
+	AllocateForPod(pod *v1.Pod) error
+
 	// UpdatePluginResources updates node resources based on devices already
 	// allocated to pods. The node object is provided for the device manager to
 	// update the node capacity to reflect the currently available devices.
